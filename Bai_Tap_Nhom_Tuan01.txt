@@ -16,6 +16,6 @@ Chức năng này cho phép sinh viên đăng bán, trao đổi hoặc tìm ki�
 4.3 Liên lạc và nhắn tin
 Sinh viên, giảng viên và cựu sinh viên có thể nhắn tin, bình luận, chia sẻ bài viết và like để tương tác lẫn nhau.
 4.4 Chế độ đọc và cá nhân hóa
-Ứng dụng hỗ trợ chế độ đọc ngày/đêm, cho phép lưu tin để đọc sau, và chặn chủ đề không quan tâm.
+Ứng dụng hỗ trợ chế độ đọc ngày/đêm, cho phép lưu tin để đọc sau.
 5. Hướng phát triển
 Trong tương lai, UTH Social có thể mở rộng ra không chỉ dành cho sinh viên UTH mà còn kết nối với các trường đại học khác trong thành phố. Qua đó, hình thành một mạng xã hội thực sự hữu ích dành cho cộng đồng sinh viên Việt Nam, vừa học tập, vừa chia sẻ, vừa phát triển kỹ năng mềm thông qua môi trường trực tuyến.
