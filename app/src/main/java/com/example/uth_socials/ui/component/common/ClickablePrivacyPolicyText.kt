@@ -1,7 +1,6 @@
 package com.example.uth_socials.ui.component.common
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -13,6 +12,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import com.example.uth_socials.ui.screen.UthTeal
+import androidx.core.net.toUri
 
 @Composable
 fun ClickablePrivacyPolicyText() {
@@ -36,7 +36,7 @@ fun ClickablePrivacyPolicyText() {
         onClick = { offset ->
             annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
                 .firstOrNull()?.let { annotation ->
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(annotation.item))
+                    val intent = Intent(Intent.ACTION_VIEW, annotation.item.toUri())
                     context.startActivity(intent)
                 }
         },
