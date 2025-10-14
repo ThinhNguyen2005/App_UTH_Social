@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.example.uth_socials.ui.screen.OnboardingScreen
+import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.theme.UTH_SocialsTheme
 
 class MainActivity : ComponentActivity() {
@@ -16,7 +17,8 @@ class MainActivity : ComponentActivity() {
             UTH_SocialsTheme {
                 // Ở đây, thay vì gọi Greeting, chúng ta gọi OnboardingScreen()
                 // OnboardingScreen() chính là giao diện bạn đã tạo trong file HelloUser.kt
-                OnboardingScreen()
+//                OnboardingScreen()
+                HomeScreen()
             }
         }
     }
