@@ -1,17 +1,70 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
+# =================================================================
+# File và thư mục được tạo bởi Android Studio và Gradle
+# =================================================================
+
+# Thư mục build chứa các file trung gian và kết quả biên dịch
 /build
-/captures
-.externalNativeBuild
-.cxx
+/app/build
+
+# Thư mục chứa các file được tạo ra bởi công cụ Gradle
+.gradle
+/gradle/
+
+# Các file cấu hình local, không nên chia sẻ
 local.properties
+/local.properties
+
+# =================================================================
+# File và thư mục của IDE (IntelliJ / Android Studio)
+# =================================================================
+
+# Các file module của IntelliJ
+*.iml
+*.ipr
+*.iws
+
+# Thư mục chứa cache, index và các cài đặt workspace của người dùng
+.idea/
+# Dưới đây là các quy tắc cụ thể hơn để loại trừ, đề phòng trường hợp .idea/ bị commit nhầm
+.idea/caches/
+.idea/libraries/
+.idea.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.idea/deployment.xml
+.idea/misc.xml
+
+# =================================================================
+# Các file build và đóng gói
+# =================================================================
+
+# Các file APK, AAB (Android App Bundle) và JAR
+*.apk
+*.aab
+*.jar
+
+# =================================================================
+# Các file nhạy cảm và chứng chỉ
+# =================================================================
+
+# File dịch vụ của Google (Firebase, Google Maps, v.v.)
 google-services.json
-app/google-services.json
+/app/google-services.json
+
+# Các file Keystore chứa khóa để ký ứng dụng, tuyệt đối không đưa lên Git
+*.jks
+*.keystore
+
+# =================================================================
+# Các file và thư mục khác
+# =================================================================
+
+# Thư mục chứa các ảnh chụp màn hình hoặc video từ Emulator
+/captures/
+
+# File hệ thống của macOS
+.DS_Store
+
+# Các file log và báo cáo
+/lint-results-debug.xml
