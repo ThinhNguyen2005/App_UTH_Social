@@ -4,20 +4,48 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.Composable
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.uth_socials.ui.screen.OnboardingScreen
+import com.example.uth_socials.ui.screen.WelcomeScreen
 import com.example.uth_socials.ui.theme.UTH_SocialsTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge() // Dòng này có thể giữ hoặc xóa tùy ý
+        enableEdgeToEdge()
         setContent {
-            // Sử dụng Theme của bạn để bao bọc màn hình
             UTH_SocialsTheme {
-                // Ở đây, thay vì gọi Greeting, chúng ta gọi OnboardingScreen()
-                // OnboardingScreen() chính là giao diện bạn đã tạo trong file HelloUser.kt
-                OnboardingScreen()
+                // 1. Gọi AppNavigator() ở đây để kích hoạt hệ thống điều hướng
+                AppNavigator()
             }
+        }
+    }
+}
+
+@Composable
+fun AppNavigator() {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = "onboarding" // Đặt màn hình bắt đầu là "onboarding"
+    ) {
+        composable("onboarding") {
+            // 2. Truyền hành động điều hướng vào OnboardingScreen
+            // Khi onStartClick được gọi, nó sẽ chuyển đến màn hình "welcome"
+            OnboardingScreen(
+                onStartClicked = { navController.navigate("welcome") }
+            )
+        }
+        composable("welcome") {
+            // Màn hình WelcomeScreen không cần thay đổi
+            WelcomeScreen(
+                onLoginClick = { /* Xử lý khi nhấn Login */ },
+                onRegisterClick = { /* Xử lý khi nhấn Register */ }
+            )
         }
     }
 }

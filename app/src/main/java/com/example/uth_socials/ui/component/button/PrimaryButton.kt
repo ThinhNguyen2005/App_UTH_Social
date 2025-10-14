@@ -1,9 +1,11 @@
 package com.example.uth_socials.ui.component.button
 
+import android.R
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +29,9 @@ val DarkTealButton = Color(0xFF045D5D)
  */
 @Composable
 fun PrimaryButton(
+    buttonColor : ButtonColors,
     text: String,
+    textColor : Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true
@@ -40,24 +44,24 @@ fun PrimaryButton(
             .fillMaxWidth() // 1. Chiếm toàn bộ chiều rộng được cung cấp
             .height(50.dp), // 2. Chiều cao nhất quán trên các thiết bị
         shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = DarkTealButton)
+        colors = buttonColor
     ) {
         Text(
             text = text,
             fontSize = 18.sp, // 3. Font size tự scale theo cài đặt của người dùng
-            color = Color.White
+            color = textColor
         )
     }
 }
 
-@Preview(showBackground = true, widthDp = 320)
-@Composable
-fun PrimaryButtonPreview() {
-    PrimaryButton(text = "Bắt đầu", onClick = {})
-}
-
-@Preview(showBackground = true, widthDp = 320)
-@Composable
-fun PrimaryButtonDisabledPreview() {
-    PrimaryButton(text = "Đang tải...", onClick = {}, enabled = false)
-}
+//@Preview(showBackground = true, widthDp = 320)
+//@Composable
+//fun PrimaryButtonPreview() {
+//    PrimaryButton(text = "Bắt đầu", onClick = {})
+//}
+//
+//@Preview(showBackground = true, widthDp = 320)
+//@Composable
+//fun PrimaryButtonDisabledPreview() {
+//    PrimaryButton(text = "Đang tải...", onClick = {}, enabled = false)
+//}

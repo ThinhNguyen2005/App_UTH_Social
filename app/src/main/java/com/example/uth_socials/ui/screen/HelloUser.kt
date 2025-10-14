@@ -36,7 +36,7 @@ import com.example.uth_socials.ui.component.button.PrimaryButton
 import com.example.uth_socials.ui.component.common.ClickablePrivacyPolicyText
 import com.example.uth_socials.ui.component.common.PageIndicator
 import androidx.compose.ui.res.stringResource
-
+import androidx.compose.material3.ButtonDefaults
 
 
 val UthTeal = Color(0xFF008080)
@@ -50,6 +50,7 @@ private val onboardingImages = listOf(
 )
 @Composable
 fun OnboardingScreen(
+    onStartClicked: () -> Unit,
     helloUserModel: HelloUserModel = viewModel()
 ) {
     val uiState by helloUserModel.uiState.collectAsState()
@@ -57,7 +58,7 @@ fun OnboardingScreen(
     OnboardingContent(
         pagerIndex = uiState.pagerIndex,
         onPagerIndexChange = { newIndex -> helloUserModel.updatePagerIndex(newIndex) },
-        onStartClicked = { helloUserModel.onStartClicked() }
+        onStartClicked = onStartClicked
     )
 }
 
@@ -120,7 +121,9 @@ fun OnboardingPortraitLayout(
             ClickablePrivacyPolicyText()
             Spacer(modifier = Modifier.height(16.dp))
             PrimaryButton(
+                buttonColor = ButtonDefaults.buttonColors(containerColor = Color(0xFF045D5D)),
                 text = stringResource(R.string.start_button),
+                textColor = Color.White,
                 onClick = onStartClicked
             )
         }
@@ -178,7 +181,11 @@ fun OnboardingLandscapeLayout(
             Spacer(modifier = Modifier.height(24.dp))
             ClickablePrivacyPolicyText()
             Spacer(modifier = Modifier.height(16.dp))
-            PrimaryButton(text = "Bắt đầu", onClick = onStartClicked)
+            PrimaryButton(
+                buttonColor = ButtonDefaults.buttonColors(containerColor = Color(0xFF045D5D)),
+                text = "Bắt đầu",
+                textColor = Color.White,
+                onClick = onStartClicked)
         }
     }
 }
