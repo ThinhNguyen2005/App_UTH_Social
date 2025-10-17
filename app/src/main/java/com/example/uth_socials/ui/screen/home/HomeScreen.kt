@@ -13,17 +13,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.uth_socials.R // Đảm bảo bạn có file strings.xml để import R
-import com.example.uth_socials.ui.component.common.FilterTabs
-import com.example.uth_socials.ui.component.common.HomeBottomNavigation
-import com.example.uth_socials.ui.component.common.HomeTopAppBar
+import com.example.uth_socials.ui.component.navigation.FilterTabs
+import com.example.uth_socials.ui.component.navigation.HomeBottomNavigation
+import com.example.uth_socials.ui.component.logo.HomeTopAppBar
 import com.example.uth_socials.ui.component.post.PostCard
-import com.example.uth_socials.ui.screen.OnboardingLandscapeLayout
-import com.example.uth_socials.ui.screen.OnboardingPortraitLayout
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 
 

@@ -1,17 +1,13 @@
 package com.example.uth_socials.ui.component.post
 
+import PageIndicator
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
@@ -28,6 +24,27 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uth_socials.data.post.Post
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.ModeComment
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import com.example.uth_socials.R
+
 
 val Post.likeCount: Int
     get() = this.likes
@@ -41,30 +58,47 @@ fun PostCard(
     onSaveClicked: (String) -> Unit,
     onShareClicked: (String) -> Unit,
     onUserProfileClicked: (String) -> Unit
+
 ) {
+//    // State để quản lý việc hiển thị trình xem ảnh
+//    var showImageViewer by remember { mutableStateOf(false) }
+//    var initialImageIndex by remember { mutableIntStateOf(0) }
+
+
     Card(
         modifier = Modifier.padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            PostHeader(post, onUserProfileClicked)
-            Spacer(modifier = Modifier.height(8.dp))
-            ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
-            if (post.imageUrls.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                PostMedia(imageUrls = post.imageUrls)
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            PostActions(post, onLikeClicked, onCommentClicked, onSaveClicked, onShareClicked)
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp), // khoảng cách trên/dưới
-                thickness = 1.dp,            // độ dày
-                color = Color.LightGray     // màu của line
-            )
 
+        Column {
+            Column(modifier = Modifier.padding(12.dp)) {
+                PostHeader(post, onUserProfileClicked)
+                Spacer(modifier = Modifier.height(8.dp))
+                ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
+            }
+
+            if (post.imageUrls.isNotEmpty()) {
+                PostMedia(
+                    imageUrls = post.imageUrls
+                )
+            }
+
+            // Column này chứa các hành động (actions) và cũng có padding
+            Column(modifier = Modifier.padding(vertical = 0.dp, horizontal = 12.dp)) {//Khoảng cách ngang
+                Spacer(modifier = Modifier.height(0.dp))
+                PostActions(post, onLikeClicked, onCommentClicked, onSaveClicked, onShareClicked)
+            }
+
+            // Đường kẻ ngang cắt giữa các bài viết
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 0.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
         }
     }
 }
+//Phần tên và avatar người đăng bài
 
 @Composable
 fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
@@ -83,8 +117,17 @@ fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = post.username, fontWeight = FontWeight.Bold)
-            Text(text = "10 ngày trước", fontSize = 12.sp, color = Color.Gray) // Sẽ làm phần tính toán thời gian sau
+            Text(
+                text = post.username,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "10 ngày trước",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
         }
         IconButton(onClick = { /* TODO: Mở menu */ }) {
             Icon(Icons.Default.MoreHoriz, contentDescription = "More options")
@@ -93,89 +136,102 @@ fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
     }
 }
 
-
+//Mở rộng text
 @Composable
-fun ExpandableText(text: String, modifier: Modifier = Modifier) {
+fun ExpandableText(
+    text: String,
+    modifier: Modifier = Modifier,
+    collapsedMaxLines: Int = 2
+) {
     var isExpanded by remember { mutableStateOf(false) }
-    val maxLines = if (isExpanded) 100 else 2 // Hiển thị 2 dòng, khi mở rộng thì 100 dòng
+    var isTextOverflow by remember { mutableStateOf(false) }
 
-    Column(modifier = modifier.clickable { isExpanded = !isExpanded }) {
-        Text(
-            text = text,
-            maxLines = maxLines,
-            overflow = TextOverflow.Ellipsis // Thêm dấu "..." nếu bị cắt
-        )
+    val displayText = buildAnnotatedString {
+        append(text)
+
+        if (isExpanded) {
+            withStyle(
+                style = SpanStyle(
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
+                )
+            ) {
+                append("  Thu gọn")
+            }
+
+        }
     }
+
+    Text(
+        text = displayText,
+        maxLines = if (isExpanded) Int.MAX_VALUE else collapsedMaxLines,
+        overflow = TextOverflow.Ellipsis,
+        lineHeight = 20.sp,
+        textAlign = TextAlign.Justify,
+        style = MaterialTheme.typography.bodyMedium.copy(
+            color = MaterialTheme.colorScheme.onSurface
+        ),
+        onTextLayout = { result ->
+            isTextOverflow = result.hasVisualOverflow
+        },
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                if (isTextOverflow || isExpanded) {
+                    isExpanded = !isExpanded
+                }
+            }
+            .animateContentSize()
+    )
 }
-
-// Đây là phần nâng cấp chính
+//Phần hình ảnh và có thể lướt nhiều hình ảnh
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PostMedia(imageUrls: List<String>) {
-    val imageCount = imageUrls.size
+fun PostMedia(
+    imageUrls: List<String>
+) {
+    if (imageUrls.isNotEmpty()) {
+        val pagerState = rememberPagerState(pageCount = { imageUrls.size })
 
-    // Sử dụng Box để dễ dàng xếp chồng các ảnh
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f) // Dùng tỷ lệ 1:1 cho lưới ảnh vuông
-            .clip(RoundedCornerShape(12.dp))
-    ) {
-        when (imageCount) {
-            1 -> {
-                // Trường hợp 1 ảnh: hiển thị đầy đủ
-                PostImage(url = imageUrls[0], modifier = Modifier.fillMaxSize())
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxWidth()
+            ) { pageIndex ->
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(imageUrls[pageIndex])
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Post image $pageIndex",
+
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp)) // 👈 Bo góc ảnh
+
+                )
             }
-            2 -> {
-                // Trường hợp 2 ảnh: chia đôi theo chiều ngang
-                Row(modifier = Modifier.fillMaxSize()) {
-                    PostImage(url = imageUrls[0], modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(2.dp))
-                    PostImage(url = imageUrls[1], modifier = Modifier.weight(1f))
-                }
-            }
-            3 -> {
-                // Trường hợp 3 ảnh: 1 ảnh lớn bên trái, 2 ảnh nhỏ bên phải
-                Row(modifier = Modifier.fillMaxSize()) {
-                    PostImage(url = imageUrls[0], modifier = Modifier.weight(2f)) // Chiếm 2/3
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Column(modifier = Modifier.weight(1f)) { // Chiếm 1/3
-                        PostImage(url = imageUrls[1], modifier = Modifier.weight(1f))
-                        Spacer(modifier = Modifier.height(2.dp))
-                        PostImage(url = imageUrls[2], modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-            else -> { // Trường hợp 4 ảnh hoặc nhiều hơn
-                // Lưới 2x2
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Row(modifier = Modifier.weight(1f)) {
-                        PostImage(url = imageUrls[0], modifier = Modifier.weight(1f))
-                        Spacer(modifier = Modifier.width(2.dp))
-                        PostImage(url = imageUrls[1], modifier = Modifier.weight(1f))
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(modifier = Modifier.weight(1f)) {
-                        PostImage(url = imageUrls[2], modifier = Modifier.weight(1f))
-                        Spacer(modifier = Modifier.width(2.dp))
-                        PostImage(url = imageUrls[3], modifier = Modifier.weight(1f))
-                    }
-                }
+
+            if (imageUrls.size > 1) {
+                PageIndicator(
+                    pageCount = imageUrls.size,
+                    currentPage = pagerState.currentPage,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 8.dp)
+                )
             }
         }
     }
 }
-
-// Component phụ để hiển thị ảnh, tránh lặp code
-@Composable
-fun PostImage(url: String, modifier: Modifier = Modifier) {
-    AsyncImage(
-        model = url,
-        contentDescription = null,
-        modifier = modifier.fillMaxSize(),
-        contentScale = ContentScale.Crop
-    )
-}
-
+//Hành động tim, bình luận ....
 @Composable
 fun PostActions(
     post: Post,
@@ -184,58 +240,89 @@ fun PostActions(
     onSaveClicked: (String) -> Unit,
     onShareClicked: (String) -> Unit
 ) {
+    val defaultColor = MaterialTheme.colorScheme.onSurface
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val likeColor = if (post.isLiked) MaterialTheme.colorScheme.error else defaultColor
+    val saveColor = if (post.isSaved == true) primaryColor else defaultColor
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ❤️ Nút Like
+        // ❤️ LIKE
         IconButton(onClick = { onLikeClicked(post.id) }) {
             Icon(
-                imageVector = if (post.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                imageVector = if (post.isLiked)
+                    Icons.Filled.Favorite        // tim đầy khi liked
+                else
+                    Icons.Outlined.FavoriteBorder, // tim viền khi chưa like
                 contentDescription = "Like",
-                tint = if (post.isLiked) Color.Red else Color.Gray
+                tint = likeColor
+            )
+        }
+        if (post.likes > 0) {
+            Text(
+                text = post.likes.toString(),
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 12.dp)
             )
         }
 
-        Text(
-            text = post.likeCount.toString(),
-            fontSize = 14.sp,
-            modifier = Modifier.padding(end = 12.dp)
-        )
-
-        // 💬 Nút Comment
+        // 💬 COMMENT
         IconButton(onClick = { onCommentClicked(post.id) }) {
             Icon(
-                imageVector = Icons.Default.ChatBubbleOutline,
+                imageVector = Icons.Outlined.ModeComment,
                 contentDescription = "Comment",
-                tint = Color.Gray
+                tint = defaultColor
             )
         }
-        Text(
-            text = post.commentCount.toString(),
-            fontSize = 14.sp,
-            modifier = Modifier.padding(end = 12.dp)
-        )
+        if (post.commentCount > 0) {
+            Text(
+                text = post.commentCount.toString(),
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // 🔖 Nút Save
+        // 🔖 SAVE
         IconButton(onClick = { onSaveClicked(post.id) }) {
             Icon(
-                imageVector = Icons.Default.BookmarkBorder,
+                imageVector = if (post.isSaved == true)
+                    Icons.Filled.Bookmark          // icon đầy khi đã lưu
+                else
+                    Icons.Outlined.BookmarkBorder,  // icon viền khi chưa lưu
                 contentDescription = "Save",
-                tint = Color.Gray
+                tint = saveColor
             )
         }
-
-        // 📤 Nút Share
+        if (post.saveCount > 0) {
+            Text(
+                text = post.saveCount.toString(),
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+        }
+        // 📤 SHARE
         IconButton(onClick = { onShareClicked(post.id) }) {
             Icon(
-                imageVector = Icons.Default.Share,
+                imageVector = Icons.Outlined.Share,
                 contentDescription = "Share",
-                tint = Color.Gray
+                tint = defaultColor
+            )
+        }
+        if (post.shareCount > 0) {
+            Text(
+                text = post.shareCount.toString(),
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 12.dp)
             )
         }
     }

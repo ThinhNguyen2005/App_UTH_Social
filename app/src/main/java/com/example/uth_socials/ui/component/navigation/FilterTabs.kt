@@ -1,4 +1,4 @@
-package com.example.uth_socials.ui.component.common
+package com.example.uth_socials.ui.component.navigation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues

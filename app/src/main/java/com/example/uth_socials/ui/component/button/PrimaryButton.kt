@@ -37,14 +37,14 @@ fun PrimaryButton(
         enabled = enabled,
         // Modifier này làm cho nút trở nên "responsive"
         modifier = modifier
-            .fillMaxWidth() // 1. Chiếm toàn bộ chiều rộng được cung cấp
-            .height(50.dp), // 2. Chiều cao nhất quán trên các thiết bị
+            .fillMaxWidth()
+            .height(50.dp),
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(containerColor = DarkTealButton)
     ) {
         Text(
             text = text,
-            fontSize = 18.sp, // 3. Font size tự scale theo cài đặt của người dùng
+            fontSize = 18.sp,
             color = Color.White
         )
     }
