@@ -1,6 +1,7 @@
 package com.example.uth_socials.ui.component.post
 
 import PageIndicator
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -31,23 +32,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.ModeComment
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
-import com.example.uth_socials.R
-
-
-val Post.likeCount: Int
-    get() = this.likes
+//import com.example.uth_socials.R
+import com.google.firebase.Timestamp
 
 
 @Composable
@@ -69,26 +67,22 @@ fun PostCard(
         modifier = Modifier.padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-
         Column {
             Column(modifier = Modifier.padding(12.dp)) {
                 PostHeader(post, onUserProfileClicked)
                 Spacer(modifier = Modifier.height(8.dp))
                 ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
             }
-
             if (post.imageUrls.isNotEmpty()) {
                 PostMedia(
                     imageUrls = post.imageUrls
                 )
             }
-
             // Column này chứa các hành động (actions) và cũng có padding
             Column(modifier = Modifier.padding(vertical = 0.dp, horizontal = 12.dp)) {//Khoảng cách ngang
                 Spacer(modifier = Modifier.height(0.dp))
                 PostActions(post, onLikeClicked, onCommentClicked, onSaveClicked, onShareClicked)
             }
-
             // Đường kẻ ngang cắt giữa các bài viết
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 0.dp),
@@ -98,6 +92,7 @@ fun PostCard(
         }
     }
 }
+
 //Phần tên và avatar người đăng bài
 
 @Composable
@@ -123,7 +118,7 @@ fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "10 ngày trước",
+                text = formatTimeAgo(post.timestamp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -232,6 +227,8 @@ fun PostMedia(
     }
 }
 //Hành động tim, bình luận ....
+// Trong file PostCard.kt
+
 @Composable
 fun PostActions(
     post: Post,
@@ -242,88 +239,134 @@ fun PostActions(
 ) {
     val defaultColor = MaterialTheme.colorScheme.onSurface
     val primaryColor = MaterialTheme.colorScheme.primary
+
     val likeColor = if (post.isLiked) MaterialTheme.colorScheme.error else defaultColor
+    val likeIcon = if (post.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
+
     val saveColor = if (post.isSaved == true) primaryColor else defaultColor
+    val saveIcon = if (post.isSaved == true) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+            // Thêm padding dọc để tạo khoảng trống với nội dung bên trên
+            .padding(vertical = 4.dp, horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        // Dùng Arrangement.SpaceBetween để đẩy nút Save/Share sang phải
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Nhóm các nút bên trái
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PostActionItem(
+                onClick = { onLikeClicked(post.id) },
+                icon = likeIcon,
+                count = post.likes,
+                tint = likeColor,
+                contentDescription = "Like"
+            )
+            // Thêm khoảng cách giữa các nút
+            Spacer(modifier = Modifier.width(16.dp))
+            PostActionItem(
+                onClick = { onCommentClicked(post.id) },
+                icon = Icons.Outlined.ModeComment,
+                count = post.commentCount,
+                tint = defaultColor,
+                contentDescription = "Comment"
+            )
+        }
+
+        // Nhóm các nút bên phải
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PostActionItem(
+                onClick = { onSaveClicked(post.id) },
+                icon = saveIcon,
+                count = post.saveCount,
+                tint = saveColor,
+                contentDescription = "Save"
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            PostActionItem(
+                onClick = { onShareClicked(post.id) },
+                icon = Icons.Outlined.Share,
+                count = post.shareCount,
+                tint = defaultColor,
+                contentDescription = "Share"
+            )
+        }
+    }
+}
+
+@Composable
+private fun PostActionItem(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    count: Int,
+    tint: Color,
+    contentDescription: String
+) {
+    // Row này để nhóm icon và số đếm, và để tăng vùng nhấn
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null, // Tắt hiệu ứng gợn sóng để dùng hiệu ứng của IconButton
+            onClick = onClick
+        )
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(40.dp) // Kích thước vùng nhấn
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = tint,
+                modifier = Modifier.size(24.dp) // Kích thước của riêng icon
+            )
+        }
+        if (count > 0) {
+            Text(
+                text = count.toString(),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+@Composable
+fun PageIndicator(pageCount: Int, currentPage: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ❤️ LIKE
-        IconButton(onClick = { onLikeClicked(post.id) }) {
-            Icon(
-                imageVector = if (post.isLiked)
-                    Icons.Filled.Favorite        // tim đầy khi liked
-                else
-                    Icons.Outlined.FavoriteBorder, // tim viền khi chưa like
-                contentDescription = "Like",
-                tint = likeColor
+        for (i in 0 until pageCount) {
+            val color = if (i == currentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            Box(
+                modifier = Modifier
+                    .padding(4.dp)
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(color)
             )
         }
-        if (post.likes > 0) {
-            Text(
-                text = post.likes.toString(),
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 12.dp)
-            )
-        }
-
-        // 💬 COMMENT
-        IconButton(onClick = { onCommentClicked(post.id) }) {
-            Icon(
-                imageVector = Icons.Outlined.ModeComment,
-                contentDescription = "Comment",
-                tint = defaultColor
-            )
-        }
-        if (post.commentCount > 0) {
-            Text(
-                text = post.commentCount.toString(),
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 12.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // 🔖 SAVE
-        IconButton(onClick = { onSaveClicked(post.id) }) {
-            Icon(
-                imageVector = if (post.isSaved == true)
-                    Icons.Filled.Bookmark          // icon đầy khi đã lưu
-                else
-                    Icons.Outlined.BookmarkBorder,  // icon viền khi chưa lưu
-                contentDescription = "Save",
-                tint = saveColor
-            )
-        }
-        if (post.saveCount > 0) {
-            Text(
-                text = post.saveCount.toString(),
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 12.dp)
-            )
-        }
-        // 📤 SHARE
-        IconButton(onClick = { onShareClicked(post.id) }) {
-            Icon(
-                imageVector = Icons.Outlined.Share,
-                contentDescription = "Share",
-                tint = defaultColor
-            )
-        }
-        if (post.shareCount > 0) {
-            Text(
-                text = post.shareCount.toString(),
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 12.dp)
-            )
-        }
+    }
+}
+private fun formatTimeAgo(timestamp: Timestamp?): String {
+    // 1. Kiểm tra nếu timestamp là null thì trả về một chuỗi mặc định
+    if (timestamp == null) {
+        return "Vừa xong" // hoặc "Không rõ"
+    }
+    // 2. Chuyển đổi Timestamp thành mili giây (Long)
+    val millis = timestamp.toDate().time
+    val now = System.currentTimeMillis()
+    // 3. Tính toán khoảng thời gian (phần còn lại giữ nguyên)
+    val seconds = (now - millis) / 1000
+    return when {
+        seconds < 60 -> "Vừa xong"
+        seconds < 3600 -> "${seconds / 60} phút trước"
+        seconds < 86400 -> "${seconds / 3600} giờ trước"
+        else -> "${seconds / 86400} ngày trước"
     }
 }
