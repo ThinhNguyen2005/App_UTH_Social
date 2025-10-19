@@ -1,7 +1,5 @@
 package com.example.uth_socials.ui.screen.home
 
-// THÊM MỚI: Các import cần thiết cho chức năng Share
-import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -91,7 +89,7 @@ fun HomeScreen(
                                     onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
                                     onCommentClicked = { homeViewModel.onCommentClicked(post.id) },
                                     onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
-                                    onShareClicked = { homeViewModel.onShareClicked(post.id) }, // Luồng này đã đúng
+                                    onShareClicked = { homeViewModel.onShareClicked(post.id) },
                                     onUserProfileClicked = { homeViewModel.onUserProfileClicked(post.userId) }
                                 )
                             }

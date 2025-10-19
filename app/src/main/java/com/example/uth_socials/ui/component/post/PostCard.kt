@@ -334,25 +334,7 @@ private fun PostActionItem(
         }
     }
 }
-@Composable
-fun PageIndicator(pageCount: Int, currentPage: Int, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        for (i in 0 until pageCount) {
-            val color = if (i == currentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            Box(
-                modifier = Modifier
-                    .padding(4.dp)
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(color)
-            )
-        }
-    }
-}
+
 private fun formatTimeAgo(timestamp: Timestamp?): String {
     // 1. Kiểm tra nếu timestamp là null thì trả về một chuỗi mặc định
     if (timestamp == null) {
