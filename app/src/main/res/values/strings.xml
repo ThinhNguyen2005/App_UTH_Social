@@ -2,5 +2,6 @@
     <string name="app_name">UTH_Socials</string>
     <string name="onboarding_message">Xây dựng mạng lưới của bạn mọi lúc mọi nơi</string>
     <string name="start_button">Bắt đầu</string>
+    <string name="default_web_client_id">1072362430757-blvuf1lpo7benphfkl55f88ph59m2dee.apps.googleusercontent.com</string>
 
 </resources>
