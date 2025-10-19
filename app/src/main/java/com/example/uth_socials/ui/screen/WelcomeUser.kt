@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.screen
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -23,111 +24,83 @@ import androidx.compose.ui.unit.sp
 import com.example.uth_socials.R
 
 import com.example.uth_socials.ui.component.button.PrimaryButton
+import com.example.uth_socials.ui.logo.HomeTopAppBarPrimary
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WelcomeScreen(
     onLoginClick: () -> Unit,
     onRegisterClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFFFFFFF)) // màu nền nhạt giống ảnh
-            .padding(horizontal = 24.dp, vertical = 0.dp).padding(top=30.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-//        verticalArrangement = Arrangement.SpaceBetween
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        // Logo + phần đầu
+    Scaffold(
+        topBar = {HomeTopAppBarPrimary()}
+    ) { innerPadding ->
         Column(
-            horizontalAlignment = Alignment.Start,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                buildAnnotatedString {
-                    withStyle(SpanStyle(color = Color(0xFF007E8F), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Serif)) {
-                        append("UTH ")
-                    }
-                    withStyle(SpanStyle(color = Color(0xFFE53935), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Serif)) {
-                        append("Social")
-                    }
-                },
-                modifier = Modifier.padding(top = 20.dp)
-            )
-        }
-
-        // Hình minh họa (thay thế bằng ảnh của bạn)
-        Image(
-            painter = painterResource(id = R.drawable.ngoilamviec), // đặt ảnh minh họa trong drawable
-            contentDescription = "Welcome illustration",
             modifier = Modifier
-                .fillMaxWidth()
-                .height(450.dp),
-            contentScale = ContentScale.Crop
-        )
-
-        // Tiêu đề + mô tả
-        Column(
+                .fillMaxSize()
+                .background(Color(0xFFFFFFFF)) // màu nền nhạt giống ảnh
+                .padding(innerPadding).padding(top=30.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.padding(bottom = 35.dp)
+//        verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text = "Chia sẻ cùng UTH",
-                color = Color(0xFF007E8F),
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold
+            // Hình minh họa (thay thế bằng ảnh của bạn)
+            Image(
+                painter = painterResource(id = R.drawable.ngoilamviec), // đặt ảnh minh họa trong drawable
+                contentDescription = "Welcome illustration",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(450.dp),
+                contentScale = ContentScale.Crop
             )
 
-            Text(
-                text = "Tự do chia sẻ kinh nghiệm, trải nghiệm của bạn cùng UTH",
-                color = Color.Gray,
-                fontSize = 17.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-        }
+            // Tiêu đề + mô tả
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                modifier = Modifier.padding(bottom = 35.dp)
+            ) {
+                Text(
+                    text = "Chia sẻ cùng UTH",
+                    color = Color(0xFF007E8F),
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-        // Hai nút Đăng nhập / Đăng ký
-        Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 0.dp)
-        ) {
-            PrimaryButton(
-                buttonColor = ButtonDefaults.buttonColors(containerColor = Color(0xFF007E8F)),
-                text = "Đăng nhập",
-                textColor = Color.White,
-                modifier = Modifier.width(140.dp).height(48.dp),
-                onClick = onLoginClick)
-//            Button(
-//                onClick = onLoginClick,
-//                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF007E8F)),
-//                shape = RoundedCornerShape(12.dp),
-//                elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 8.dp),
-//                modifier = Modifier
-//                    .width(140.dp)
-//                    .height(48.dp)
-//            ) {
-//                Text("Đăng nhập", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-//            }
+                Text(
+                    text = "Tự do chia sẻ kinh nghiệm, trải nghiệm của bạn cùng UTH",
+                    color = Color.Gray,
+                    fontSize = 17.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
 
-//            TextButton(
-//                onClick = onRegisterClick,
-//                modifier = Modifier.height(48.dp)
-//            ) {
-//                Text("Đăng kí", color = Color.Black, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-//            }
-            PrimaryButton(
-                buttonColor = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFFFFF)),
-                text = "Đăng ký",
-                textColor = Color.Black,
-                modifier = Modifier.width(140.dp).height(48.dp),
-                onClick = onRegisterClick)
+            // Hai nút Đăng nhập / Đăng ký
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 0.dp)
+            ) {
+                PrimaryButton(
+                    buttonColor = ButtonDefaults.buttonColors(containerColor = Color(0xFF007E8F)),
+                    text = "Đăng nhập",
+                    textColor = Color.White,
+                    modifier = Modifier.width(140.dp).height(48.dp),
+                    onClick = onLoginClick)
+
+                PrimaryButton(
+                    buttonColor = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFFFFF)),
+                    text = "Đăng ký",
+                    textColor = Color.Black,
+                    modifier = Modifier.width(140.dp).height(48.dp),
+                    onClick = onRegisterClick)
+            }
         }
     }
+
 }
 
 @Preview(name = "Portrait Mode", showBackground = true, widthDp = 360, heightDp = 780)
