@@ -1,63 +1,73 @@
 package com.example.uth_socials.ui.screen.home
 
 import android.content.Intent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.uth_socials.data.repository.PostRepository
+import com.example.uth_socials.di.ViewModelFactory
+import com.example.uth_socials.ui.component.logo.HomeTopAppBar
 import com.example.uth_socials.ui.component.navigation.FilterTabs
 import com.example.uth_socials.ui.component.navigation.HomeBottomNavigation
-import com.example.uth_socials.ui.component.logo.HomeTopAppBar
+import com.example.uth_socials.ui.component.post.CommentSheetContent
 import com.example.uth_socials.ui.component.post.PostCard
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    homeViewModel: HomeViewModel = viewModel()
+    // navController: NavHostController
 ) {
-    val uiState by homeViewModel.uiState.collectAsState()
-    // THÊM MỚI: Lấy context hiện tại để sử dụng cho Intent
-    val context = LocalContext.current
+    val postRepository = remember { PostRepository() } // Dùng remember để không tạo lại mỗi lần recomposition
+    val viewModelFactory = remember { ViewModelFactory(postRepository) }
+    val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
 
-    // THÊM MỚI: LaunchedEffect để xử lý hành động share
-    // Nó sẽ kích hoạt khi giá trị của uiState.shareContent thay đổi
+    // ✅ BƯỚC 2: BÂY GIỜ bạn có thể sử dụng ViewModel một cách an toàn
+    val uiState by homeViewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+
+    // 2. Tạo một instance của Factory, truyền Repository vào.
+    LaunchedEffect(uiState.commentSheetPostId) {
+        if (uiState.commentSheetPostId != null) {
+            sheetState.show()
+        } else {
+            // Đóng sheet nếu nó đang mở
+            if (sheetState.isVisible) {
+                sheetState.hide()
+            }
+        }
+    }
+
+    // ✅ Xử lý chia sẻ bài viết
     LaunchedEffect(uiState.shareContent) {
         uiState.shareContent?.let { content ->
-            // Tạo một Intent để chia sẻ văn bản
             val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, content)
             }
-            // Tạo chooser để người dùng chọn ứng dụng chia sẻ
             val chooser = Intent.createChooser(intent, "Chia sẻ bài viết qua...")
             context.startActivity(chooser)
 
-            // Sau khi gọi Intent, reset lại state để không bị gọi lại khi recompose
             homeViewModel.onShareDialogLaunched()
         }
     }
 
 
+
     Scaffold(
         topBar = {
             HomeTopAppBar(
-                onSearchClick = { /*TODO*/ },
-                onMessagesClick = { /*TODO*/ }
+                onSearchClick = { /* TODO */ },
+                onMessagesClick = { /* TODO */ }
             )
         },
         bottomBar = {
@@ -65,10 +75,13 @@ fun HomeScreen(
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
+            // Tabs lọc danh mục
             FilterTabs(
                 categories = uiState.categories,
                 selectedCategory = uiState.selectedCategory,
-                onCategorySelected = { category -> homeViewModel.onCategorySelected(category) }
+                onCategorySelected = { category ->
+                    homeViewModel.onCategorySelected(category)
+                }
             )
 
             Box(
@@ -87,7 +100,9 @@ fun HomeScreen(
                                 PostCard(
                                     post = post,
                                     onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
-                                    onCommentClicked = { homeViewModel.onCommentClicked(post.id) },
+                                    onCommentClicked = {
+                                        homeViewModel.onCommentClicked(post.id)
+                                    },
                                     onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
                                     onShareClicked = { homeViewModel.onShareClicked(post.id) },
                                     onUserProfileClicked = { homeViewModel.onUserProfileClicked(post.userId) }
@@ -97,6 +112,25 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (uiState.commentSheetPostId != null) {
+        ModalBottomSheet(
+            onDismissRequest = { homeViewModel.onDismissCommentSheet() },
+            sheetState = sheetState
+        ) {
+            CommentSheetContent(
+                comments = uiState.commentsForSheet,
+                isLoading = uiState.isSheetLoading,
+                onAddComment = { commentText ->
+                    homeViewModel.addComment(uiState.commentSheetPostId!!, commentText)
+                },
+                onLikeComment = homeViewModel::onCommentLikeClicked, // Dùng function reference
+                onUserProfileClick = homeViewModel::onUserProfileClicked,
+                commentPostState = uiState.commentPostState,
+                currentUserAvatarUrl = uiState.currentUserAvatarUrl
+            )
         }
     }
 }

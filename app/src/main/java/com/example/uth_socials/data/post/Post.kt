@@ -24,17 +24,13 @@ data class Post(
     val saveCount: Int = 0,
 
 
-    // --- SỬA LỖI Ở ĐÂY ---
     // Thêm trường này để lưu danh sách UID của những người đã thích.
     val likedBy: List<String> = emptyList(),
+    val savedBy: List<String> = emptyList(),
 
-    // Trường này chỉ dùng cho UI, không lưu trên Firestore.
-    // Dùng @get:JvmField @Transient để Firestore bỏ qua.
-//    @get:JvmField
-//    @Transient
+
     val isLiked: Boolean = false,
-    val isSaved: Boolean? = false
+    val isSaved: Boolean = false
 ) {
-    // Thêm một constructor rỗng mà Firestore yêu cầu để có thể toObject()
-    constructor() : this(null, "", "", "", "", "", emptyList(), "", 0, 0, 0,0,emptyList(), false)
+    constructor() : this(null, "", "", "", "", "", emptyList(), "", 0, 0, 0,0,emptyList(), emptyList(),false)
 }

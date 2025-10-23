@@ -1,7 +1,7 @@
 package com.example.uth_socials.ui.component.post
 
 import PageIndicator
-import android.util.Log
+import com.example.uth_socials.ui.component.common.formatTimeAgo
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -16,14 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.uth_socials.data.post.Post
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -32,7 +29,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
@@ -44,8 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
-//import com.example.uth_socials.R
-import com.google.firebase.Timestamp
+import com.example.uth_socials.ui.component.common.ZoomableImage
 
 
 @Composable
@@ -58,11 +53,6 @@ fun PostCard(
     onUserProfileClicked: (String) -> Unit
 
 ) {
-//    // State để quản lý việc hiển thị trình xem ảnh
-//    var showImageViewer by remember { mutableStateOf(false) }
-//    var initialImageIndex by remember { mutableIntStateOf(0) }
-
-
     Card(
         modifier = Modifier.padding(vertical = 8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -96,7 +86,7 @@ fun PostCard(
 //Phần tên và avatar người đăng bài
 
 @Composable
-fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
+private fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -127,13 +117,12 @@ fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
         IconButton(onClick = { /* TODO: Mở menu */ }) {
             Icon(Icons.Default.MoreHoriz, contentDescription = "More options")
         }
-        // ... Thêm IconButton cho dấu "..." ở đây nếu muốn
     }
 }
 
 //Mở rộng text
 @Composable
-fun ExpandableText(
+private fun ExpandableText(
     text: String,
     modifier: Modifier = Modifier,
     collapsedMaxLines: Int = 2
@@ -184,7 +173,7 @@ fun ExpandableText(
 //Phần hình ảnh và có thể lướt nhiều hình ảnh
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PostMedia(
+private fun PostMedia(
     imageUrls: List<String>
 ) {
     if (imageUrls.isNotEmpty()) {
@@ -194,23 +183,17 @@ fun PostMedia(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clip(RoundedCornerShape(12.dp))
         ) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth()
             ) { pageIndex ->
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(imageUrls[pageIndex])
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Post image $pageIndex",
-
-                    contentScale = ContentScale.Crop,
+                ZoomableImage(
+                    imageUrl = imageUrls[pageIndex],
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp)) // 👈 Bo góc ảnh
-
+                        .aspectRatio(1f)
                 )
             }
 
@@ -230,7 +213,7 @@ fun PostMedia(
 // Trong file PostCard.kt
 
 @Composable
-fun PostActions(
+private fun PostActions(
     post: Post,
     onLikeClicked: (String) -> Unit,
     onCommentClicked: (String) -> Unit,
@@ -243,8 +226,8 @@ fun PostActions(
     val likeColor = if (post.isLiked) MaterialTheme.colorScheme.error else defaultColor
     val likeIcon = if (post.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
 
-    val saveColor = if (post.isSaved == true) primaryColor else defaultColor
-    val saveIcon = if (post.isSaved == true) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
+    val saveColor = if (post.isSaved) primaryColor else defaultColor
+    val saveIcon = if (post.isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder
 
     Row(
         modifier = Modifier
@@ -335,20 +318,3 @@ private fun PostActionItem(
     }
 }
 
-private fun formatTimeAgo(timestamp: Timestamp?): String {
-    // 1. Kiểm tra nếu timestamp là null thì trả về một chuỗi mặc định
-    if (timestamp == null) {
-        return "Vừa xong" // hoặc "Không rõ"
-    }
-    // 2. Chuyển đổi Timestamp thành mili giây (Long)
-    val millis = timestamp.toDate().time
-    val now = System.currentTimeMillis()
-    // 3. Tính toán khoảng thời gian (phần còn lại giữ nguyên)
-    val seconds = (now - millis) / 1000
-    return when {
-        seconds < 60 -> "Vừa xong"
-        seconds < 3600 -> "${seconds / 60} phút trước"
-        seconds < 86400 -> "${seconds / 3600} giờ trước"
-        else -> "${seconds / 86400} ngày trước"
-    }
-}
