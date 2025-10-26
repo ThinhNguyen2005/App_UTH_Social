@@ -26,8 +26,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.uth_socials.ui.viewmodel.MockProfileViewModel
-import com.example.uth_socials.ui.viewmodel.createMockUiState
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -448,54 +446,3 @@ fun ProfileTabs() {
     }
 }
 
-@Preview(name = "Trang cá nhân của tôi (Owner)", showBackground = true)
-@Composable
-private fun ProfileHeaderOwnerPreview() {
-    // Thay vì tạo ViewModel, hãy tạo trực tiếp State mà Composable cần.
-    // Điều này giúp Preview trở nên đơn giản và đúng mục đích hơn.
-    val ownerUiState = createMockUiState(isOwner = true, userId = "owner_id")
-
-    MaterialTheme {
-        // Truyền state và các lambda trống cho các hành động
-        ProfileHeader(
-            username = ownerUiState.username,
-            avatarUrl = ownerUiState.userAvatarUrl,
-            bio = ownerUiState.bio,
-            followers = ownerUiState.followers,
-            following = ownerUiState.following,
-            postCount = ownerUiState.postCount,
-            isOwner = ownerUiState.isOwner,
-            isFollowing = ownerUiState.isFollowing,
-            onFollowClicked = {}, // ✅ Đã sửa lỗi: Cung cấp một lambda trống
-            onBackClicked = {},
-            onMessageClicked = {},
-            onEditProfileClicked = {},
-            onMoreClicked = {}
-        )
-    }
-}
-
-@Preview(name = "Xem trang của người khác (Guest)", showBackground = true)
-@Composable
-private fun ProfileHeaderGuestPreview() {
-    // Tương tự, tạo trực tiếp State cho trường hợp là khách
-    val guestUiState = createMockUiState(isOwner = false, userId = "guest_id")
-
-    MaterialTheme {
-        ProfileHeader(
-            username = guestUiState.username,
-            avatarUrl = guestUiState.userAvatarUrl,
-            bio = guestUiState.bio,
-            followers = guestUiState.followers,
-            following = guestUiState.following,
-            postCount = guestUiState.postCount,
-            isOwner = guestUiState.isOwner,
-            isFollowing = guestUiState.isFollowing,
-            onFollowClicked = {}, // ✅ Đã sửa lỗi: Cung cấp một lambda trống
-            onBackClicked = {},
-            onMessageClicked = {},
-            onEditProfileClicked = {},
-            onMoreClicked = {}
-        )
-    }
-}

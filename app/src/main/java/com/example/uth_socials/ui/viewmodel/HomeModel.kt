@@ -33,9 +33,19 @@ data class HomeUiState(
     val commentsForSheet: List<Comment> = emptyList(),
     val isSheetLoading: Boolean = false,
     val commentPostState: CommentPostState = CommentPostState.IDLE,
-    val currentUserAvatarUrl: String? = null
-
-
+    val currentUserAvatarUrl: String? = null,
+    // 🔸 Thêm state cho report dialog
+    val showReportDialog: Boolean = false,
+    val reportingPostId: String? = null,
+    val reportReason: String = "",
+    val reportDescription: String = "",
+    val isReporting: Boolean = false,
+    // 🔸 Thêm state cho delete confirmation dialog
+    val showDeleteConfirmDialog: Boolean = false,
+    val deletingPostId: String? = null,
+    val isDeleting: Boolean = false,
+    val currentUserId: String? = null,
+    val hiddenPostIds: Set<String> = emptySet()
 )
 
 class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
@@ -44,26 +54,26 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     private var commentsJob: Job? = null
     private val savingPosts = mutableSetOf<String>() // ngăn spam
 
-
     init {
         loadCurrentUser()
         loadCategoriesAndInitialPosts()
+        loadHiddenPosts()
     }
+
     private fun loadCurrentUser() {
         viewModelScope.launch {
             // --- LOGIC GIẢ ĐỊNH ---
-            // val userId = FirebaseAuth.getInstance().currentUser?.uid
-            // if (userId != null) {
-            //     val user = userRepository.getUserProfile(userId)
-            //     _uiState.update { it.copy(currentUserAvatarUrl = user.avatarUrl) }
-            // }
-            // ---------------------
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            if (currentUser != null) {
+                _uiState.update { it.copy(currentUserId = currentUser.uid) }
+            }
 
             // Tạm thời, chúng ta sẽ dùng một URL thật để thấy kết quả ngay
             val fakeUserAvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop"
             _uiState.update { it.copy(currentUserAvatarUrl = fakeUserAvatarUrl) }
         }
     }
+
     private fun loadCategoriesAndInitialPosts() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -80,6 +90,17 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
             _uiState.update { it.copy(categories = allCategories, selectedCategory = initialCategory) }
 
             initialCategory?.let { listenToPostChanges(it.id) }
+        }
+    }
+
+    private fun loadHiddenPosts() {
+        viewModelScope.launch {
+            try {
+                val hiddenIds = postRepository.getHiddenPostIds()
+                _uiState.update { it.copy(hiddenPostIds = hiddenIds.toSet()) }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading hidden posts", e)
+            }
         }
     }
 
@@ -255,4 +276,135 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         Log.d("HomeViewModel", "User profile clicked for user: $userId")
     }
 
+    // --- 🔸 HÀM XỬ LÝ ẨN BÀI VIẾT ---
+    fun onHideClicked(postId: String) {
+        viewModelScope.launch {
+            try {
+                val success = postRepository.hidePost(postId)
+                if (success) {
+                    // Cập nhật UI: thêm postId vào hiddenPostIds
+                    _uiState.update {
+                        it.copy(hiddenPostIds = it.hiddenPostIds + postId)
+                    }
+                    // Lọc bài viết ẩn ra khỏi danh sách
+                    val filteredPosts = _uiState.value.posts.filter { it.id != postId }
+                    _uiState.update { it.copy(posts = filteredPosts) }
+                    Log.d("HomeViewModel", "Post hidden successfully: $postId")
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error hiding post", e)
+            }
+        }
+    }
+
+    // --- 🔸 HÀM MỞ DIALOG BÁO CÁO ---
+    fun onReportClicked(postId: String) {
+        _uiState.update {
+            it.copy(
+                showReportDialog = true,
+                reportingPostId = postId,
+                reportReason = "",
+                reportDescription = ""
+            )
+        }
+    }
+
+    fun onReportReasonChanged(reason: String) {
+        _uiState.update { it.copy(reportReason = reason) }
+    }
+
+    fun onReportDescriptionChanged(description: String) {
+        _uiState.update { it.copy(reportDescription = description) }
+    }
+
+    // --- 🔸 HÀM GỬI BÁO CÁO ---
+    fun onSubmitReport() {
+        val reportingPostId = _uiState.value.reportingPostId ?: return
+        val reason = _uiState.value.reportReason.ifEmpty { return }
+        val description = _uiState.value.reportDescription
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isReporting = true) }
+            try {
+                val success = postRepository.reportPost(reportingPostId, reason, description)
+                if (success) {
+                    _uiState.update {
+                        it.copy(
+                            showReportDialog = false,
+                            isReporting = false,
+                            reportingPostId = null,
+                            reportReason = "",
+                            reportDescription = ""
+                        )
+                    }
+                    Log.d("HomeViewModel", "Report submitted successfully")
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error submitting report", e)
+                _uiState.update { it.copy(isReporting = false) }
+            }
+        }
+    }
+
+    fun onDismissReportDialog() {
+        _uiState.update {
+            it.copy(
+                showReportDialog = false,
+                reportingPostId = null,
+                reportReason = "",
+                reportDescription = ""
+            )
+        }
+    }
+
+    // --- 🔸 HÀM MỞ DIALOG XÓA BÀI VIẾT ---
+    fun onDeleteClicked(postId: String) {
+        // Kiểm tra xem người dùng hiện tại có phải chủ bài không
+        val post = _uiState.value.posts.find { it.id == postId }
+        if (post?.userId == _uiState.value.currentUserId) {
+            _uiState.update {
+                it.copy(
+                    showDeleteConfirmDialog = true,
+                    deletingPostId = postId
+                )
+            }
+        }
+    }
+
+    // --- 🔸 HÀM XÓA BÀI VIẾT ---
+    fun onConfirmDelete() {
+        val postIdToDelete = _uiState.value.deletingPostId ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeleting = true) }
+            try {
+                val success = postRepository.deletePost(postIdToDelete)
+                if (success) {
+                    // Xóa bài viết khỏi danh sách
+                    val updatedPosts = _uiState.value.posts.filter { it.id != postIdToDelete }
+                    _uiState.update {
+                        it.copy(
+                            posts = updatedPosts,
+                            showDeleteConfirmDialog = false,
+                            isDeleting = false,
+                            deletingPostId = null
+                        )
+                    }
+                    Log.d("HomeViewModel", "Post deleted successfully: $postIdToDelete")
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error deleting post", e)
+                _uiState.update { it.copy(isDeleting = false) }
+            }
+        }
+    }
+
+    fun onDismissDeleteDialog() {
+        _uiState.update {
+            it.copy(
+                showDeleteConfirmDialog = false,
+                deletingPostId = null
+            )
+        }
+    }
 }

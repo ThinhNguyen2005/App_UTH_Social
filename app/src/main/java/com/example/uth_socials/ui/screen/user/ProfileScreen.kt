@@ -34,7 +34,6 @@ import com.example.uth_socials.ui.component.post.PostCard
 import com.example.uth_socials.ui.component.profile.ProfileHeader
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
 import com.example.uth_socials.ui.theme.UTH_SocialsTheme
-import com.example.uth_socials.ui.viewmodel.MockProfileViewModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,7 +115,11 @@ fun ProfileScreen(
                             onCommentClicked = {},
                             onSaveClicked = {},
                             onShareClicked = {},
-                            onUserProfileClicked = {}
+                            onUserProfileClicked = {},
+                            onHideClicked = {},
+                            onReportClicked = {},
+                            onDeleteClicked = {},
+//                            currentUserId = state.currentUserId
                         )
                     }
                 }
@@ -172,4 +175,5 @@ private fun EmptyPostsView() {
         )
     }
 }
+
 

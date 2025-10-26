@@ -88,7 +88,6 @@ class ProfileViewModel(
                 }
 
                 _uiState.update { it.copy(posts = posts, postCount = posts.size) }
-
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error loading posts", e)
             }
@@ -155,57 +154,3 @@ class ProfileViewModel(
     }
 }
 
-// ============================
-// 🧩 MOCK DỮ LIỆU ẢO
-// ============================
-
-fun createMockPosts(userId: String): List<Post> {
-    val now = Timestamp.now()
-    return listOf(
-        Post(
-            id = "mock_post_1",
-            userId = userId,
-            username = "Thinh UT",
-            userAvatarUrl = "https://i.pravatar.cc/150?img=1",
-            textContent = "Đồ án Compose cuối kỳ khó quá anh em ơi!",
-            imageUrls = listOf(
-                "https://picsum.photos/id/1025/800/600",
-                "https://picsum.photos/id/1028/800/600"
-            ),
-            timestamp = now,
-            likes = 120,
-            commentCount = 25,
-            shareCount = 5,
-            isLiked = true
-        ),
-        Post(
-            id = "mock_post_2",
-            userId = userId,
-            username = "Thinh UT",
-            userAvatarUrl = "https://i.pravatar.cc/150?img=1",
-            textContent = "Hôm nay học được thuật toán Hashing.",
-            imageUrls = emptyList(),
-            timestamp = Timestamp(now.seconds - (3600 * 5), now.nanoseconds),
-            likes = 45,
-            commentCount = 10,
-            shareCount = 2,
-            isLiked = false
-        )
-    )
-}
-
-fun createMockUiState(isOwner: Boolean, userId: String): ProfileUiState {
-    val mockPosts = createMockPosts(userId)
-    return ProfileUiState(
-        posts = mockPosts,
-        isOwner = isOwner,
-        username = if (isOwner) "Thinh_User" else "Khách Xem",
-        userAvatarUrl = if (isOwner) "https://i.pravatar.cc/150?img=1" else "https://i.pravatar.cc/150?img=5",
-        followers = 1500,
-        following = 350,
-        bio = if (isOwner) "Sinh viên IT năm 3 - UTH. Đam mê Android và Tiếng Anh!" else "Trang cá nhân của người khác.",
-        isFollowing = !isOwner,
-        isLoading = false,
-        postCount = mockPosts.size
-    )
-}

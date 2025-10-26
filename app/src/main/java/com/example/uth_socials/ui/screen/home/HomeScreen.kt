@@ -18,6 +18,8 @@ import com.example.uth_socials.ui.component.navigation.FilterTabs
 import com.example.uth_socials.ui.component.navigation.HomeBottomNavigation
 import com.example.uth_socials.ui.component.post.CommentSheetContent
 import com.example.uth_socials.ui.component.post.PostCard
+import com.example.uth_socials.ui.component.common.ReportDialog
+import com.example.uth_socials.ui.component.common.DeleteConfirmDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,7 +107,11 @@ fun HomeScreen(
                                     },
                                     onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
                                     onShareClicked = { homeViewModel.onShareClicked(post.id) },
-                                    onUserProfileClicked = { homeViewModel.onUserProfileClicked(post.userId) }
+                                    onUserProfileClicked = { homeViewModel.onUserProfileClicked(post.userId) },
+                                    onReportClicked = { homeViewModel.onReportClicked(post.id) },
+                                    onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
+                                    onHideClicked = { homeViewModel.onHideClicked(post.id) },
+                                    currentUserId = uiState.currentUserId
                                 )
                             }
                         }
@@ -133,4 +139,27 @@ fun HomeScreen(
             )
         }
     }
+
+        // --- 🔸 REPORT DIALOG ---
+    ReportDialog(
+        isVisible = uiState.showReportDialog,
+        onDismiss = { homeViewModel.onDismissReportDialog() },
+        onReportReasonChanged = { homeViewModel.onReportReasonChanged(it) },
+        onReportDescriptionChanged = { homeViewModel.onReportDescriptionChanged(it) },
+        onSubmit = { homeViewModel.onSubmitReport() },
+        reportReason = uiState.reportReason,
+        reportDescription = uiState.reportDescription,
+        isReporting = uiState.isReporting
+    )
+
+    // --- 🔸 DELETE CONFIRM DIALOG ---
+    DeleteConfirmDialog(
+        isVisible = uiState.showDeleteConfirmDialog,
+        onDismiss = { homeViewModel.onDismissDeleteDialog() },
+        onConfirm = { homeViewModel.onConfirmDelete() },
+        isDeleting = uiState.isDeleting
+    )
+
 }
+
+

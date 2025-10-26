@@ -4,6 +4,7 @@ package com.example.uth_socials.data.repository
 import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
+import com.example.uth_socials.data.post.Report
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -18,6 +19,8 @@ class PostRepository {
     private val auth = FirebaseAuth.getInstance()
     private val postsCollection = db.collection("posts")
     private val categoriesCollection = db.collection("categories")
+    private val reportsCollection = db.collection("reports")
+    private val usersCollection = db.collection("users")
 
     // --- Giải quyết 🧩 b: Lấy danh mục động ---
     suspend fun getCategories(): List<Category> {
@@ -261,6 +264,54 @@ class PostRepository {
                 }
             }
         awaitClose { listener.remove() } // Hủy listener khi Flow bị đóng
+    }
+
+    // --- 🔸 HÀM ẨN BÀI VIẾT ---
+    suspend fun hidePost(postId: String): Boolean {
+        val currentUserId = auth.currentUser?.uid ?: return false
+        val userRef = usersCollection.document(currentUserId)
+
+        return try {
+            userRef.update(
+                "hiddenPosts", FieldValue.arrayUnion(postId)
+            ).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // --- 🔸 HÀM LẤY DANH SÁCH BÀI VIẾT ẨN ---
+    suspend fun getHiddenPostIds(): List<String> {
+        val currentUserId = auth.currentUser?.uid ?: return emptyList()
+        return try {
+            val snapshot = usersCollection.document(currentUserId).get().await()
+            (snapshot.get("hiddenPosts") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    // --- 🔸 HÀM BÁO CÁO BÀI VIẾT ---
+    suspend fun reportPost(postId: String, reason: String, description: String): Boolean {
+        val currentUserId = auth.currentUser?.uid ?: return false
+
+        return try {
+            val report = Report(
+                postId = postId,
+                reportedBy = currentUserId,
+                reason = reason,
+                description = description,
+                status = "pending"
+            )
+            reportsCollection.add(report).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 }
 

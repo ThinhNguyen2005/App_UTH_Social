@@ -31,7 +31,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.HideSource
+import androidx.compose.material.icons.filled.Report
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.ModeComment
@@ -40,6 +44,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import com.example.uth_socials.data.util.MenuItemData
+import com.example.uth_socials.ui.component.common.ReusablePopupMenu
 import com.example.uth_socials.ui.component.common.ZoomableImage
 
 
@@ -50,7 +56,11 @@ fun PostCard(
     onCommentClicked: (String) -> Unit,
     onSaveClicked: (String) -> Unit,
     onShareClicked: (String) -> Unit,
-    onUserProfileClicked: (String) -> Unit
+    onUserProfileClicked: (String) -> Unit,
+    onHideClicked: (String) -> Unit,
+    onReportClicked: (String) -> Unit,
+    onDeleteClicked: (String) -> Unit,
+    currentUserId: String? = null
 
 ) {
     Card(
@@ -59,7 +69,7 @@ fun PostCard(
     ) {
         Column {
             Column(modifier = Modifier.padding(12.dp)) {
-                PostHeader(post, onUserProfileClicked)
+                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId)
                 Spacer(modifier = Modifier.height(8.dp))
                 ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
             }
@@ -86,12 +96,19 @@ fun PostCard(
 //Phần tên và avatar người đăng bài
 
 @Composable
-private fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
+private fun PostHeader(
+    post: Post,
+    onUserProfileClicked: (String) -> Unit,
+    onHideClicked: (String) -> Unit,
+    onReportClicked: (String) -> Unit,
+    onDeleteClicked: (String) -> Unit,
+    currentUserId: String? = null
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onUserProfileClicked(post.userId) } // Cho phép nhấn vào cả hàng
+            .clickable { onUserProfileClicked(post.userId) }
     ) {
         AsyncImage(
             model = post.userAvatarUrl,
@@ -114,8 +131,54 @@ private fun PostHeader(post: Post, onUserProfileClicked: (String) -> Unit) {
             )
 
         }
-        IconButton(onClick = { /* TODO: Mở menu */ }) {
-            Icon(Icons.Default.MoreHoriz, contentDescription = "More options")
+        Box {
+            var menuExpanded by remember { mutableStateOf(false) }
+
+            IconButton(onClick = {
+                menuExpanded = true
+            }) {
+                Icon(Icons.Default.MoreHoriz, contentDescription = "More options")
+            }
+
+            // 🔸 Tạo danh sách menu items động dựa trên quyền
+            val menuItems = mutableListOf(
+                MenuItemData(
+                    text = "Ẩn bài viết",
+                    icon = Icons.Default.HideSource,
+                    onClick = {
+                        onHideClicked(post.id)
+                        menuExpanded = false
+                    }
+                ),
+                MenuItemData(
+                    text = "Báo cáo",
+                    icon = Icons.Default.Report,
+                    onClick = {
+                        onReportClicked(post.id)
+                        menuExpanded = false
+                    }
+                )
+            )
+
+            // Chỉ hiển thị "Xóa" nếu người dùng hiện tại là chủ bài
+            if (post.userId == currentUserId) {
+                menuItems.add(
+                    MenuItemData(
+                        text = "Xóa",
+                        icon = Icons.Default.Delete,
+                        onClick = {
+                            onDeleteClicked(post.id)
+                            menuExpanded = false
+                        }
+                    )
+                )
+            }
+
+            ReusablePopupMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+                menuItems = menuItems
+            )
         }
     }
 }
