@@ -1,6 +1,4 @@
-package com.example.uth_socials.ui.navigation1
-
-
+package com.example.uth_socials.ui.component.navigation
 
 import android.app.Activity
 import android.content.Intent
@@ -10,9 +8,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.uth_socials.LoginScreen
-import com.example.uth_socials.ui.screen.OnboardingScreen
-
 import com.example.uth_socials.ui.screen.RegisterScreen
+import com.example.uth_socials.ui.screen.ResetPasswordScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 
@@ -22,10 +19,10 @@ fun AuthNav(
     launcher: ActivityResultLauncher<Intent>
 ) {
     val navController = rememberNavController()
+    // 🔍 Kiểm tra trạng thái đăng nhập
+    val startDestination = if (viewModel.isUserLoggedIn()) "home" else "login"
+    NavHost(navController = navController, startDestination = startDestination) {
 
-    NavHost(navController = navController, startDestination = "login") {
-
-        // 1️⃣ Onboarding đầu tiên
 //        composable("onboarding") {
 //            OnboardingScreen(
 //                helloUserModel = androidx.lifecycle.viewmodel.compose.viewModel(),
@@ -34,7 +31,7 @@ fun AuthNav(
 //            )
 //        }
 
-        // 2️⃣ Màn đăng nhập
+
         composable("login") {
             LoginScreen(
                 viewModel = viewModel,
@@ -48,21 +45,38 @@ fun AuthNav(
                     navController.navigate("home") {
                         popUpTo("login") { inclusive = true }
                     }
+                },
+                onResetPasswordClick = { navController.navigate("reset_password") }
+            )
+        }
+
+        composable("register") {
+            RegisterScreen(
+                viewModel = viewModel,
+                onBackToLogin = { navController.popBackStack() },
+                onGoogleClick = {
+                    viewModel.loginWithGoogle(activity = navController.context as Activity) {
+                        launcher.launch(it)
+                    }
                 }
             )
         }
 
-        // 3️⃣ Màn đăng ký
-        composable("register") {
-            RegisterScreen(
+        composable("reset_password") {
+            ResetPasswordScreen(
                 viewModel = viewModel,
-                onBackToLogin = { navController.popBackStack() }
+                onBackToLogin = { navController.popBackStack() },
+                onGoogleClick = {
+                    viewModel.loginWithGoogle(activity = navController.context as Activity) {
+                        launcher.launch(it)
+                    }
+                }
             )
         }
 
-        // 4️⃣ Home sau khi đăng nhập
         composable("home") {
             HomeScreen()
         }
+
     }
 }

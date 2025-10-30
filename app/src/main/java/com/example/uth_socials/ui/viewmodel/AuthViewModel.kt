@@ -28,6 +28,7 @@ class AuthViewModel(
 
     private val _state = MutableStateFlow<AuthState>(AuthState.Idle)
     val state = _state.asStateFlow()
+    val currentUser = FirebaseAuth.getInstance().currentUser
 
     fun login(email: String, password: String) {
         viewModelScope.launch {
@@ -80,4 +81,21 @@ class AuthViewModel(
     fun resetState() {
         _state.value = AuthState.Idle
     }
+    fun isUserLoggedIn(): Boolean {
+        return auth.currentUser != null
+    }
+    fun resetPassword(email: String) {
+        viewModelScope.launch {
+            _state.value = AuthState.Loading
+            auth.sendPasswordResetEmail(email)
+                .addOnCompleteListener { task ->
+                    _state.value = if (task.isSuccessful)
+                        AuthState.Success("Email đặt lại mật khẩu đã được gửi đến $email")
+                    else
+                        AuthState.Error(task.exception?.message ?: "Lỗi khi gửi email đặt lại mật khẩu")
+                }
+        }
+    }
+
+
 }

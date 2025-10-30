@@ -1,10 +1,12 @@
 package com.example.uth_socials.ui.screen.home
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -33,6 +35,8 @@ fun HomeScreen(
     val uiState by homeViewModel.uiState.collectAsState()
     // THÊM MỚI: Lấy context hiện tại để sử dụng cho Intent
     val context = LocalContext.current
+// 🔹 Lấy FirebaseAuth để đăng xuất
+    val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
 
     // THÊM MỚI: LaunchedEffect để xử lý hành động share
     // Nó sẽ kích hoạt khi giá trị của uiState.shareContent thay đổi
@@ -96,6 +100,22 @@ fun HomeScreen(
                         }
                     }
                 }
+
+                Button(
+                    onClick = {
+                        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                        Toast.makeText(context, "Đã đăng xuất", Toast.LENGTH_SHORT).show()
+                        val intent = Intent(context, com.example.uth_socials.MainActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text("Đăng xuất")
+                }
+
             }
         }
     }

@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import com.example.uth_socials.ui.navigation1.AuthNav
+import com.example.uth_socials.ui.component.navigation.AuthNav
 import com.example.uth_socials.ui.screen.OnboardingScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.theme.UTH_SocialsTheme

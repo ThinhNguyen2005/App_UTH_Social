@@ -1,43 +1,51 @@
 package com.example.uth_socials.ui.screen
 
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.uth_socials.R
 import com.example.uth_socials.ui.component.button.ComfirmAuthButton
 import com.example.uth_socials.ui.component.button.GoogleButton
 import com.example.uth_socials.ui.viewmodel.AuthState
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 
 @Composable
-fun RegisterScreen(
+fun ResetPasswordScreen(
     viewModel: AuthViewModel,
     onBackToLogin: () -> Unit,
-    onGoogleClick: () -> Unit
+    onGoogleClick:() -> Unit
 ) {
     val context = LocalContext.current
-    val state by viewModel.state.collectAsState()
-
     var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    val state by viewModel.state.collectAsState()
 
     Column(
         modifier = Modifier
@@ -64,7 +72,7 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(40.dp))
 
         Text(
-            text = "Tạo tài khoản",
+            text = "Khôi phục mật khẩu",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF06635A)
@@ -73,7 +81,7 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Tạo tài khoản để kết nối nhiều bạn bè hơn",
+            text = "Quay lại cùng UTH Social",
             style = MaterialTheme.typography.bodyLarge,
             color = Color.Gray,
             fontWeight = FontWeight.Medium
@@ -91,81 +99,42 @@ fun RegisterScreen(
                 focusedIndicatorColor = Color(0xFF06635A),
                 unfocusedIndicatorColor = Color(0xFFB0BEC5),
                 focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF)
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Mật khẩu") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF)
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("Nhập lại mật khẩu") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
                 unfocusedContainerColor = Color(0xFFF1F4FF),
                 focusedTextColor = Color.Black,
                 unfocusedTextColor = Color.Black
             )
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(Modifier.height(48.dp))
 
         ComfirmAuthButton(
-            text = "Đăng kí",
+            text = "Xác nhận email",
             onClick = {
-                when {
-                    email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty() ->
-                        Toast.makeText(context, "Vui lòng nhập đủ thông tin", Toast.LENGTH_SHORT).show()
-                    password != confirmPassword ->
-                        Toast.makeText(context, "Mật khẩu không khớp", Toast.LENGTH_SHORT).show()
-                    else -> viewModel.register(email, password)
+                if (email.isEmpty()) {
+                    Toast.makeText(context, "Vui lòng nhập email", Toast.LENGTH_SHORT).show()
+                } else {
+                    viewModel.resetPassword(email)
                 }
             },
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+
 
         TextButton(onClick = onBackToLogin) {
-            Text("Bạn đã có tài khoản rồi !", color = Color.Gray, fontWeight = FontWeight.Medium)
+            Text("Quay trở lại", color = Color.Gray, fontWeight = FontWeight.Medium)
         }
 
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(Modifier.weight(1f))
 
-        GoogleButton(
-            onClick=onGoogleClick
+        GoogleButton (
+            onClick = onGoogleClick
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
-
+        Spacer(Modifier.height(32.dp))
         when (state) {
-            is AuthState.Loading -> CircularProgressIndicator()
             is AuthState.Success -> {
                 Toast.makeText(context, (state as AuthState.Success).message, Toast.LENGTH_SHORT).show()
                 viewModel.resetState()
-                onBackToLogin()
             }
             is AuthState.Error -> {
                 Toast.makeText(context, (state as AuthState.Error).message, Toast.LENGTH_SHORT).show()
