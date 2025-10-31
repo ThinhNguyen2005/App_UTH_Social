@@ -53,10 +53,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.compose.foundation.layout)
-    implementation(libs.androidx.compose.ui.text)
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.firebase.crashlytics.buildtools)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -68,7 +64,4 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
-
-    implementation("com.google.android.gms:play-services-auth:21.2.0")//Auth API GG
-    implementation("androidx.navigation:navigation-compose:2.8.3")//điều hướng
 }
