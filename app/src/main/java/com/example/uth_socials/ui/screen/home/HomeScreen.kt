@@ -100,22 +100,6 @@ fun HomeScreen(
                         }
                     }
                 }
-
-                Button(
-                    onClick = {
-                        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
-                        Toast.makeText(context, "Đã đăng xuất", Toast.LENGTH_SHORT).show()
-                        val intent = Intent(context, com.example.uth_socials.MainActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        context.startActivity(intent)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Text("Đăng xuất")
-                }
-
             }
         }
     }
