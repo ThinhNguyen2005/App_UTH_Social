@@ -21,6 +21,15 @@ const val ALL_POSTS_ID = "all"
 
 //Enum để quản lý trạng thái gửi bình luận
 enum class CommentPostState { IDLE, POSTING, SUCCESS, ERROR }
+
+// 🔸 Pagination State
+data class PaginationState(
+    val currentPage: Int = 0,
+    val pageSize: Int = 10,
+    val hasMore: Boolean = true,
+    val isLoadingMore: Boolean = false
+)
+
 // Cập nhật State để làm việc với object Category
 data class HomeUiState(
     val posts: List<Post> = emptyList(),
@@ -46,8 +55,8 @@ data class HomeUiState(
     val isDeleting: Boolean = false,
     val currentUserId: String? = null,
     val hiddenPostIds: Set<String> = emptySet(),
-    // 🔸 Thêm state cho infinite scroll
-    val isLoadingMore: Boolean = false
+    // 🔸 Pagination state
+    val paginationState: PaginationState = PaginationState()
 )
 
 class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
@@ -55,6 +64,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var commentsJob: Job? = null
     private val savingPosts = mutableSetOf<String>() // ngăn spam
+    private var postsJob: Job? = null // Job để theo dõi sự thay đổi của bài viết
 
     init {
         loadCurrentUser()
@@ -69,29 +79,29 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
             if (currentUser != null) {
                 _uiState.update { it.copy(currentUserId = currentUser.uid) }
             }
-
-            // Tạm thời, chúng ta sẽ dùng một URL thật để thấy kết quả ngay
-            val fakeUserAvatarUrl = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500&auto=format&fit=crop"
-            _uiState.update { it.copy(currentUserAvatarUrl = fakeUserAvatarUrl) }
         }
     }
 
     private fun loadCategoriesAndInitialPosts() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-//Mẫu khi có dữ liệu thật thì xóa cái này đi
-            val virtualCategories = listOf(
-                Category(id = LATEST_POSTS_ID, name = "Mới nhất", order = -2),
-                Category(id = ALL_POSTS_ID, name = "Tất cả", order = -1)
-            )
+            try {
+                val realCategories = postRepository.getCategories()
+                if (realCategories.isEmpty()) {
+                    _uiState.update { it.copy(error = "Vui lòng đăng nhập lại", isLoading = false) }
+                    _uiState.update { it.copy(isLoading = false) }
+                    return@launch
+                }
+                val initialCategory = realCategories.firstOrNull()
 
-            val realCategories = postRepository.getCategories()
-            val allCategories = (virtualCategories + realCategories).sortedBy { it.order }
-            val initialCategory = allCategories.firstOrNull()
+                _uiState.update { it.copy(categories = realCategories, selectedCategory = initialCategory) }
+                _uiState.update { it.copy(isLoading = false) } // Ensure isLoading is set to false after successfully loading categories
 
-            _uiState.update { it.copy(categories = allCategories, selectedCategory = initialCategory) }
-
-            initialCategory?.let { listenToPostChanges(it.id) }
+                initialCategory?.let { listenToPostChanges(it.id) }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading categories", e)
+                _uiState.update { it.copy(error = "Failed to load categories", isLoading = false) }
+            }
         }
     }
 
@@ -107,7 +117,8 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     }
 
     private fun listenToPostChanges(categoryId: String) {
-        viewModelScope.launch {
+        postsJob?.cancel() // Hủy bỏ job cũ nếu có
+        postsJob = viewModelScope.launch {
             postRepository.getPostsFlow(categoryId).collect { posts ->
                 _uiState.update { it.copy(posts = posts, isLoading = false) }
             }
@@ -174,6 +185,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
 
         Log.d("HomeViewModel", "Comment clicked for post: $postId")
     }
+
     fun addComment(postId: String, commentText: String) {
         if (commentText.isBlank()) return
 
@@ -194,7 +206,6 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         }
     }
 
-    //  xử lý like/unlike bình luận với Optimistic Update
     fun onCommentLikeClicked(commentId: String) {
         viewModelScope.launch {
             val originalComments = _uiState.value.commentsForSheet
@@ -208,12 +219,9 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
             )
             val updatedComments = originalComments.map { if (it.id == commentId) updatedComment else it }
             _uiState.update { it.copy(commentsForSheet = updatedComments) }
-
-            // 2. Gọi Repository để cập nhật server
             try {
-                // Giả sử bạn sẽ tạo hàm này trong Repository
-                // postRepository.toggleCommentLikeStatus(commentId, isCurrentlyLiked)
-                Log.d("HomeViewModel", "Toggled like for comment $commentId")
+                postRepository.toggleCommentLikeStatus(commentId, isCurrentlyLiked)
+                Log.d("HomeViewModel", "Toggled comment like: $commentId")
             } catch (e: Exception) {
                 // 3. Nếu lỗi, khôi phục lại trạng thái cũ
                 _uiState.update { it.copy(commentsForSheet = originalComments) }
@@ -226,9 +234,6 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         commentsJob?.cancel()
         _uiState.update { it.copy(commentSheetPostId = null) }
     }
-
-
-    // ... trong HomeViewModel.kt
 
     fun onSaveClicked(postId: String) {
         // Nếu đang xử lý thì bỏ qua
@@ -262,8 +267,6 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
             }
         }
     }
-
-
 
     fun onShareClicked(postId: String) {
         val shareableContent = "Xem bài viết này trên UTH Socials: https://uthsocials.example.com/post/$postId"
@@ -410,37 +413,78 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         }
     }
 
-    // 🔸 Infinite scroll - load more posts
+    // 🔸 INFINITE SCROLL - Load more posts with proper pagination
     fun onLoadMore() {
-        // Chỉ load more nếu hiện tại không đang load
-        if (_uiState.value.isLoadingMore || _uiState.value.isLoading) return
+        val currentState = _uiState.value
+        val pagination = currentState.paginationState
+        
+        // Kiểm tra các điều kiện
+        if (pagination.isLoadingMore) {
+            Log.d("HomeViewModel", "Already loading more posts")
+            return
+        }
+
+        if (!pagination.hasMore) {
+            Log.d("HomeViewModel", "No more posts to load")
+            return
+        }
+
+        val categoryId = currentState.selectedCategory?.id ?: return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingMore = true) }
+            _uiState.update { 
+                it.copy(
+                    paginationState = it.paginationState.copy(isLoadingMore = true)
+                ) 
+            }
+
             try {
-                val currentCategoryId = _uiState.value.selectedCategory?.id ?: return@launch
-                val currentPosts = _uiState.value.posts
-                
-                // Giả sử repository có method để load thêm posts (pagination)
-                // Nếu chưa có, bạn có thể implement pagination trong PostRepository
-                postRepository.getPostsFlow(currentCategoryId).collect { newPosts ->
-                    // Kết hợp posts cũ với posts mới, tránh duplicate
-                    val allPosts = (currentPosts + newPosts).distinctBy { it.id }
+                // 🔸 Gọi API với pagination (page-based)
+                val newPosts = postRepository.getPostsByPage(
+                    categoryId = categoryId,
+                    page = pagination.currentPage,
+                    pageSize = pagination.pageSize
+                )
+
+                if (newPosts.isNotEmpty()) {
+                    // Thêm posts mới vào cuối danh sách (lọc duplicate bằng distinctBy)
+                    val allPosts = (currentState.posts + newPosts).distinctBy { it.id }
+                    val hasMorePages = newPosts.size >= pagination.pageSize
+
                     _uiState.update {
                         it.copy(
-                            posts = allPosts,
-                            isLoadingMore = false
+                            posts = allPosts.distinctBy { it.id },
+                            paginationState = it.paginationState.copy(
+                                currentPage = pagination.currentPage + 1,
+                                hasMore = hasMorePages,
+                                isLoadingMore = false
+                            )
+                        )
+                    }
+                    Log.d("HomeViewModel", "Loaded page ${pagination.currentPage} with ${newPosts.size} posts")
+                } else {
+                    // Không có posts mới
+                    _uiState.update {
+                        it.copy(
+                            paginationState = it.paginationState.copy(
+                                hasMore = false,
+                                isLoadingMore = false
+                            )
                         )
                     }
                 }
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Error loading more posts", e)
-                _uiState.update { it.copy(isLoadingMore = false) }
+                _uiState.update { 
+                    it.copy(
+                        paginationState = it.paginationState.copy(isLoadingMore = false)
+                    ) 
+                }
             }
         }
     }
 
-    // 🔸 Retry loading when error occurs
+    // 🔸 RETRY - Thử tải lại dữ liệu khi có lỗi
     fun onRetry() {
         _uiState.update { it.copy(error = null, isLoading = true) }
         loadCategoriesAndInitialPosts()

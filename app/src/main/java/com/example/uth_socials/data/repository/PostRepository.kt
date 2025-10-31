@@ -330,6 +330,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import android.util.Log
 
 class PostRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -426,91 +427,6 @@ class PostRepository {
                 "savedBy", FieldValue.arrayUnion(userId),
                 "saveCount", FieldValue.increment(1)
             ).await()
-        }
-    }
-
-    // 🔹 Tăng lượt chia sẻ
-    suspend fun incrementShareCount(postId: String) {
-        try {
-            postsCollection.document(postId)
-                .update("shareCount", FieldValue.increment(1))
-                .await()
-        } catch (e: Exception) {
-            throw e
-        }
-    }
-    // ... các hàm khác như updateLike, deletePost ...
-    suspend fun addPost(post: Post): Boolean {
-        return try {
-            postsCollection.add(post).await()
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-
-
-    // 🔸 Cập nhật lưu bài viết
-    suspend fun updateSave(postId: String): Boolean {
-        val currentUserId = auth.currentUser?.uid ?: return false
-        val postRef = postsCollection.document(postId)
-
-        return try {
-            val snapshot = postRef.get().await()
-            val savedBy = snapshot.get("savedBy") as? List<*> ?: emptyList<String>()
-            val isSaved = savedBy.contains(currentUserId)
-
-            if (isSaved) {
-                postRef.update(
-                    mapOf(
-                        "saveCount" to FieldValue.increment(-1),
-                        "savedBy" to FieldValue.arrayRemove(currentUserId)
-                    )
-                ).await()
-            } else {
-                postRef.update(
-                    mapOf(
-                        "saveCount" to FieldValue.increment(1),
-                        "savedBy" to FieldValue.arrayUnion(currentUserId)
-                    )
-                ).await()
-            }
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    // 🔸 Xóa bài viết (chỉ chủ bài mới được xóa)
-    suspend fun deletePost(postId: String): Boolean {
-        val currentUserId = auth.currentUser?.uid ?: return false
-        val postRef = postsCollection.document(postId)
-
-        return try {
-            val snapshot = postRef.get().await()
-            val ownerId = snapshot.getString("userId")
-
-            if (ownerId == currentUserId) {
-                postRef.delete().await()
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    // 🔸 Tăng lượt chia sẻ
-    suspend fun updateShareCount(postId: String): Boolean {
-        return try {
-            postsCollection.document(postId)
-                .update("shareCount", FieldValue.increment(1))
-                .await()
-            true
-        } catch (e: Exception) {
-            false
         }
     }
 
@@ -627,6 +543,101 @@ class PostRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    // 🔸 Xóa bài viết (chỉ chủ bài mới được xóa)
+    suspend fun deletePost(postId: String): Boolean {
+        val currentUserId = auth.currentUser?.uid ?: return false
+        val postRef = postsCollection.document(postId)
+
+        return try {
+            val snapshot = postRef.get().await()
+            val ownerId = snapshot.getString("userId")
+
+            if (ownerId == currentUserId) {
+                postRef.delete().await()
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // 🔸 PAGINATION - Lấy posts theo trang (đơn giản, không dùng offset)
+    suspend fun getPostsByPage(
+        categoryId: String,
+        page: Int,
+        pageSize: Int = 10
+    ): List<Post> {
+        return try {
+            val currentUserId = auth.currentUser?.uid
+
+            // Xây dựng query theo category
+            val query = when (categoryId) {
+                "all", "latest" -> postsCollection
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .limit((pageSize * (page + 1)).toLong())
+                else -> postsCollection
+                    .whereEqualTo("category", categoryId)
+                    .orderBy("timestamp", Query.Direction.DESCENDING)
+                    .limit((pageSize * (page + 1)).toLong())
+            }
+
+            val snapshot = query.get().await()
+            val allPosts = snapshot.documents.mapNotNull { doc ->
+                doc.toPostOrNull()?.let { post ->
+                    val isLiked = currentUserId?.let { post.likedBy.contains(it) } ?: false
+                    val isSaved = currentUserId?.let { post.savedBy.contains(it) } ?: false
+
+                    post.copy(
+                        isLiked = isLiked,
+                        isSaved = isSaved
+                    )
+                }
+            }
+            
+            // Lấy posts của trang hiện tại
+            val start = page * pageSize
+            val end = (page + 1) * pageSize
+            if (start >= allPosts.size) {
+                emptyList()
+            } else {
+                allPosts.subList(start, minOf(end, allPosts.size))
+            }
+        } catch (exception: Exception) {
+            Log.e("PostRepository", "Error loading posts by page", exception)
+            emptyList()
+        }
+    }
+
+    // 🔸 COMMENT LIKE - Toggle like status cho comment
+    suspend fun toggleCommentLikeStatus(commentId: String, isCurrentlyLiked: Boolean) {
+        val currentUserId = auth.currentUser?.uid ?: return
+        
+        try {
+            // Comments được lưu trong sub-collection của posts
+            val commentsCollection = db.collection("comments")
+            val commentRef = commentsCollection.document(commentId)
+
+            if (isCurrentlyLiked) {
+                // Unlike - xóa user khỏi likedBy array
+                commentRef.update(
+                    "likedBy", FieldValue.arrayRemove(currentUserId),
+                    "likes", FieldValue.increment(-1)
+                ).await()
+            } else {
+                // Like - thêm user vào likedBy array
+                commentRef.update(
+                    "likedBy", FieldValue.arrayUnion(currentUserId),
+                    "likes", FieldValue.increment(1)
+                ).await()
+            }
+        } catch (exception: Exception) {
+            Log.e("PostRepository", "Error toggling comment like status", exception)
+            throw exception
         }
     }
 

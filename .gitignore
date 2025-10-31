@@ -68,3 +68,6 @@ google-services.json
 
 # Các file log và báo cáo
 /lint-results-debug.xml
+
+/.cursor
+*.md

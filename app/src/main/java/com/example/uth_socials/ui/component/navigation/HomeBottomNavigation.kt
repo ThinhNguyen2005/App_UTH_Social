@@ -7,9 +7,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.AddBox
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.AddBox
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Storefront
@@ -37,9 +40,9 @@ fun HomeBottomNavigation() {
         )
 
     val items = listOf(
-        NavItem("home", R.drawable.ic_home5, R.drawable.ic_home4,0),
+        NavItem("home", Icons.Rounded.Home, Icons.Outlined.Home,0),
         NavItem("market", Icons.Filled.ShoppingCart, Icons.Outlined.ShoppingCart,0),
-        NavItem("add", R.drawable.ic_create1, R.drawable.ic_create,0),
+        NavItem("add", Icons.Rounded.AddBox, Icons.Outlined.AddBox,0),
         NavItem("notifications", Icons.Filled.Notifications, Icons.Outlined.Notifications, 0),
         NavItem("profile", Icons.Rounded.AccountCircle, Icons.Outlined.AccountCircle, 0)
     )

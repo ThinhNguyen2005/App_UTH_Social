@@ -172,7 +172,7 @@ fun HomeScreen(
                             }
                             
                             // 🔸 Infinite scroll - load more trigger
-                            if (!uiState.isLoading && filteredPosts.isNotEmpty() && !uiState.isLoadingMore) {
+                            if (!uiState.isLoading && filteredPosts.isNotEmpty() && !uiState.paginationState.isLoadingMore) {
                                 item {
                                     LaunchedEffect(Unit) {
                                         homeViewModel.onLoadMore()
@@ -181,7 +181,7 @@ fun HomeScreen(
                             }
                             
                             // 🔸 Show loading indicator at bottom when loading more
-                            if (uiState.isLoadingMore) {
+                            if (uiState.paginationState.isLoadingMore) {
                                 item {
                                     Box(
                                         modifier = Modifier
