@@ -1,7 +1,6 @@
 package com.example.uth_socials.ui.screen
 
 
-import PageIndicator
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -35,6 +34,7 @@ import com.example.uth_socials.ui.viewmodel.HelloUserModel
 import kotlinx.coroutines.delay
 import com.example.uth_socials.ui.component.button.PrimaryButton
 import com.example.uth_socials.ui.component.common.ClickablePrivacyPolicyText
+import com.example.uth_socials.ui.component.common.PageIndicator
 import androidx.compose.ui.res.stringResource
 
 
@@ -260,8 +260,8 @@ fun OnboardingPortraitPreview() {
     OnboardingPortraitLayout(0, {}, {})
 }
 
-//@Preview(name = "Landscape Mode", showBackground = true, widthDp = 780, heightDp = 360)
-//@Composable
-//fun OnboardingLandscapePreview() {
-//    OnboardingLandscapeLayout(0, {}, {})
-//}
+@Preview(name = "Landscape Mode", showBackground = true, widthDp = 780, heightDp = 360)
+@Composable
+fun OnboardingLandscapePreview() {
+    OnboardingLandscapeLayout(0, {}, {})
+}

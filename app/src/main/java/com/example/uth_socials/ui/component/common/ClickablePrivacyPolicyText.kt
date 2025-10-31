@@ -17,12 +17,13 @@ import androidx.core.net.toUri
 @Composable
 fun ClickablePrivacyPolicyText() {
     val context = LocalContext.current
-    val privacyPolicyUrl = "https://www.google.com" // THAY URL
+    val privacyPolicyUrl = "https://www.google.com" // <-- THAY URL CỦA BẠN VÀO ĐÂY
 
     val annotatedString = buildAnnotatedString {
         withStyle(style = SpanStyle(color = Color.Gray, fontSize = 14.sp)) {
             append("Khi nhấp vào Bắt đầu, bạn đồng ý với ")
         }
+        // Đánh dấu phần văn bản này
         pushStringAnnotation(tag = "URL", annotation = privacyPolicyUrl)
         withStyle(style = SpanStyle(color = UthTeal, fontSize = 14.sp)) {
             append("Chính sách quyền riêng tư của UTH.")
@@ -39,6 +40,6 @@ fun ClickablePrivacyPolicyText() {
                     context.startActivity(intent)
                 }
         },
-        style = TextStyle(textAlign = TextAlign.Center)
+        style = TextStyle(textAlign = TextAlign.Center) // Căn giữa cho ClickableText
     )
 }
