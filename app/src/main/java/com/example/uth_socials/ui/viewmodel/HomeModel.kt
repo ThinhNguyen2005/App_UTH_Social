@@ -64,7 +64,6 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var commentsJob: Job? = null
     private val savingPosts = mutableSetOf<String>() // ngăn spam
-    private var postsJob: Job? = null // Job để theo dõi sự thay đổi của bài viết
 
     init {
         loadCurrentUser()
@@ -85,22 +84,17 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     private fun loadCategoriesAndInitialPosts() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            try {
-                val realCategories = postRepository.getCategories()
-                if (realCategories.isEmpty()) {
-                    _uiState.update { it.copy(error = "Vui lòng đăng nhập lại", isLoading = false) }
-                    _uiState.update { it.copy(isLoading = false) }
-                    return@launch
-                }
-                val initialCategory = realCategories.firstOrNull()
+            val allCategories = postRepository.getCategories().sortedBy { it.order }
+            val initialCategory = allCategories.firstOrNull()
 
-                _uiState.update { it.copy(categories = realCategories, selectedCategory = initialCategory) }
-                _uiState.update { it.copy(isLoading = false) } // Ensure isLoading is set to false after successfully loading categories
-
-                initialCategory?.let { listenToPostChanges(it.id) }
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error loading categories", e)
-                _uiState.update { it.copy(error = "Failed to load categories", isLoading = false) }
+            if (initialCategory != null) {
+                _uiState.update { it.copy(categories = allCategories, selectedCategory = initialCategory) }
+                listenToPostChanges(initialCategory.id)
+            } else {
+                // 🔸 Fallback: nếu không có category nào, dùng "Tất cả"
+                val fallback = Category(id = ALL_POSTS_ID, name = "Tất cả", order = -1)
+                _uiState.update { it.copy(categories = listOf(fallback), selectedCategory = fallback) }
+                listenToPostChanges(fallback.id)
             }
         }
     }
@@ -116,8 +110,10 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         }
     }
 
+    private var postsJob: Job? = null
+
     private fun listenToPostChanges(categoryId: String) {
-        postsJob?.cancel() // Hủy bỏ job cũ nếu có
+        postsJob?.cancel()
         postsJob = viewModelScope.launch {
             postRepository.getPostsFlow(categoryId).collect { posts ->
                 _uiState.update { it.copy(posts = posts, isLoading = false) }
@@ -453,7 +449,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
 
                     _uiState.update {
                         it.copy(
-                            posts = allPosts.distinctBy { it.id },
+                            posts = allPosts,
                             paginationState = it.paginationState.copy(
                                 currentPage = pagination.currentPage + 1,
                                 hasMore = hasMorePages,

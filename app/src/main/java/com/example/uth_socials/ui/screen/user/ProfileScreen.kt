@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -74,8 +75,8 @@ fun ProfileScreen(
         }
     }
 
-    // Sử dụng Scaffold đơn giản không có TopAppBar
-    Scaffold { innerPadding ->
+    // Sử dụng Scaffold đơn giản không có TopAppBar; tránh double insets khi lồng Scaffold
+    Scaffold(contentWindowInsets = WindowInsets(0)) { innerPadding ->
         // Sử dụng LazyColumn với trạng thái cuộn đã được theo dõi
         LazyColumn(
             state = lazyListState,

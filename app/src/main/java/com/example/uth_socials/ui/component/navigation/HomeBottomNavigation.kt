@@ -3,50 +3,25 @@ package com.example.uth_socials.ui.component.navigation
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.AddBox
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.AddBox
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.uth_socials.ui.screen.UthTeal
-import com.example.uth_socials.R
-
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.navOptions
+import com.example.uth_socials.ui.navigation.AppDestination
+import com.example.uth_socials.ui.navigation.bottomNavItems
+import com.example.uth_socials.ui.navigation.toIcon
 
 @Composable
-fun HomeBottomNavigation() {
-    var selectedItem by remember { mutableStateOf("home") }
-    data class NavItem(
-        val route: String,
-        val selectedIcon: Any,
-        val unselectedIcon: Any,
-        val badgeCount: Int,
-
-        )
-
-    val items = listOf(
-        NavItem("home", Icons.Rounded.Home, Icons.Outlined.Home,0),
-        NavItem("market", Icons.Filled.ShoppingCart, Icons.Outlined.ShoppingCart,0),
-        NavItem("add", Icons.Rounded.AddBox, Icons.Outlined.AddBox,0),
-        NavItem("notifications", Icons.Filled.Notifications, Icons.Outlined.Notifications, 0),
-        NavItem("profile", Icons.Rounded.AccountCircle, Icons.Outlined.AccountCircle, 0)
-    )
-
+fun HomeBottomNavigation(navController: NavController) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    // Lấy destination hiện tại một cách an toàn
+    val currentDestination = navBackStackEntry?.destination
 
     NavigationBar(
         modifier = Modifier
@@ -55,46 +30,39 @@ fun HomeBottomNavigation() {
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp
     ) {
-        items.forEach { item ->
-            val isSelected = selectedItem == item.route
-            val iconToShow = if (isSelected) item.selectedIcon else item.unselectedIcon
+        // Lặp qua danh sách các destination đã định nghĩa sẵn
+        bottomNavItems.forEach { destination ->
+            // So sánh an toàn bằng cách sử dụng route được tạo ra từ kotlin serialization
+            val isSelected = currentDestination?.route == destination.route
+
+            // Lấy cặp icon (selected/unselected) từ hàm tiện ích
+            val (selectedIcon, unselectedIcon) = destination.toIcon()
 
             NavigationBarItem(
-                icon = {
-                    when (iconToShow) {
-                        is ImageVector -> Icon(
-                            imageVector = iconToShow,
-                            contentDescription = item.route,
-                            tint = if (isSelected) UthTeal else Color.Gray,
-                            modifier = Modifier.size(28.dp)
-                        )
-
-                        is Int -> Icon(
-                            painter = painterResource(id = iconToShow),
-                            contentDescription = item.route,
-                            tint = if (isSelected) UthTeal else Color.Gray,
-                            modifier = Modifier.size(28.dp)
-                        )
+                selected = isSelected,
+                onClick = {
+                    if (!isSelected) {
+                        navController.navigate(destination.route, navOptions {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        })
                     }
                 },
-                selected = isSelected,
-                onClick = { selectedItem = item.route },
-                alwaysShowLabel = false,
+                icon = {
+                    Icon(
+                        imageVector = if (isSelected) selectedIcon else unselectedIcon,
+                        contentDescription = destination::class.simpleName,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = UthTeal,
+                    selectedIconColor = Color.DarkGray,
                     unselectedIconColor = Color.Gray,
                     indicatorColor = Color.Transparent
                 ),
-                label = null
+                alwaysShowLabel = false
             )
         }
     }
-
-}
-
-
-@Preview
-@Composable
-fun HomeBottomNavigationPreview() {
-    HomeBottomNavigation()
 }

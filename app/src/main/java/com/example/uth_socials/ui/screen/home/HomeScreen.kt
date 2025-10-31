@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.WindowInsets
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.di.ViewModelFactory
 import com.example.uth_socials.ui.component.logo.HomeTopAppBar
@@ -23,11 +24,12 @@ import com.example.uth_socials.ui.component.post.PostCard
 import com.example.uth_socials.ui.component.common.ReportDialog
 import com.example.uth_socials.ui.component.common.DeleteConfirmDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
+import androidx.navigation.NavHostController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    // navController: NavHostController
+    navController: NavHostController
 ) {
     val postRepository = remember { PostRepository() } // Dùng remember để không tạo lại mỗi lần recomposition
     val viewModelFactory = remember { ViewModelFactory(postRepository) }
@@ -68,14 +70,12 @@ fun HomeScreen(
 
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             HomeTopAppBar(
                 onSearchClick = { /* TODO */ },
                 onMessagesClick = { /* TODO */ }
             )
-        },
-        bottomBar = {
-            HomeBottomNavigation()
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
