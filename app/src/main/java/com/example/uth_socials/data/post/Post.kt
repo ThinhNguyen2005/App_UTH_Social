@@ -1,11 +1,11 @@
 package com.example.uth_socials.data.post
 
+import androidx.compose.runtime.Immutable
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ServerTimestamp
 
+@Immutable
 data class Post(
-    // Dùng @get:JvmField và @ServerTimestamp để Firestore tự động điền thời gian
-    // khi tạo document mới.
     @ServerTimestamp
     val timestamp: Timestamp? = null,
 

@@ -46,7 +46,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import com.example.uth_socials.data.util.MenuItemData
 import com.example.uth_socials.ui.component.common.ReusablePopupMenu
-import com.example.uth_socials.ui.component.common.ZoomableImage
+import androidx.compose.ui.layout.ContentScale
 
 
 @Composable
@@ -252,8 +252,10 @@ private fun PostMedia(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth()
             ) { pageIndex ->
-                ZoomableImage(
-                    imageUrl = imageUrls[pageIndex],
+                AsyncImage(
+                    model = imageUrls[pageIndex],
+                    contentDescription = "Post image",
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(1f)

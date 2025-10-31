@@ -45,7 +45,9 @@ data class HomeUiState(
     val deletingPostId: String? = null,
     val isDeleting: Boolean = false,
     val currentUserId: String? = null,
-    val hiddenPostIds: Set<String> = emptySet()
+    val hiddenPostIds: Set<String> = emptySet(),
+    // 🔸 Thêm state cho infinite scroll
+    val isLoadingMore: Boolean = false
 )
 
 class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
@@ -406,5 +408,41 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
                 deletingPostId = null
             )
         }
+    }
+
+    // 🔸 Infinite scroll - load more posts
+    fun onLoadMore() {
+        // Chỉ load more nếu hiện tại không đang load
+        if (_uiState.value.isLoadingMore || _uiState.value.isLoading) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMore = true) }
+            try {
+                val currentCategoryId = _uiState.value.selectedCategory?.id ?: return@launch
+                val currentPosts = _uiState.value.posts
+                
+                // Giả sử repository có method để load thêm posts (pagination)
+                // Nếu chưa có, bạn có thể implement pagination trong PostRepository
+                postRepository.getPostsFlow(currentCategoryId).collect { newPosts ->
+                    // Kết hợp posts cũ với posts mới, tránh duplicate
+                    val allPosts = (currentPosts + newPosts).distinctBy { it.id }
+                    _uiState.update {
+                        it.copy(
+                            posts = allPosts,
+                            isLoadingMore = false
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading more posts", e)
+                _uiState.update { it.copy(isLoadingMore = false) }
+            }
+        }
+    }
+
+    // 🔸 Retry loading when error occurs
+    fun onRetry() {
+        _uiState.update { it.copy(error = null, isLoading = true) }
+        loadCategoriesAndInitialPosts()
     }
 }

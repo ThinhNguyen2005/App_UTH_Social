@@ -4,7 +4,7 @@ package com.example.uth_socials.data.post
 data class Comment(
     val id: String = "",
     val userId: String = "",
-    val username: String = "Unknown User",
+    val username: String = "",
     val userAvatarUrl: String = "",
     val text: String = "",
     val timestamp: com.google.firebase.Timestamp? = null, // Phải là com.google.firebase.Timestamp

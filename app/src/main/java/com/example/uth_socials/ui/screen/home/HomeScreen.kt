@@ -4,6 +4,8 @@ import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -91,14 +93,68 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 when {
-                    uiState.isLoading -> CircularProgressIndicator()
-                    uiState.error != null -> Text("Lỗi: ${uiState.error}")
+                    uiState.isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    uiState.error != null -> {
+                        // 🔸 Error dialog đẹp hơn với icon và button
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ErrorOutline,
+                                    contentDescription = "Error",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Oops! Có lỗi xảy ra",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = uiState.error ?: "Vui lòng thử lại",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Button(
+                                    onClick = { homeViewModel.onRetry() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                ) {
+                                    Text("Thử lại")
+                                }
+                            }
+                        }
+                    }
                     else -> {
+                        // 🔸 Filter hidden posts trước khi hiển thị
+                        val filteredPosts = remember(uiState.posts, uiState.hiddenPostIds) {
+                            uiState.posts.filter { it.id !in uiState.hiddenPostIds }
+                        }
+
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 16.dp)
                         ) {
-                            items(uiState.posts, key = { it.id }) { post ->
+                            items(filteredPosts, key = { it.id }) { post ->
                                 PostCard(
                                     post = post,
                                     onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
@@ -113,6 +169,31 @@ fun HomeScreen(
                                     onHideClicked = { homeViewModel.onHideClicked(post.id) },
                                     currentUserId = uiState.currentUserId
                                 )
+                            }
+                            
+                            // 🔸 Infinite scroll - load more trigger
+                            if (!uiState.isLoading && filteredPosts.isNotEmpty() && !uiState.isLoadingMore) {
+                                item {
+                                    LaunchedEffect(Unit) {
+                                        homeViewModel.onLoadMore()
+                                    }
+                                }
+                            }
+                            
+                            // 🔸 Show loading indicator at bottom when loading more
+                            if (uiState.isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
