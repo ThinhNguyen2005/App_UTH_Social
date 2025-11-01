@@ -5,11 +5,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uth_socials.ui.component.navigation.AuthNav
 import com.example.uth_socials.ui.screen.OnboardingScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
+import com.example.uth_socials.ui.screen.post.PostScreen
 import com.example.uth_socials.ui.theme.UTH_SocialsTheme
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
+import com.example.uth_socials.ui.viewmodel.PostViewModel
+import com.example.uth_socials.ui.viewmodel.ProductViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -33,6 +37,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             UTH_SocialsTheme {
                 AuthNav(viewModel = viewModel, launcher = launcher)
+
             }
         }
     }
