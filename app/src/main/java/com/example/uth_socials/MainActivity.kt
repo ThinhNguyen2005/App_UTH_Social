@@ -18,6 +18,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+
         val auth = FirebaseAuth.getInstance()
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             UTH_SocialsTheme {
                 AuthNav(viewModel = viewModel, launcher = launcher)
+
             }
         }
     }
