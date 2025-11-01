@@ -11,6 +11,7 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.sql.Timestamp
 import java.util.UUID
 
 data class Product(
@@ -24,7 +25,7 @@ data class Product(
     val comments: Long = 0,
     val shares: Long = 0,
     val saves: Long = 0,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Timestamp = Timestamp(System.currentTimeMillis())
 )
 
 class ProductViewModel : ViewModel() {
