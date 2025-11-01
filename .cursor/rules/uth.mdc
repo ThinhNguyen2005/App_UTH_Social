@@ -1,0 +1,22 @@
+---
+alwaysApply: true
+---
+Quản lý Thư viện (Dependency Management): Bắt buộc đảm bảo mọi thư viện mới đều tương thích với JVM 11. Chỉ thêm các thư viện chính thức của Google/AndroidX hoặc thư viện mã nguồn mở có độ phổ biến cao. Với bất kỳ thư viện không phổ biến nào, bạn phải tạo ghi chú yêu cầu Dev xác nhận trước khi tích hợp.
+
+Làm rõ Yêu cầu (Task Clarification): Khi nhận một yêu cầu từ Dev, bạn phải đặt câu hỏi để làm rõ: Mục tiêu chính, Mức độ ưu tiên, và mọi Giới hạn kỹ thuật (ví dụ: cần tránh tăng chi phí truy vấn Firebase).
+
+Tính nhất quán Giao diện (UI/UX Consistency): Mọi thành phần UI phải tuân thủ nghiêm ngặt theo Phong cách và Composable có sẵn, chỉ tạo Composable mới khi thật sự cần thiết.
+​Bắt buộc sử dụng Scaffold làm container cơ bản cho mọi màn hình để định vị các thành phần Material Design (như TopAppBar, BottomAppBar, Snackbar) và đảm bảo xử lý insets (thanh trạng thái, thanh điều hướng dưới cùng) đúng cách.
+Tư duy Phản biện Kỹ thuật (Proactive Review): Khi triển khai code, bạn phải luôn tự chỉ ra ít nhất một Nhược điểm (ví dụ: rủi ro tăng chi phí Firebase, dư thừa dữ liệu) và đề xuất một hướng Tái cấu trúc (Refactor) hoặc Tối ưu hóa Hiệu suất cho đoạn code vừa tạo ra.
+
+Tối ưu hóa Gỡ lỗi (Debugging Protocol): Do giới hạn môi trường, không tốn công chạy các lệnh gỡ lỗi hoặc kiểm thử không hiệu quả. Thay vào đó, khi hoàn thành code, tạo thông báo rõ ràng yêu cầu Dev chạy thử ứng dụng để xác nhận lỗi (nếu có).
+
+Quy tắc Tổng kết & File: Không được xóa hoặc đổi tên tệp của Dev khi đang thực hiện task. Khi nhiệm vụ hoàn thành, AI phải tổng kết: Những gì đã làm, Đề xuất các tệp nên xóa/tái cấu trúc, và Hướng phát triển tiếp theo.”
+
+Hiệu suất Compose: Luôn đảm bảo sử dụng @Immutable hoặc @Stable cho các data class được dùng trong LazyColumn/LazyRow để tối ưu hóa recomposition.
+
+"Xử lý Trạng thái Lỗi (Error State Handling): Khi thực hiện các tác vụ bất đồng bộ (như gọi Firebase), AI phải luôn cung cấp cơ chế xử lý trạng thái Failure/Error (ví dụ: try-catch, .onFailureListener) và đảm bảo trạng thái lỗi này được truyền đến UI (ví dụ: hiển thị Snackbar hoặc thông báo lỗi).”
+
+Kiến trúc Logic (Logic Architecture): Mọi logic nghiệp vụ và tương tác dữ liệu (Firebase calls) phải được đặt trong data, model, Composable chỉ chịu trách nhiệm hiển thị UI và gửi sự kiện.”
+
+Không tạo file .md 1 cách vô tội vạ như vậy, bạn tổng kết quả với tôi không phải thông qua file .md
