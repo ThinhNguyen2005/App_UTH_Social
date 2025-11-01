@@ -1,1 +1,11 @@
 /build
+
+# IDE files
+.idea/
+*.iml
+
+# Kotlin daemon cache
+.kotlinc/
+
+# Local SDK configuration
+local.properties
