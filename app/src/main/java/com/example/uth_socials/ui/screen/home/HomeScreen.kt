@@ -1,6 +1,13 @@
 package com.example.uth_socials.ui.screen.home
 
 import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +36,8 @@ import com.example.uth_socials.ui.viewmodel.HomeViewModel
 fun HomeScreen(
     // navController: NavHostController
 ) {
+// 🔹 Lấy FirebaseAuth để đăng xuất
+    val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
     val postRepository = remember { PostRepository() } // Dùng remember để không tạo lại mỗi lần recomposition
     val viewModelFactory = remember { ViewModelFactory(postRepository) }
     val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
