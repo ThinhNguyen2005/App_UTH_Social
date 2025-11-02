@@ -44,8 +44,26 @@ fun ProfileHeader(
     onMessageClicked: () -> Unit = {},
     onEditProfileClicked: () -> Unit = {}
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        // Simple header with back button and menu only
+    Box(modifier = Modifier.fillMaxWidth()) {
+        // Nền: Thẻ thông tin và các tab
+        Column {
+            ProfileInfoCard(
+                username = username,
+                avatarUrl = avatarUrl,
+                bio = bio,
+                followers = followers,
+                following = following,
+                postCount = postCount,
+                isOwner = isOwner,
+                isFollowing = isFollowing,
+                onFollowClicked = onFollowClicked,
+                onMessageClicked = onMessageClicked,
+                onEditProfileClicked = onEditProfileClicked
+            )
+            ProfileTabs()
+        }
+
+        // Lớp phủ: Thanh tiêu đề với nút quay lại và menu
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -105,25 +123,7 @@ fun ProfileHeader(
                 }
             }
         }
-
-        ProfileInfoCard(
-            username = username,
-            avatarUrl = avatarUrl,
-            bio = bio,
-            followers = followers,
-            following = following,
-            postCount = postCount,
-            isOwner = isOwner,
-            isFollowing = isFollowing,
-            onFollowClicked = onFollowClicked,
-            onMessageClicked = onMessageClicked,
-            onEditProfileClicked = onEditProfileClicked
-        )
-
-        ProfileTabs()
     }
-
-
 }
 @Composable
 private fun ProfileInfoCard(
@@ -378,4 +378,3 @@ fun ProfileTabs() {
         )
     }
 }
-
