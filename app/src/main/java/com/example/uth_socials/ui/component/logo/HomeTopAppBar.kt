@@ -64,3 +64,30 @@ fun HomeTopAppBar(
         scrollBehavior = scrollBehavior
     )
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LogoTopAppBar(
+    scrollBehavior: TopAppBarScrollBehavior? = null
+) {
+    TopAppBar(
+        title = {
+            Text(
+                buildAnnotatedString {
+                    withStyle(style = SpanStyle(color = UthTeal, fontSize = 24.sp, fontWeight = FontWeight.Bold)) {
+                        append("UTH")
+                    }
+                    withStyle(style = SpanStyle(color = UthRed, fontSize = 24.sp, fontWeight = FontWeight.Bold)) {
+                        append(" Social")
+                    }
+                }
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            titleContentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        scrollBehavior = scrollBehavior
+    )
+}

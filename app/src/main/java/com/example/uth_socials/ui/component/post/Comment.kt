@@ -39,10 +39,11 @@ import com.example.uth_socials.ui.viewmodel.CommentPostState
 
 @Composable
 fun CommentSheetContent(
+    postId: String,
     comments: List<Comment>,
     isLoading: Boolean,
     onAddComment: (String) -> Unit,
-    onLikeComment: (String) -> Unit,
+    onLikeComment: (String, String) -> Unit,
     onUserProfileClick: (String) -> Unit,
     commentPostState: CommentPostState,
     currentUserAvatarUrl: String?
@@ -71,7 +72,7 @@ fun CommentSheetContent(
                         CommentItem(
                             comment = comment,
                             onUserClick = onUserProfileClick,
-                            onLikeClick = onLikeComment,
+                            onLikeClick = { onLikeComment(postId, it) },
                             onReplyClick = { handleReply(comment.username) }
                         )
                     }
@@ -135,10 +136,9 @@ fun CommentSheetContent(
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(24.dp) // Bo tròn như viên thuốc
                     )
-                    .padding(horizontal = 16.dp, vertical = 10.dp), // Padding cho text bên trong
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                // Placeholder chỉ hiển thị khi text rỗng
                 if (commentText.isBlank()) {
                     Text(
                         text = "Thêm bình luận...",
@@ -251,15 +251,15 @@ fun CommentItem(
         }
 
         val scale by animateFloatAsState(
-            targetValue = if (comment.isLiked) 1.1f else 1.0f,
+            targetValue = if (comment.liked) 1.1f else 1.0f,
             animationSpec = tween(durationMillis = 200),
             label = "likeScale"
         )
         IconButton(onClick = { onLikeClick(comment.id) }) {
             Icon(
-                imageVector = if (comment.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                imageVector = if (comment.liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                 contentDescription = "Like comment",
-                tint = if (comment.isLiked) Color.Red else Color.Gray,
+                tint = if (comment.liked) Color.Red else Color.Gray,
                 modifier = Modifier.size(20.dp).scale(scale)
             )
         }

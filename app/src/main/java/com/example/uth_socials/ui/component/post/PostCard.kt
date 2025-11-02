@@ -1,6 +1,7 @@
 package com.example.uth_socials.ui.component.post
 
 import PageIndicator
+import androidx.compose.animation.AnimatedVisibility
 import com.example.uth_socials.ui.component.common.formatTimeAgo
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,13 +30,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HideSource
 import androidx.compose.material.icons.filled.Report
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.ModeComment
@@ -47,6 +52,23 @@ import androidx.compose.ui.text.withStyle
 import com.example.uth_socials.data.util.MenuItemData
 import com.example.uth_socials.ui.component.common.ReusablePopupMenu
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.foundation.gestures.forEachGesture
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.material.icons.rounded.ImageNotSupported
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.SubcomposeAsyncImage
+//import com.android.volley.toolbox.ImageRequest
+import kotlinx.coroutines.Dispatchers
+import kotlin.math.abs
+import coil.request.ImageRequest
+
+import androidx.compose.foundation.gestures.awaitFirstDown
+
+import androidx.compose.runtime.Composable
+
+import androidx.compose.ui.geometry.Offset
 
 
 @Composable
@@ -236,44 +258,108 @@ private fun ExpandableText(
 //Phần hình ảnh và có thể lướt nhiều hình ảnh
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PostMedia(
+fun PostMedia(
     imageUrls: List<String>
 ) {
-    if (imageUrls.isNotEmpty()) {
-        val pagerState = rememberPagerState(pageCount = { imageUrls.size })
+    if (imageUrls.isEmpty()) return
 
-        Box(
+    val pagerState = rememberPagerState(pageCount = { imageUrls.size })
+    val context = LocalContext.current
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            pageSpacing = 12.dp,
+            // SỬA: Xóa dòng 'beyondBoundsPageCount'
+            flingBehavior = PagerDefaults.flingBehavior(
+                state = pagerState,
+                snapAnimationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+            ),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clip(RoundedCornerShape(12.dp))
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxWidth()
-            ) { pageIndex ->
-                AsyncImage(
-                    model = imageUrls[pageIndex],
-                    contentDescription = "Post image",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                )
-            }
+                .pointerInput(Unit) {
+                    forEachGesture {
+                        awaitPointerEventScope {
+                            awaitFirstDown()
+                            var horizontalDragConsumed = false
+                            do {
+                                val event = awaitPointerEvent()
+                                if (event.changes.any { it.pressed }) {
+                                    val dragAmount = event.changes.sumOf { it.positionChange().x.toDouble() }.toFloat()
+                                    if (!horizontalDragConsumed && abs(dragAmount) > 0.5f) {
+                                        horizontalDragConsumed = true
+                                        event.changes.forEach {
+                                            if (it.positionChange() != Offset.Zero) it.consume()
+                                        }
+                                    }
+                                    pagerState.dispatchRawDelta(-dragAmount)
+                                }
+                            } while (event.changes.any { it.pressed })
+                        }
+                    }
+                }
+        ) { page ->
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(context) // Bây giờ sẽ hoạt động
+                    .data(imageUrls[page])
+                    .crossfade(true)
+                    .dispatcher(Dispatchers.IO)
+                    .build(),
+                contentDescription = "Post image ${page + 1}",
+                loading = {
+                    Box(Modifier.fillMaxSize()) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                },
+                error = {
+                    Icon(
+                        imageVector = Icons.Rounded.ImageNotSupported,
+                        contentDescription = "Image loading failed",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .align(Alignment.Center)
+                    )
+                },
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .combinedClickable(
+                        onClick = { /* TODO: Xử lý click để xem ảnh full màn hình */ },
+                        onLongClick = { /* TODO: Xử lý giữ lâu để lưu/chia sẻ */ }
+                    )
+            )
+        }
 
-            if (imageUrls.size > 1) {
-                PageIndicator(
-                    pageCount = imageUrls.size,
-                    currentPage = pagerState.currentPage,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                )
+        AnimatedVisibility(
+            visible = imageUrls.size > 1,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                PageIndicator(pageCount = imageUrls.size, currentPage = pagerState.currentPage)
             }
         }
     }
 }
+
 //Hành động tim, bình luận ....
 // Trong file PostCard.kt
 
