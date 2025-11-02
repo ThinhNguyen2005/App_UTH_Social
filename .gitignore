@@ -68,3 +68,10 @@ google-services.json
 
 # Các file log và báo cáo
 /lint-results-debug.xml
+
+
+
+
+# Kotlin daemon cache
+.kotlinc/
+

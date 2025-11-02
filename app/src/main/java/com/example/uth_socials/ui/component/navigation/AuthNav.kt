@@ -10,6 +10,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.uth_socials.LoginScreen
 import com.example.uth_socials.ui.screen.RegisterScreen
 import com.example.uth_socials.ui.screen.ResetPasswordScreen
+import com.example.uth_socials.ui.screen.chat.ChatListScreen
+import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 
@@ -75,8 +77,22 @@ fun AuthNav(
         }
 
         composable("home") {
-            HomeScreen()
-        }
+            HomeScreen(
+                onMessagesClick = { navController.navigate("chat_list") })
 
+        }
+            composable("chat_list") {
+                ChatListScreen(
+                    onChatSelected = { chatId ->
+                        navController.navigate("chat/$chatId")
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable("chat/{chatId}") { backStackEntry ->
+                val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+                ChatScreen(chatId = chatId)
+            }
+        }
     }
-}

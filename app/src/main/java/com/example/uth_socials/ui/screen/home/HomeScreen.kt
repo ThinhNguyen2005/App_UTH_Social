@@ -35,6 +35,7 @@ import com.example.uth_socials.ui.viewmodel.HomeViewModel
 @Composable
 fun HomeScreen(
     // navController: NavHostController
+    onMessagesClick: () -> Unit = {}
 ) {
 // 🔹 Lấy FirebaseAuth để đăng xuất
     val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
@@ -80,7 +81,7 @@ fun HomeScreen(
         topBar = {
             HomeTopAppBar(
                 onSearchClick = { /* TODO */ },
-                onMessagesClick = { /* TODO */ }
+                onMessagesClick =  onMessagesClick
             )
         },
         bottomBar = {
