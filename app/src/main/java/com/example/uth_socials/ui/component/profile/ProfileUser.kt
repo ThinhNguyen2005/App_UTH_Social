@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -26,8 +25,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import kotlin.math.abs
-import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,144 +38,95 @@ fun ProfileHeader(
     isOwner: Boolean,
     isFollowing: Boolean,
     onFollowClicked: () -> Unit,
-    // Thêm các lambda cho các hành động khác nếu cần
+    showBackButton: Boolean = true,
     onBackClicked: () -> Unit = {},
     onMoreClicked: () -> Unit = {},
     onMessageClicked: () -> Unit = {},
-    onEditProfileClicked: () -> Unit = {},
-    scrollOffsetPx: Float = 0f
+    onEditProfileClicked: () -> Unit = {}
 ) {
-    // State cho menu dropdown
-    var showMenu by remember { mutableStateOf(false) }
-    // Tính toán các giá trị cho hiệu ứng parallax dựa trên scrollOffsetPx
-    val headerHeight = 260.dp
-    val backgroundHeight = 180.dp
-    
-    // Tính toán tỉ lệ cuộn (0 -> 1)
-    val scrollRatio = min(1f, abs(scrollOffsetPx) / 500f)
-    
-    // Hiệu ứng parallax cho background: di chuyển lên khi cuộn
-    val backgroundOffsetY = scrollOffsetPx * 0.3f // Tốc độ parallax cho background
-    
-    // Hiệu ứng scale và alpha cho card
-    val cardScale = 1f - (scrollRatio * 0.05f) // Thu nhỏ nhẹ khi cuộn
-    
-    Column {
-        Box(
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Simple header with back button and menu only
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(headerHeight) // Chiều cao tổng thể của phần header
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Phần background màu xanh với hiệu ứng parallax
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(backgroundHeight)
-                    .graphicsLayer {
-                        // Áp dụng hiệu ứng parallax cho background
-                        translationY = backgroundOffsetY
-                        // Giữ background luôn đủ lớn khi cuộn
-                        scaleX = 1f + (scrollRatio * 0.05f)
-                        scaleY = 1f + (scrollRatio * 0.05f)
-                    }
-                    .background(
-                        color = Color(0xFF18A08D), // Màu xanh giống trong hình
-                        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                    )
-            )
-            
-            // Nút Back và More Options ở trên cùng
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                    .align(Alignment.TopCenter),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Nút Back
+            if (showBackButton) {
                 IconButton(onClick = onBackClicked) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
+                        contentDescription = "Back"
                     )
                 }
-                
-                // Nút More Options với dropdown menu
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreHoriz,
-                            contentDescription = "More options",
-                            tint = Color.White
+            } else {
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+
+            Box {
+                var showMenu by remember { mutableStateOf(false) }
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreHoriz,
+                        contentDescription = "More options"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    if (!isOwner) {
+                        DropdownMenuItem(
+                            text = { Text("Chặn người dùng") },
+                            onClick = {
+                                showMenu = false
+                                onMoreClicked()
+                            }
                         )
-                    }
-                    
-                    // Dropdown menu cho các tùy chọn
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        if (!isOwner) {
-                            DropdownMenuItem(
-                                text = { Text("Chặn người dùng") },
-                                onClick = {
-                                    showMenu = false
-                                    onMoreClicked()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Báo cáo") },
-                                onClick = {
-                                    showMenu = false
-                                    // TODO: Implement report functionality
-                                }
-                            )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("Cài đặt") },
-                                onClick = {
-                                    showMenu = false
-                                    // TODO: Implement settings
-                                }
-                            )
-                        }
+                        DropdownMenuItem(
+                            text = { Text("Báo cáo") },
+                            onClick = {
+                                showMenu = false
+                                // TODO: Implement report flow
+                            }
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text("Cài đặt") },
+                            onClick = {
+                                showMenu = false
+                                onEditProfileClicked()
+                            }
+                        )
                     }
                 }
             }
-
-            // Card thông tin chính với hiệu ứng scale
-            ProfileInfoCard(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp)
-                    .graphicsLayer {
-                        scaleX = cardScale
-                        scaleY = cardScale
-                    },
-                username = username,
-                avatarUrl = avatarUrl,
-                bio = bio,
-                followers = followers,
-                following = following,
-                postCount = postCount,
-                isOwner = isOwner,
-                isFollowing = isFollowing,
-                onFollowClicked = onFollowClicked,
-                onMessageClicked = onMessageClicked,
-                onEditProfileClicked = onEditProfileClicked,
-                scrollOffsetPx = scrollOffsetPx
-            )
         }
 
-        // Tab "Bài viết" và "Sản phẩm"
+        ProfileInfoCard(
+            username = username,
+            avatarUrl = avatarUrl,
+            bio = bio,
+            followers = followers,
+            following = following,
+            postCount = postCount,
+            isOwner = isOwner,
+            isFollowing = isFollowing,
+            onFollowClicked = onFollowClicked,
+            onMessageClicked = onMessageClicked,
+            onEditProfileClicked = onEditProfileClicked
+        )
+
         ProfileTabs()
     }
-}
 
+
+}
 @Composable
 private fun ProfileInfoCard(
-    modifier: Modifier = Modifier,
     username: String,
     avatarUrl: String,
     bio: String,
@@ -189,13 +137,15 @@ private fun ProfileInfoCard(
     isFollowing: Boolean,
     onFollowClicked: () -> Unit,
     onMessageClicked: () -> Unit,
-    onEditProfileClicked: () -> Unit,
-    scrollOffsetPx: Float = 0f
+    onEditProfileClicked: () -> Unit
 ) {
-    Box(modifier = modifier) {
-        // Card trắng chứa thông tin
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
         Card(
-            modifier = Modifier.padding(top = 40.dp), // Để chừa chỗ cho avatar
+            modifier = Modifier.padding(top = 40.dp),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -203,7 +153,7 @@ private fun ProfileInfoCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 48.dp, bottom = 16.dp), // Padding trên lớn để avatar không che chữ
+                    .padding(top = 48.dp, bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -213,7 +163,6 @@ private fun ProfileInfoCard(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Số liệu thống kê
                 ProfileStats(
                     postCount = postCount,
                     followers = followers,
@@ -222,20 +171,18 @@ private fun ProfileInfoCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Bio
                 if (bio.isNotEmpty()) {
                     Text(
                         text = bio,
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Các nút hành động
                 ProfileActions(
                     isOwner = isOwner,
                     isFollowing = isFollowing,
@@ -246,26 +193,12 @@ private fun ProfileInfoCard(
             }
         }
 
-        // Tính toán hiệu ứng cho avatar
-        val scrollRatio = min(1f, abs(scrollOffsetPx) / 500f)
-        val avatarScale = 1f - (scrollRatio * 0.15f) // Thu nhỏ avatar khi cuộn
-        val avatarOffsetY = scrollOffsetPx * 0.2f // Di chuyển avatar theo tốc độ chậm hơn
-        
-        // Avatar với hiệu ứng parallax và scale
         AsyncImage(
             model = avatarUrl,
             contentDescription = "User Avatar",
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(80.dp)
-                .graphicsLayer {
-                    // Áp dụng hiệu ứng scale và parallax cho avatar
-                    scaleX = avatarScale
-                    scaleY = avatarScale
-                    translationY = avatarOffsetY
-                    // Làm mờ dần khi cuộn
-                    alpha = 1f - (scrollRatio * 0.3f)
-                }
+                .size(96.dp)
                 .clip(CircleShape)
                 .border(BorderStroke(4.dp, MaterialTheme.colorScheme.surface), CircleShape)
                 .align(Alignment.TopCenter)
@@ -346,7 +279,7 @@ private fun ProfileActions(
             }
         } else {
             // Khi là khách, 2 nút sẽ hiển thị dạng stack theo hình mẫu
-            
+
             // Nút nhắn tin
             OutlinedButton(
                 onClick = onMessageClicked,
@@ -356,9 +289,9 @@ private fun ProfileActions(
             ) {
                 Text("Nhắn tin")
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Nút theo dõi
             if (isFollowing) {
                 // Nếu đã theo dõi, hiển thị nút outlined

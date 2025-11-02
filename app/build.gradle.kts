@@ -72,6 +72,8 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.firebase.ai)
+    implementation(libs.androidx.compose.animation)
+    implementation(libs.volley)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -1,7 +1,6 @@
 package com.example.uth_socials.ui.screen.home
 
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.rememberNavController
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.di.ViewModelFactory
 import com.example.uth_socials.ui.component.logo.HomeTopAppBar
@@ -34,10 +34,8 @@ import com.example.uth_socials.ui.viewmodel.HomeViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    // navController: NavHostController
+    onNavigateToProfile: (String) -> Unit = {}
 ) {
-// 🔹 Lấy FirebaseAuth để đăng xuất
-    val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
     val postRepository = remember { PostRepository() } // Dùng remember để không tạo lại mỗi lần recomposition
     val viewModelFactory = remember { ViewModelFactory(postRepository) }
     val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
@@ -74,20 +72,7 @@ fun HomeScreen(
         }
     }
 
-
-
-    Scaffold(
-        topBar = {
-            HomeTopAppBar(
-                onSearchClick = { /* TODO */ },
-                onMessagesClick = { /* TODO */ }
-            )
-        },
-        bottomBar = {
-            HomeBottomNavigation()
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Column(modifier = Modifier.fillMaxSize()) {
             // Tabs lọc danh mục
             FilterTabs(
                 categories = uiState.categories,
@@ -172,7 +157,7 @@ fun HomeScreen(
                                     },
                                     onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
                                     onShareClicked = { homeViewModel.onShareClicked(post.id) },
-                                    onUserProfileClicked = { homeViewModel.onUserProfileClicked(post.userId) },
+                                    onUserProfileClicked = { onNavigateToProfile(post.userId) },
                                     onReportClicked = { homeViewModel.onReportClicked(post.id) },
                                     onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
                                     onHideClicked = { homeViewModel.onHideClicked(post.id) },
@@ -181,7 +166,7 @@ fun HomeScreen(
                             }
                             
                             // 🔸 Infinite scroll - load more trigger
-                            if (!uiState.isLoading && filteredPosts.isNotEmpty() && !uiState.isLoadingMore) {
+                            if (filteredPosts.isNotEmpty() && !uiState.paginationState.isLoadingMore) {
                                 item {
                                     LaunchedEffect(Unit) {
                                         homeViewModel.onLoadMore()
@@ -190,7 +175,7 @@ fun HomeScreen(
                             }
                             
                             // 🔸 Show loading indicator at bottom when loading more
-                            if (uiState.isLoadingMore) {
+                            if (uiState.paginationState.isLoadingMore) {
                                 item {
                                     Box(
                                         modifier = Modifier
@@ -209,7 +194,7 @@ fun HomeScreen(
                 }
             }
         }
-    }
+
 
     if (uiState.commentSheetPostId != null) {
         ModalBottomSheet(
@@ -217,13 +202,14 @@ fun HomeScreen(
             sheetState = sheetState
         ) {
             CommentSheetContent(
+                postId = uiState.commentSheetPostId!!,
                 comments = uiState.commentsForSheet,
                 isLoading = uiState.isSheetLoading,
                 onAddComment = { commentText ->
                     homeViewModel.addComment(uiState.commentSheetPostId!!, commentText)
                 },
-                onLikeComment = homeViewModel::onCommentLikeClicked, // Dùng function reference
-                onUserProfileClick = homeViewModel::onUserProfileClicked,
+                onLikeComment = homeViewModel::onCommentLikeClicked,
+                onUserProfileClick = onNavigateToProfile,
                 commentPostState = uiState.commentPostState,
                 currentUserAvatarUrl = uiState.currentUserAvatarUrl
             )

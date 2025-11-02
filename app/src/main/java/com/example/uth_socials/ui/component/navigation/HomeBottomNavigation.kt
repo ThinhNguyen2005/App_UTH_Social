@@ -1,96 +1,104 @@
 package com.example.uth_socials.ui.component.navigation
-
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.AddCircle
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Storefront
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.ui.screen.UthTeal
-import com.example.uth_socials.R
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeBottomNavigation() {
-    var selectedItem by remember { mutableStateOf("home") }
+fun HomeBottomNavigation(navController: NavController) {
     data class NavItem(
         val route: String,
-        val selectedIcon: Any,
-        val unselectedIcon: Any,
-        val badgeCount: Int,
-
-        )
-
-    val items = listOf(
-        NavItem("home", R.drawable.ic_home5, R.drawable.ic_home4,0),
-        NavItem("market", Icons.Filled.ShoppingCart, Icons.Outlined.ShoppingCart,0),
-        NavItem("add", R.drawable.ic_create1, R.drawable.ic_create,0),
-        NavItem("notifications", Icons.Filled.Notifications, Icons.Outlined.Notifications, 0),
-        NavItem("profile", Icons.Rounded.AccountCircle, Icons.Outlined.AccountCircle, 0)
+        val label: String,
+        val selectedIcon: ImageVector,
+        val unselectedIcon: ImageVector,
+        val badgeCount: Int
     )
 
+    val items = listOf(
+        NavItem(Screen.Home.route, "Home", Icons.Rounded.Home, Icons.Outlined.Home, 0),
+        NavItem(Screen.Market.route, "Market", Icons.Filled.ShoppingCart, Icons.Outlined.ShoppingCart, 0),
+        NavItem(Screen.Add.route, "Add", Icons.Filled.AddCircle, Icons.Outlined.AddCircle, 0),
+        NavItem(Screen.Notifications.route, "Alerts", Icons.Filled.Notifications, Icons.Outlined.Notifications, 2),
+        NavItem(Screen.Profile.route, "Profile", Icons.Rounded.AccountCircle, Icons.Outlined.AccountCircle, 0)
+    )
+    val currentUserIdState = remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        currentUserIdState.value = UserRepository().getCurrentUserId()
+    }
+    val currentUserId = currentUserIdState.value
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     NavigationBar(
-        modifier = Modifier
-            .padding(horizontal = 8.dp)
-            .height(70.dp),
+        modifier = Modifier.height(70.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp
     ) {
         items.forEach { item ->
-            val isSelected = selectedItem == item.route
-            val iconToShow = if (isSelected) item.selectedIcon else item.unselectedIcon
-
+            val isSelected = currentRoute == item.route
             NavigationBarItem(
                 icon = {
-                    when (iconToShow) {
-                        is ImageVector -> Icon(
-                            imageVector = iconToShow,
-                            contentDescription = item.route,
-                            tint = if (isSelected) UthTeal else Color.Gray,
-                            modifier = Modifier.size(28.dp)
-                        )
-
-                        is Int -> Icon(
-                            painter = painterResource(id = iconToShow),
-                            contentDescription = item.route,
-                            tint = if (isSelected) UthTeal else Color.Gray,
+                    BadgedBox(badge = {
+                        if (item.badgeCount > 0) {
+                            Badge { Text(text = item.badgeCount.toString()) }
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                            contentDescription = item.label,
                             modifier = Modifier.size(28.dp)
                         )
                     }
                 },
+//                label = {
+//                    if (isSelected) Text(text = item.label, style = MaterialTheme.typography.labelSmall)
+//                },
                 selected = isSelected,
-                onClick = { selectedItem = item.route },
-                alwaysShowLabel = false,
+
+                onClick = {
+                    val destinationRoute = if (item.route.contains("{userId}")) {
+                        currentUserId?.let { Screen.Profile.createRoute(it) } ?: return@NavigationBarItem
+                    } else {
+                        item.route
+                    }
+
+                    navController.navigate(destinationRoute) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = UthTeal,
                     unselectedIconColor = Color.Gray,
+                    selectedTextColor = UthTeal,
                     indicatorColor = Color.Transparent
-                ),
-                label = null
+                )
             )
         }
     }
-
-}
-
-@Preview
-@Composable
-fun HomeBottomNavigationPreview() {
-    HomeBottomNavigation()
 }
