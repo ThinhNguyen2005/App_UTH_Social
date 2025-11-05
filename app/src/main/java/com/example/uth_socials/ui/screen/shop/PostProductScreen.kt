@@ -1,8 +1,12 @@
 package com.example.uth_socials.ui.screen.shop
 
+import android.graphics.Bitmap
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,18 +26,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,25 +48,98 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uth_socials.R
-import kotlinx.coroutines.sync.Mutex
+import com.example.uth_socials.ui.viewmodel.ProductViewModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ColorFilter.Companion.tint
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import com.example.uth_socials.data.model.Product
+import com.example.uth_socials.ui.viewmodel.OperationUiState
 
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PostProductScreen(
-    username: String = "Thien Huynh",
-    onPostClick: () -> Unit = {},
+    productId: String? = null,
+    username: String = "TH",
+    onPostSuccess: () -> Unit = {},
+    viewModel: ProductViewModel = viewModel(),
 ) {
-    val productName = remember { mutableStateOf("") }
-    val description = remember { mutableStateOf("") }
-    val price = remember { mutableStateOf("") }
+    //State cho các trường nhập liệu
+    var productName by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    //State để hiển thị dialog chọn nguồn ảnh
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+
+    // ===== LAUNCHER ĐỂ CHỌN ẢNH TỪ THƯ VIỆN =====
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
+            uri?.let { imageUri = it }
+        }
+    )
+
+    // ===== LAUNCHER ĐỂ CHỤP ẢNH TỪ CAMERA =====
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview(),
+        onResult = { bitmap: Bitmap? ->
+            // TODO: Chuyển Bitmap thành Uri và lưu vào storage
+            // Hiện tại chỉ demo, cần implement hàm saveBitmapToUri()
+            bitmap?.let {
+                // imageUri = saveBitmapToUri(context, bitmap)
+                // Hoặc có thể lưu bitmap vào ViewModel để xử lý
+            }
+        }
+    )
+
+    // ===== LOAD DỮ LIỆU NẾU LÀ CHỈNH SỬA =====
+    LaunchedEffect(productId) {
+        productId?.let {
+            viewModel.getProductById(it)
+        }
+    }
+
+    // Lấy dữ liệu từ ViewModel khi load xong
+    val operationState by viewModel.operationState.collectAsState()
+    val detailState by viewModel.detailState.collectAsState()
+
+    LaunchedEffect(detailState.product) {
+        detailState.product?.let { product ->
+            productName = product.name
+            description = product.description ?: ""
+            price = product.price.toString()
+            product.imageUrl?.let { url ->
+                imageUri = Uri.parse(url)
+            }
+        }
+    }
+
+    val context = LocalContext.current
+
+    LaunchedEffect(operationState) {
+        when (operationState) {
+            is OperationUiState.Success -> {
+                Toast.makeText(context, (operationState as OperationUiState.Success).message, Toast.LENGTH_SHORT).show()
+                viewModel.resetOperationState()
+                onPostSuccess()
+            }
+            is OperationUiState.Error -> {
+                Toast.makeText(context, (operationState as OperationUiState.Error).message, Toast.LENGTH_SHORT).show()
+            }
+            else -> {}
+        }
+    }
+
 
     Column(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -117,8 +194,37 @@ fun PostProductScreen(
                 )
             }
 
+            //Nút Đăng hoặc Cập nhật
             Button(
-                onClick = { onPostClick() },
+                onClick = {
+                    //Validate du lieu
+                    if (productName.isBlank() || description.isBlank()) {
+                        return@Button
+                    }
+                    if (productId == null) {
+                        val product = Product(
+                            name = productName,
+                            description = description,
+                            price = price.toDoubleOrNull() ?: 0.0,
+                            imageUrl = imageUri?.toString(),
+                            userId = username
+                        )
+                        //Add product chỉ nhận 1 đối tượng, khono nhận trường riêng lẻ
+                        viewModel.addProduct(product)
+                    } else {
+                        val updatedProduct = Product(
+                            id = productId,
+                            name = productName,
+                            description = description,
+                            price = price.toDoubleOrNull() ?: 0.0,
+                            imageUrl = imageUri?.toString(),
+                            userId = "demoUserId",
+                            userName = username
+                        )
+                        viewModel.updateProduct(updatedProduct)
+                    }
+                    onPostSuccess()
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF009688)),
                 modifier = Modifier
                     .size(100.dp, 40.dp),
@@ -137,8 +243,8 @@ fun PostProductScreen(
                     color = Color.Black
                 )
                 OutlinedTextField(
-                    value = productName.value,
-                    onValueChange = { productName.value = it },
+                    value = productName,
+                    onValueChange = { productName = it },
                     placeholder = { Text("Nhập tên sản phẩm") },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)
                         .shadow(4.dp, RoundedCornerShape(10.dp))
@@ -152,6 +258,7 @@ fun PostProductScreen(
                 )
             }
 
+            //Mô tả sản phẩm
             item {
                 Text(
                     text = "Mô tả sản phẩm",
@@ -160,8 +267,8 @@ fun PostProductScreen(
                     color = Color.Black
                 )
                 OutlinedTextField(
-                    value = description.value,
-                    onValueChange = { description.value = it },
+                    value = description,
+                    onValueChange = { description = it },
                     placeholder = { Text("Nhập mô tả sản phẩm") },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)
                         .shadow(4.dp, RoundedCornerShape(10.dp))
@@ -174,7 +281,7 @@ fun PostProductScreen(
                     )
                 )
             }
-            //Price product
+            //Giá sản phẩm
             item {
                 Text(
                     text = "Giá sản phẩm",
@@ -183,8 +290,8 @@ fun PostProductScreen(
                     color = Color.Black
                 )
                 OutlinedTextField(
-                    value = price.value,
-                    onValueChange = { price.value = it },
+                    value = price,
+                    onValueChange = { price = it },
                     placeholder = { Text("Nhập giá sản phẩm") },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)
                         .shadow(4.dp, RoundedCornerShape(10.dp))
@@ -199,24 +306,59 @@ fun PostProductScreen(
                 )
             }
 
-            // Image picker
+            //Chọn ảnh
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.AddCircle, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Chọn ảnh")
+                //Nút chọn ảnh - click để hiện dialog chọn nguồn
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFE3F2FD))
+                        .clickable { showImageSourceDialog = true }
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF009688),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (imageUri == null) "Chọn ảnh sản phẩm" else "Đã chọn ảnh",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF009688)
+                    )
+                }
+                //Hiển thị ảnh đã chọn (nếu có)
+                imageUri?.let { uri ->
+                    Spacer(modifier = Modifier.height(16.dp))
+                    AsyncImage(
+                        model = uri,
+                        contentDescription = "Ảnh đã chọn",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .padding(horizontal = 24.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
                 }
             }
 
+            //Bottom Tabs
             item {
-                // Bottom Tabs
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(24.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Bài viết",
+                    Text(
+                        "Bài viết",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.Black
@@ -230,8 +372,8 @@ fun PostProductScreen(
                             .drawBehind {
                                 drawLine(
                                     color = Color(0xFF009688),
-                                    start = Offset(size.width*0.1f, size.height + 5f),
-                                    end = Offset(size.width*0.9f, size.height + 5f),
+                                    start = Offset(size.width * 0.1f, size.height + 5f),
+                                    end = Offset(size.width * 0.9f, size.height + 5f),
                                     strokeWidth = 8f,
                                     cap = StrokeCap.Round
                                 )
@@ -240,5 +382,87 @@ fun PostProductScreen(
                 }
             }
         }
+    }
+    // ===== DIALOG CHỌN NGUỒN ẢNH =====
+    if (showImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            title = {
+                Text(
+                    text = "Chọn nguồn ảnh",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Chọn từ thư viện
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                showImageSourceDialog = false
+                                // Launch gallery picker - chọn ảnh từ thư viện
+                                galleryLauncher.launch("image/*")
+                            }
+                            .background(Color(0xFFE3F2FD))
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Thư viện",
+                            tint = Color(0xFF009688),
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Chọn từ thư viện",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    // Chụp ảnh từ camera
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                showImageSourceDialog = false
+                                cameraLauncher.launch(null)
+                            }
+                            .background(Color(0xFFE3F2FD))
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddCircle,
+                            contentDescription = "Camera",
+                            tint = Color(0xFF009688),
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            text = "Chụp ảnh từ camera",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showImageSourceDialog = false }) {
+                    Text("Hủy")
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 }

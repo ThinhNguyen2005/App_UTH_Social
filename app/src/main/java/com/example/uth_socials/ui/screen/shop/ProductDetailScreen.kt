@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.screen.shop
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,16 +10,23 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,7 +34,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.uth_socials.data.model.Product
@@ -35,18 +42,82 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.example.uth_socials.ui.viewmodel.ProductViewModel
 
 @Composable
 fun ProductDetailScreen(
-    product: Product,
+    productId: String?,
     onBack: () -> Unit = {},
+    onEditProduct: (String) -> Unit = {},
     onShare: () -> Unit = {},
     onCall: () -> Unit = {},
-    onMessage: () -> Unit = {}
+    onMessage: () -> Unit = {},
+    viewModel: ProductViewModel = viewModel(),
 ) {
+    //Load san pham theo id
+    LaunchedEffect(productId) {
+        viewModel.getProductById(productId)
+    }
+
+    val detailState by viewModel.detailState.collectAsState()
+
+    when {
+        detailState.isLoading -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+        detailState.error != null -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "Có lỗi: ${detailState.error}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(onClick = { viewModel.getProductById(productId) }) {
+                        Text("Thử lại")
+                    }
+                }
+            }
+        }
+        detailState.product != null -> {
+            ProductDetailContent(
+                product = detailState.product!!,
+                onBack = onBack,
+                onEditProduct = onEditProduct,
+                onShare = onShare,
+                onCall = onCall,
+                onMessage = onMessage,
+                viewModel = viewModel
+            )
+        }
+    }
+}
+
+@Composable
+fun ProductDetailContent(
+    product: Product,
+    onBack: () -> Unit,
+    onEditProduct: (String) -> Unit = {},
+    onShare: () -> Unit = {},
+    onCall: () -> Unit = {},
+    onMessage: () -> Unit = {},
+    viewModel: ProductViewModel
+) {
+    //State để điều khiển hiển thị AlertDialog xác nhận xóa
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         bottomBar = {
-            ChatBuy(
+            Call_Chat(
                 onCall = onCall,
                 onMessage = onMessage
             )
@@ -66,14 +137,15 @@ fun ProductDetailScreen(
                         .fillMaxWidth()
                         .height(360.dp)
                 ) {
-                    Image(
-                        painter = painterResource(id = product.imageRes ?: R.drawable.default_img_product),
+                    // load url with Coil; fallback to drawable if null
+                    AsyncImage(
+                        model = product.imageUrl ?: R.drawable.default_img_product,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
 
-                    //Btn for nav
+                    //Nút điều hướng ở trên cùng
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -84,7 +156,7 @@ fun ProductDetailScreen(
                     ) {
                         //Left: Back icon
                         IconButton(
-                            onClick = { onBack() },
+                            onClick = onBack,
                             modifier = Modifier
                                 .background(Color.White.copy(alpha = 0.7f), CircleShape)
                                 .padding(4.dp)
@@ -99,8 +171,10 @@ fun ProductDetailScreen(
                         }
 
                         //Right: Share & Favorite icon
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             IconButton(
                                 onClick = {onShare()},
                                 modifier = Modifier
@@ -135,8 +209,7 @@ fun ProductDetailScreen(
             item {
                 //Detail product
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.padding(16.dp)) {
                         Text(
@@ -149,7 +222,7 @@ fun ProductDetailScreen(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "${product.price.toInt()}.000 ₫",
+                            text = formatVND(product.price),
                             fontSize = 20.sp,
                             color = Color(0xFFFF0000),
                             fontWeight = FontWeight.Medium
@@ -157,20 +230,20 @@ fun ProductDetailScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "CS1 • Đăng 2 tuần trước",
+                            text = "CS1 • Đăng: ${product.createdAt}",
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
                     }
 
-                    //Info nguoi ban
+                    //Thông tin người bán - CHUA XONG
                     Row(verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.dacnhantam),
+                            painter = painterResource(id = R.drawable.avatar_thien),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(42.dp)
@@ -179,7 +252,7 @@ fun ProductDetailScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Thien Huynh",
+                            text = product.userId ?: "Người bán ẩn danh",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.Black
@@ -209,40 +282,134 @@ fun ProductDetailScreen(
                             color = Color.DarkGray
                         )
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    //Nút sửa & xóa sản phẩm
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Nút Sửa
+                        val id = product.id
+                        Button(
+                            onClick = {
+                                id?.let { onEditProduct(it) } // gọi chỉ khi id != null
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF009688)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Sửa",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Sửa",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+
+                        // Nút Xóa
+                        Button(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF5252)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Xóa",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Xóa",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(10.dp))
+
                 }
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ProductDetailScreenPreview() {
-    ProductDetailScreen(
-        product = Product(
-            id = 1,
-            name = "Giáo trình tư tưởng Hồ Chí Minh",
-            price = 20.0,
-            imageRes = R.drawable.book04,
-            isFavorite = false,
-            description = """
-                - Sách này mình sử dụng trong môn học giúp ích rất nhiều, giờ mình chia sẻ lại.
-                - Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-                Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-                """.trimIndent()
+    //Dialog delete
+    val context = LocalContext.current
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
+                Text(
+                    text = "Xóa sản phẩm",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Bạn có chắc chắn muốn xóa sản phẩm \"${product.name}\" không? Hành động này không thể hoàn tác.",
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // ✅ Cách A: kiểm tra id trước khi gọi ViewModel
+                        product.id?.let { id ->
+                            viewModel.deleteProduct(id) // an toàn vì id non-null ở đây
+                            // Không gọi onBack() ngay lập tức: chờ operationState Success để điều hướng
+                            showDeleteDialog = false
+                        } ?: run {
+                            // Nếu id null -> thông báo cho người dùng (không crash)
+                            Toast.makeText(
+                                context,
+                                "Không thể xóa: sản phẩm chưa có ID",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            showDeleteDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = Color(0xFFFF5252)
+                    )
+                ) {
+                    Text("Xóa", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false }
+                ) {
+                    Text("Hủy")
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
         )
-    )
+    }
 }
 
-@Composable
-fun ChatBuy(
+@Composable //Btn Call & Chat
+fun Call_Chat(
     onCall: () -> Unit = {},
     onMessage: () -> Unit = {}
 ) {
-    //Btn action
     Box(
         modifier = Modifier
             .fillMaxWidth()
