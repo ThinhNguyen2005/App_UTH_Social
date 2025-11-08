@@ -30,7 +30,6 @@ fun PostScreen(navController: NavController) {
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    // var text by remember { mutableStateOf(viewModel.content) }
 
     Scaffold(
 

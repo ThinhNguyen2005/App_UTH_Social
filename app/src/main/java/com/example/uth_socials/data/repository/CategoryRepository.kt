@@ -1,10 +1,9 @@
 package com.example.uth_socials.data.repository
 
 import android.util.Log
-import com.example.uth_socials.config.AdminConfig
-import com.example.uth_socials.config.AdminConfig.isAdmin
 import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.post.CategoryDeletionResult
+import com.example.uth_socials.data.util.SecurityValidator
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -15,9 +14,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 
-class CategoryRepository(
-    private val adminRepository: AdminRepository = AdminRepository()
-) {
+class CategoryRepository {
     private val db = FirebaseFirestore.getInstance()
     private val categoriesCollection = db.collection("categories")
 
@@ -101,11 +98,10 @@ class CategoryRepository(
 
     /**
      * Thêm category mới (chỉ admin)
+     * Security: Firebase Rules sẽ reject nếu không phải admin
      */
     suspend fun addCategory(category: Category, userId: String? = null): Result<Unit> = runCatching {
-        // Validate admin permission
-        val isAdmin = AdminConfig.isSuperAdmin(userId) || adminRepository.isAdmin(userId ?: "")
-        if (!isAdmin) {
+        if (!SecurityValidator.canModifyCategories(userId)) {
             throw SecurityException("Only admins can add categories")
         }
 
@@ -115,11 +111,11 @@ class CategoryRepository(
 
     /**
      * Cập nhật category (chỉ admin)
+     * Security: Firebase Rules sẽ reject nếu không phải admin
      */
     suspend fun updateCategory(category: Category, userId: String? = null): Result<Unit> = runCatching {
-        // Validate admin permission
-        val isAdmin = AdminConfig.isSuperAdmin(userId) || adminRepository.isAdmin(userId ?: "")
-        if (!isAdmin) {
+        // Client-side validation để tối ưu UX
+        if (!SecurityValidator.canModifyCategories(userId)) {
             throw SecurityException("Only admins can update categories")
         }
 
@@ -220,9 +216,8 @@ class CategoryRepository(
         userId: String? = null,
         migrateToCategoryId: String? = null
     ): Result<CategoryDeletionResult> = runCatching {
-        // Validate admin permission
-        val isAdmin = AdminConfig.isSuperAdmin(userId) || isAdmin(userId ?: "")
-        if (!isAdmin) {
+        // Client-side validation để tối ưu UX
+        if (!SecurityValidator.canModifyCategories(userId)) {
             throw SecurityException("Only admins can delete categories")
         }
 

@@ -29,7 +29,6 @@ import com.example.uth_socials.ui.component.logo.LogoTopAppBar
 import com.example.uth_socials.ui.screen.RegisterScreen
 import com.example.uth_socials.ui.screen.ResetPasswordScreen
 import com.example.uth_socials.ui.screen.AdminDashboardScreen
-import com.example.uth_socials.ui.screen.home.CreatPost_ProductScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen

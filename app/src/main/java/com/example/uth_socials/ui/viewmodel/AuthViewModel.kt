@@ -7,11 +7,15 @@ import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.repository.UserRepository
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.firestore
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,7 +63,20 @@ class AuthViewModel(
                 if (firebaseUser != null) {
                     // ✅ Đảm bảo profile tồn tại, có thể là user cũ nhưng bị lỗi tạo doc
                     userRepository.createUserProfileIfNotExists(firebaseUser)
-                    _state.value = AuthState.Success("Đăng nhập thành công")
+
+
+                    val userProfile = userRepository.getUser(firebaseUser.uid)
+                    if (userProfile?.isBanned == true) {
+                        // Nếu bị cấm, buộc đăng xuất và báo lỗi
+                        auth.signOut()
+                        _state.value = AuthState.Error("Tài khoản của bạn đã bị khóa.")
+                    } else {
+                        // Nếu không, cho phép đăng nhập
+                        _state.value = AuthState.Success("Đăng nhập thành công")
+                        updateUserToken()
+                    }
+
+
                 } else {
                     _state.value = AuthState.Error("Không thể xác thực người dùng.")
                 }
@@ -95,6 +112,7 @@ class AuthViewModel(
                     // ✅ GỌI HÀM TẠO PROFILE NGAY SAU KHI ĐĂNG KÝ THÀNH CÔNG
                     userRepository.createUserProfileIfNotExists(firebaseUser)
                     _state.value = AuthState.Success("Đăng ký thành công")
+                    updateUserToken()
                 } else {
                     _state.value = AuthState.Error("Không thể tạo người dùng.")
                 }
@@ -125,14 +143,50 @@ class AuthViewModel(
                 if (firebaseUser != null) {
                     // ✅ GỌI HÀM TẠO PROFILE NGAY SAU KHI ĐĂNG NHẬP GOOGLE THÀNH CÔNG
                     userRepository.createUserProfileIfNotExists(firebaseUser)
-                    _state.value = AuthState.Success("Đăng nhập Google thành công")
-                } else {
+                    // 2. Lấy hồ sơ người dùng từ Firestore
+                    val userProfile = userRepository.getUser(firebaseUser.uid)
+
+                    // 3. Kiểm tra trường isBanned
+                    if (userProfile?.isBanned == true) {
+                        // Nếu bị cấm, đăng xuất (cả Firebase và Google) và báo lỗi
+                        auth.signOut()
+                        googleClient.signOut() // Đăng xuất khỏi Google
+                        _state.value = AuthState.Error("Tài khoản của bạn đã bị khóa.")
+                    } else {
+                        // Nếu không, đăng nhập thành công
+                        _state.value = AuthState.Success("Đăng nhập Google thành công")
+                        updateUserToken()
+                    }                } else {
                     _state.value = AuthState.Error("Không lấy được thông tin người dùng.")
                 }
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "Google Sign-In failed", e)
                 _state.value = AuthState.Error("Đăng nhập Google thất bại: ${e.message}")
             }
+        }
+    }
+
+    private fun updateUserToken() {
+        val user = FirebaseAuth.getInstance().currentUser ?: return
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                println("❌ Lấy token thất bại: ${task.exception}")
+                return@addOnCompleteListener
+            }
+
+            val token = task.result
+            val db = Firebase.firestore
+
+            db.collection("users")
+                .document(user.uid)
+                .update("token", token)
+                .addOnSuccessListener {
+                    println("✅ Token người dùng đã được cập nhật: $token")
+                }
+                .addOnFailureListener { e ->
+                    println("❌ Lỗi khi lưu token: $e")
+                }
         }
     }
     fun resetState() {
