@@ -8,7 +8,6 @@ import com.example.uth_socials.data.post.AdminAction
 import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.repository.CategoryRepository
 import com.example.uth_socials.data.user.AdminDashboardUiState
-import com.example.uth_socials.data.util.SecurityValidator
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -112,46 +111,6 @@ class AdminDashboardViewModel : ViewModel() {
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                     ?: throw IllegalStateException("No admin user logged in")
 
-                // ✅ PRE-VALIDATION: Check permissions before executing action
-                when (action) {
-                    AdminAction.BAN_USER -> {
-                        // Get target user ID from the report
-                        val reports = AdminConfig.getPendingReports()
-                        val targetReport = reports.find { it.report.id == reportId }
-                        val targetUserId = targetReport?.post?.userId
-
-                        if (targetUserId != null && !SecurityValidator.canBanUser(currentUserId, targetUserId)) {
-                            val errorMessage = when {
-                                targetUserId == currentUserId -> "Cannot ban yourself"
-                                AdminConfig.isSuperAdmin(targetUserId) -> "Cannot ban super admin"
-                                AdminConfig.isAdmin(targetUserId) -> "Only super admin can ban regular admins"
-                                else -> "Cannot ban this user"
-                            }
-                            _uiState.update { it.copy(error = errorMessage) }
-                            return@launch
-                        }
-                    }
-
-                    AdminAction.BAN_REPORTER -> {
-                        // Get reporter ID from the report
-                        val reports = AdminConfig.getPendingReports()
-                        val targetReport = reports.find { it.report.id == reportId }
-                        val reporterId = targetReport?.report?.reportedBy
-
-                        if (reporterId != null && !SecurityValidator.canBanUser(currentUserId, reporterId)) {
-                            val errorMessage = when {
-                                AdminConfig.isSuperAdmin(reporterId) -> "Cannot ban super admin"
-                                AdminConfig.isAdmin(reporterId) -> "Only super admin can ban regular admins"
-                                else -> "Cannot ban this reporter"
-                            }
-                            _uiState.update { it.copy(error = errorMessage) }
-                            return@launch
-                        }
-                    }
-
-                    else -> Unit
-                }
-
                 val result = AdminConfig.reviewReport(reportId, currentUserId, action, adminNotes)
                 if (result.isSuccess) {
                     Log.d("AdminDashboardViewModel", "Report reviewed successfully.")
@@ -162,9 +121,8 @@ class AdminDashboardViewModel : ViewModel() {
                     }
                 }
             } catch (e: Exception) {
-                Log.e("AdminDashboardViewModel", "Error reviewing report", e)
                 _uiState.update {
-                    it.copy(error = "Failed to review report: ${e.localizedMessage ?: "Unknown error"}")
+                    it.copy(error = "Failed to review report: ${e.message}")
                 }
             }
         }

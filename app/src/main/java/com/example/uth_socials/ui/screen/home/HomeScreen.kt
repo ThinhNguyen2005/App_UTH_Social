@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.uth_socials.data.repository.PostRepository
+import com.example.uth_socials.config.AdminConfig
 import com.example.uth_socials.ui.viewmodel.ViewModelFactory
 import com.example.uth_socials.ui.component.navigation.FilterTabs
 import com.example.uth_socials.ui.component.post.CommentSheetContent
@@ -47,6 +49,9 @@ fun HomeScreen(
     val uiState by homeViewModel.uiState.collectAsState()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // ✅ CHECK ADMIN STATUS của từng user để disable report button
+    val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
 
 
     // 2. Tạo một instance của Factory, truyền Repository vào.
@@ -200,6 +205,20 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp)
                         ) {
                             items(filteredPosts, key = { it.id }) { post ->
+                                // ✅ CHECK ADMIN STATUS cho từng post owner
+                                var isPostOwnerAdmin by remember(post.userId) { mutableStateOf(adminStatusCache[post.userId] ?: false) }
+
+                                LaunchedEffect(post.userId) {
+                                    if (adminStatusCache[post.userId] == null) {
+                                        // Check admin status nếu chưa có trong cache
+                                        val isAdmin = AdminConfig.isAnyAdmin(post.userId)
+                                        adminStatusCache[post.userId] = isAdmin
+                                        isPostOwnerAdmin = isAdmin
+                                    } else {
+                                        isPostOwnerAdmin = adminStatusCache[post.userId] ?: false
+                                    }
+                                }
+
                                 PostCard(
                                     post = post,
                                     onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
@@ -212,7 +231,8 @@ fun HomeScreen(
                                     onReportClicked = { homeViewModel.onReportClicked(post.id) },
                                     onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
                                     onHideClicked = { homeViewModel.onHideClicked(post.id) },
-                                    currentUserId = uiState.currentUserId
+                                    currentUserId = uiState.currentUserId,
+                                    isPostOwnerAdmin = isPostOwnerAdmin
                                 )
                             }
 

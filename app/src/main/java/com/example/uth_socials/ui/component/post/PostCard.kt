@@ -90,6 +90,7 @@ fun PostCard(
     onReportClicked: (String) -> Unit,
     onDeleteClicked: (String) -> Unit,
     currentUserId: String? = null,
+    isPostOwnerAdmin: Boolean = false,
     onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Card(
@@ -98,7 +99,7 @@ fun PostCard(
     ) {
         Column {
             Column(modifier = Modifier.padding(12.dp)) {
-                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId, onNavigateToUserProfile)
+                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId, isPostOwnerAdmin, onNavigateToUserProfile)
                 Spacer(modifier = Modifier.height(8.dp))
                 ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
             }
@@ -132,6 +133,7 @@ private fun PostHeader(
     onReportClicked: (String) -> Unit,
     onDeleteClicked: (String) -> Unit,
     currentUserId: String? = null,
+    isPostOwnerAdmin: Boolean = false,
     onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Row(
@@ -181,16 +183,22 @@ private fun PostHeader(
                         onHideClicked(post.id)
                         menuExpanded = false
                     }
-                ),
-                MenuItemData(
-                    text = "Báo cáo",
-                    icon = Icons.Default.Report,
-                    onClick = {
-                        onReportClicked(post.id)
-                        menuExpanded = false
-                    }
                 )
             )
+
+            // Chỉ thêm "Báo cáo" nếu chủ post KHÔNG phải admin
+            if (!isPostOwnerAdmin) {
+                menuItems.add(
+                    MenuItemData(
+                        text = "Báo cáo",
+                        icon = Icons.Default.Report,
+                        onClick = {
+                            onReportClicked(post.id)
+                            menuExpanded = false
+                        }
+                    )
+                )
+            }
 
             // Chỉ hiển thị "Xóa" nếu người dùng hiện tại là chủ bài
             if (post.userId == currentUserId) {

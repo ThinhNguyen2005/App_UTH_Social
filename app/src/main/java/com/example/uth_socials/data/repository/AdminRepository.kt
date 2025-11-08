@@ -241,6 +241,14 @@ class AdminRepository(
         val postId = reportSnapshot.getString("postId")
         val reporterId = reportSnapshot.getString("reportedBy")
 
+        // ✅ VALIDATION: Check if target user is admin (cannot ban/report admin)
+        val post = getPostById(postId ?: "")
+        val targetUserId = post?.userId
+
+        if (targetUserId != null && (isAdmin(targetUserId) || isSuperAdmin(targetUserId))) {
+            throw IllegalArgumentException("Cannot perform admin actions on admin users")
+        }
+
         // Update report metadata first
         val updateData = mutableMapOf<String, Any>(
             "status" to if (action == AdminAction.DISMISS) "dismissed" else "reviewed",
@@ -265,18 +273,8 @@ class AdminRepository(
                             userId?.let { incrementUserViolation(it) }
                         }
                         AdminAction.BAN_USER -> {
-                            userId?.let { targetUserId ->
-                                // ✅ VALIDATION: Không thể ban chính mình
-                                if (targetUserId == adminId) {
-                                    throw IllegalArgumentException("Cannot ban yourself")
-                                }
-
-                                // ✅ VALIDATION: Không thể ban admin/super admin khác
-                                if (isAdmin(targetUserId) || isSuperAdmin(targetUserId)) {
-                                    throw IllegalArgumentException("Cannot ban admin users")
-                                }
-
-                                banUser(targetUserId, adminId, "Banned due to report: ${adminNotes ?: "No reason provided"}")
+                            userId?.let {
+                                banUser(it, adminId, "Banned due to report: ${adminNotes ?: "No reason provided"}")
                             }
                         }
                         AdminAction.WARN_USER -> {
@@ -288,13 +286,8 @@ class AdminRepository(
             }
 
             AdminAction.BAN_REPORTER -> {
-                reporterId?.let { targetUserId ->
-                    // ✅ VALIDATION: Không thể ban admin/super admin
-                    if (isAdmin(targetUserId) || isSuperAdmin(targetUserId)) {
-                        throw IllegalArgumentException("Cannot ban admin users")
-                    }
-
-                    banUser(targetUserId, adminId, "Banned for invalid reports: ${adminNotes ?: "No reason provided"}")
+                reporterId?.let {
+                    banUser(it, adminId, "Banned for invalid reports: ${adminNotes ?: "No reason provided"}")
                 }
             }
 
