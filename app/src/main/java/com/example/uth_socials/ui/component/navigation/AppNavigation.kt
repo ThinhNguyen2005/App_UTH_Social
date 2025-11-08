@@ -140,14 +140,14 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
     ) {
         // Tất cả các màn hình bên trong MainScreen đều được định nghĩa ở đây
         // Điều này cho phép điều hướng từ một tab này sang một màn hình chi tiết khác.
-        composable(Screen.Home.route) { MainScreen() } // Chỉ cần gọi MainScreen ở đây
+        composable(Screen.Home.route) { MainScreen(navController = navController) } // Chỉ cần gọi MainScreen ở đây
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
-    val navController = rememberNavController()
+fun MainScreen(navController: NavHostController) {
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -161,8 +161,6 @@ fun MainScreen() {
         Screen.ChatList.route-> true
 
 
-        Screen.Profile.route -> true
-
         Screen.AdminDashboard.route,
         Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
 
@@ -174,7 +172,7 @@ fun MainScreen() {
                 Screen.Home.route -> HomeTopAppBar(
                     onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ },
 
-                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                    onMessagesClick = {navController.navigate(Screen.ChatList.route)},
                     onAdminClick = {
                         navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
                             launchSingleTop = true
@@ -214,6 +212,18 @@ fun MainScreen() {
 
                     }
                 )
+            }
+            composable(Screen.ChatList.route) {
+                ChatListScreen(
+                    onChatSelected = { chatId ->
+                        navController.navigate(Screen.ChatDetail.createRoute(chatId))
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.ChatDetail.route) { backStackEntry ->
+                val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+                ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
             }
             composable(Screen.Market.route) { MarketScreen() }
             composable(Screen.Add.route) { CreatPost_ProductScreen() }

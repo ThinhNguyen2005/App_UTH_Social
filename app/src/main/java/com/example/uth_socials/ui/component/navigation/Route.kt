@@ -23,10 +23,15 @@ sealed class Screen(val route: String) {
     }
     object Categories : Screen("categories")
 
+    object ChatList : Screen("chat_list")
+    object ChatDetail : Screen("chat_detail/{chatId}") {
+        fun createRoute(chatId: String) = "chat_detail/$chatId"
+    }
     // Các màn hình trong đồ thị xác thực (Auth)
     sealed class AuthScreen(val route: String) {
         object Login : AuthScreen("login")
         object Register : AuthScreen("register")
         object ResetPassword : AuthScreen("reset_password")
     }
+
 }
