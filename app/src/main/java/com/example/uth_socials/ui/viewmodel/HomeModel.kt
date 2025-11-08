@@ -26,14 +26,6 @@ import kotlinx.coroutines.withContext
 //Enum để quản lý trạng thái gửi bình luận
 enum class CommentPostState { IDLE, POSTING, SUCCESS, ERROR }
 
-// 🔸 Pagination State
-data class PaginationState(
-    val currentPage: Int = 0,
-    val pageSize: Int = 10,
-    val hasMore: Boolean = true,
-    val isLoadingMore: Boolean = false
-)
-
 // Cập nhật State để làm việc với object Category
 data class HomeUiState(
     val posts: List<Post> = emptyList(),
@@ -59,8 +51,6 @@ data class HomeUiState(
     val isDeleting: Boolean = false,
     val currentUserId: String? = null,
     val hiddenPostIds: Set<String> = emptySet(),
-    // 🔸 Pagination state
-    val paginationState: PaginationState = PaginationState(),
     // 🔸 Admin state
     val isCurrentUserAdmin: Boolean = false,
     val currentUserAdminStatus: AdminStatus = AdminStatus.USER,
@@ -537,76 +527,6 @@ class HomeViewModel(
                 showDeleteConfirmDialog = false,
                 deletingPostId = null
             )
-        }
-    }
-
-    // 🔸 INFINITE SCROLL - Load more posts with proper pagination
-    fun onLoadMore() {
-        val currentState = _uiState.value
-        val pagination = currentState.paginationState
-
-        // Kiểm tra các điều kiện
-        if (pagination.isLoadingMore) {
-            Log.d("HomeViewModel", "Already loading more posts")
-            return
-        }
-
-        if (!pagination.hasMore) {
-            Log.d("HomeViewModel", "No more posts to load")
-            return
-        }
-
-        val categoryId = currentState.selectedCategory?.id ?: return
-
-        viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update {
-                it.copy(
-                    paginationState = it.paginationState.copy(isLoadingMore = true)
-                )
-            }
-
-            try {
-                // 🔸 Gọi API với pagination (page-based)
-                val newPosts = postRepository.getPostsByPage(
-                    categoryId = categoryId,
-                    page = pagination.currentPage,
-                    pageSize = pagination.pageSize
-                )
-
-                if (newPosts.isNotEmpty()) {
-                    // Thêm posts mới vào cuối danh sách (lọc duplicate bằng distinctBy)
-                    val allPosts = (currentState.posts + newPosts).distinctBy { it.id }
-                    val hasMorePages = newPosts.size >= pagination.pageSize
-
-                    _uiState.update {
-                        it.copy(
-                            posts = allPosts,
-                            paginationState = it.paginationState.copy(
-                                currentPage = pagination.currentPage + 1,
-                                hasMore = hasMorePages,
-                                isLoadingMore = false
-                            )
-                        )
-                    }
-                    Log.d("HomeViewModel", "Loaded page ${pagination.currentPage} with ${newPosts.size} posts")
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            paginationState = it.paginationState.copy(
-                                hasMore = false,
-                                isLoadingMore = false
-                            )
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error loading more posts", e)
-                _uiState.update {
-                    it.copy(
-                        paginationState = it.paginationState.copy(isLoadingMore = false)
-                    )
-                }
-            }
         }
     }
 

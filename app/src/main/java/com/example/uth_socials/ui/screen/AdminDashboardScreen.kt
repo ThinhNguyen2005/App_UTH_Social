@@ -33,7 +33,6 @@ import com.example.uth_socials.data.user.AdminUser
 import com.example.uth_socials.ui.viewmodel.AdminDashboardViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import com.example.uth_socials.ui.viewmodel.CategoryModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +42,6 @@ fun AdminDashboardScreen(
     backStackEntry: NavBackStackEntry? = null
 ) {
     val viewModel: AdminDashboardViewModel = viewModel()
-    val viewModelCategory: CategoryModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
@@ -216,7 +214,7 @@ fun AdminDashboardScreen(
             onDismiss = { showAddCategoryDialog = false },
             onAdd = { categoryName ->
                 scope.launch {
-                    viewModelCategory.addCategory(categoryName)
+                    viewModel.addCategory(categoryName)
                     showAddCategoryDialog = false
                 }
             }
@@ -230,7 +228,7 @@ fun AdminDashboardScreen(
             onDismiss = { showEditCategoryDialog = null },
             onEdit = { categoryId, newName ->
                 scope.launch {
-                    viewModelCategory.updateCategory(categoryId, newName)
+                    viewModel.updateCategory(categoryId, newName)
                     showEditCategoryDialog = null
                 }
             }
@@ -245,7 +243,7 @@ fun AdminDashboardScreen(
             onDismiss = { showDeleteCategoryDialog = null },
             onDelete = { migrateToCategoryId ->
                 scope.launch {
-                    viewModelCategory.deleteCategoryWithConfirmation(category.id, migrateToCategoryId)
+                    viewModel.deleteCategoryWithConfirmation(category.id, migrateToCategoryId)
                     showDeleteCategoryDialog = null
                 }
             }

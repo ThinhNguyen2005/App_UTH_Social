@@ -208,22 +208,6 @@ fun HomeScreen(
                                     currentUserId = uiState.currentUserId
                                 )
                             }
-
-                            // 🔸 Infinite scroll - load more trigger
-                            if (filteredPosts.isNotEmpty() && !uiState.paginationState.isLoadingMore) {
-                                item {
-                                    LaunchedEffect(Unit) {
-                                        homeViewModel.onLoadMore()
-                                    }
-                                }
-                            }
-
-                            // 🔸 Show skeleton loading when loading more posts
-                            if (uiState.paginationState.isLoadingMore) {
-                                items(2) { // Show 2 skeleton posts for pagination loading
-                                    PostCardSkeleton()
-                                }
-                            }
                         }
                     }
                 }

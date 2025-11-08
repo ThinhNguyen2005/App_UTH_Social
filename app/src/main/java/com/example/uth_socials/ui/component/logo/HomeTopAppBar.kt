@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,8 +35,8 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.R
 import com.example.uth_socials.ui.screen.UthRed
 import com.example.uth_socials.ui.screen.UthTeal
-import com.example.uth_socials.config.AdminConfig
-import kotlinx.coroutines.runBlocking
+import com.example.uth_socials.data.repository.AdminRepository
+import androidx.compose.runtime.produceState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,10 +60,10 @@ fun HomeTopAppBar(
             )
         },
         actions = {
-            // Check if user is admin and show admin button
-            val isAdmin = runBlocking {
-                try {
-                    AdminConfig.getCurrentUserAdminStatus() != com.example.uth_socials.config.AdminStatus.USER
+            // Check if user is admin and show admin button (non-blocking)
+            val isAdmin by produceState(initialValue = false) {
+                value = try {
+                    AdminRepository().getCurrentUserAdminStatus() != com.example.uth_socials.config.AdminStatus.USER
                 } catch (e: Exception) {
                     false
                 }
