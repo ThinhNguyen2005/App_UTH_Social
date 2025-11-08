@@ -122,6 +122,14 @@ object AdminConfig {
     suspend fun isSuperAdminInitialized(): Boolean {
         return adminRepository.isSuperAdminInitialized()
     }
+
+    /**
+     * Check if user is any kind of admin (regular admin or super admin)
+     */
+    suspend fun isAnyAdmin(userId: String?): Boolean {
+        if (userId == null) return false
+        return isAdmin(userId) || isSuperAdmin(userId)
+    }
 }
 
 /**
