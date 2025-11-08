@@ -216,6 +216,7 @@ fun HomeScreen(
                                 )
                             }
 
+
                             // 🔸 Infinite scroll - load more trigger
                             if (filteredPosts.isNotEmpty() && !uiState.paginationState.isLoadingMore) {
                                 item {
@@ -232,6 +233,8 @@ fun HomeScreen(
 
                                 }
                             }
+
+
                         }
                     }
                 }

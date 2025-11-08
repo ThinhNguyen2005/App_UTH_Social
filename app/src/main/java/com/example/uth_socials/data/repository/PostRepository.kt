@@ -3,6 +3,7 @@ package com.example.uth_socials.data.repository
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.post.Report
+import com.example.uth_socials.data.util.SecurityValidator
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
@@ -262,15 +263,20 @@ class PostRepository {
     }
 
     // 🔸 Xóa bài viết (chỉ chủ bài mới được xóa)
+    /**
+     * Xóa post (chủ sở hữu hoặc admin)
+     * Security: Firebase Rules sẽ reject nếu không có quyền
+     */
     suspend fun deletePost(postId: String): Boolean {
         val currentUserId = auth.currentUser?.uid ?: return false
         val postRef = postsCollection.document(postId)
 
         return try {
             val snapshot = postRef.get().await()
-            val ownerId = snapshot.getString("userId")
+            val ownerId = snapshot.getString("userId") ?: return false
 
-            if (ownerId == currentUserId) {
+            // Client-side validation để tối ưu UX
+            if (SecurityValidator.canDeletePost(currentUserId, ownerId)) {
                 postRef.delete().await()
                 true
             } else {

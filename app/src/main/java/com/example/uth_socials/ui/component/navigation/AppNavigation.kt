@@ -37,11 +37,11 @@ import com.example.uth_socials.ui.component.logo.LogoTopAppBar
 import com.example.uth_socials.ui.screen.RegisterScreen
 import com.example.uth_socials.ui.screen.ResetPasswordScreen
 import com.example.uth_socials.ui.screen.AdminDashboardScreen
-import com.example.uth_socials.ui.screen.home.CreatPost_ProductScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.home.ProfileScreen
+import com.example.uth_socials.ui.screen.post.PostScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModelFactory
@@ -226,7 +226,7 @@ fun MainScreen(navController: NavHostController) {
                 ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
             }
             composable(Screen.Market.route) { MarketScreen() }
-            composable(Screen.Add.route) { CreatPost_ProductScreen() }
+            composable(Screen.Add.route) { PostScreen(navController = navController) }
             composable(Screen.Notifications.route) { NotificationsScreen() }
             composable(Screen.Categories.route) {
                 AdminDashboardScreen(

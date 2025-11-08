@@ -48,10 +48,16 @@ dependencies {
     implementation("com.google.firebase:firebase-auth") // Nếu cần xác thực
     implementation("com.google.firebase:firebase-firestore") // Database chính
     implementation("com.google.firebase:firebase-storage") // Lưu trữ ảnh
+    implementation("com.google.firebase:firebase-analytics")
 
 // Jetpack Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.navigation:navigation-compose:2.9.5") // Để điều hướng
+
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // gửi thông báo
+    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
 
 // Coil (để tải ảnh từ URL)
     implementation("io.coil-kt:coil-compose:2.7.0")
@@ -76,6 +82,7 @@ dependencies {
     implementation(libs.volley)
     implementation(libs.androidx.compose.material3)
     implementation(libs.litert.support.api)
+    implementation(libs.androidx.compose.runtime)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

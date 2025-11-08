@@ -17,17 +17,15 @@ data class Post(
     val imageUrls: List<String> = emptyList(),
 
     // Các trường dùng để lọc và tương tác
-    val category: String = "",
+    val category: String? = "",
     val likes: Int = 0,
     val commentCount: Int = 0,
     val shareCount: Int = 0,
     val saveCount: Int = 0,
 
-
     // Thêm trường này để lưu danh sách UID của những người đã thích.
     val likedBy: List<String> = emptyList(),
     val savedBy: List<String> = emptyList(),
-
 
     val isLiked: Boolean = false,
     val isSaved: Boolean = false

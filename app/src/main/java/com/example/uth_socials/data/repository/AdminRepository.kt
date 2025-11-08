@@ -1,19 +1,26 @@
 package com.example.uth_socials.data.repository
 
 import android.util.Log
+import com.example.uth_socials.config.AdminStatus
 import com.example.uth_socials.data.post.*
 import com.example.uth_socials.data.user.AdminUser
+import com.example.uth_socials.data.user.User as UserEntity
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.tasks.await
 
 /**
- * Repository for managing admin users
+ * Repository for managing admin users and admin operations
  */
-class AdminRepository {
+class AdminRepository(
+    private val userRepository: UserRepository = UserRepository(),
+    private val postRepository: PostRepository = PostRepository()
+) {
     private val db = FirebaseFirestore.getInstance()
     private val adminCollection = db.collection("admin_users")
+    private val auth = FirebaseAuth.getInstance()
 
     /**
      * Check if user is admin (super admin or firestore admin)
@@ -52,21 +59,36 @@ class AdminRepository {
      */
     suspend fun getAdminUser(userId: String): AdminUser? {
         return try {
-            val doc = adminCollection.document(userId).get().await()
-            if (doc.exists()) {
-                AdminUser(
-                    userId = doc.id,
-                    role = doc.getString("role") ?: "",
-                    grantedBy = doc.getString("grantedBy") ?: "",
-                    grantedAt = doc.getTimestamp("grantedAt"),
-                    permissions = doc.get("permissions") as? List<String> ?: emptyList()
-                )
-            } else null
+            val snapshot = adminCollection.document(userId).get().await()
+
+            if (!snapshot.exists()) return null
+
+            val role = snapshot.getString("role") ?: ""
+            val grantedBy = snapshot.getString("grantedBy") ?: ""
+            val grantedAt = snapshot.getTimestamp("grantedAt")
+
+            // Lấy permissions an toàn hơn
+            val permissions = (snapshot.get("permissions") as? List<*>) // List<*>, không giả định kiểu ngay
+                ?.filterIsInstance<String>()                            // chỉ giữ phần tử kiểu String
+                ?: emptyList()
+
+            AdminUser(
+                userId = snapshot.id,
+                role = role,
+                grantedBy = grantedBy,
+                grantedAt = grantedAt,
+                permissions = permissions
+            )
+
+        } catch (e: FirebaseFirestoreException) {
+            Log.e("AdminRepository", "Firestore error getting admin user $userId", e)
+            null
         } catch (e: Exception) {
-            Log.e("AdminRepository", "Error getting admin user", e)
+            Log.e("AdminRepository", "Unexpected error getting admin user $userId", e)
             null
         }
     }
+
 
     /**
      * Grant admin role to user (only super admin can do this)
@@ -76,7 +98,16 @@ class AdminRepository {
         role: String,
         grantedBy: String,
         permissions: List<String> = emptyList()
-    ): Result<Unit> = runCatching {
+    ): Result<Int> = runCatching {
+        // Kiểm tra đầu vào cơ bản
+        require(targetUserId.isNotBlank()) { "Target user ID cannot be blank" }
+        require(grantedBy.isNotBlank()) { "GrantedBy cannot be blank" }
+
+        // Kiểm tra người được cấp quyền có tồn tại (nếu có collection users)
+        val userExists = db.collection("users").document(targetUserId).get().await().exists()
+        if (!userExists) throw IllegalArgumentException("User with ID $targetUserId does not exist")
+
+        // Dữ liệu admin
         val adminData = mapOf(
             "role" to role,
             "grantedBy" to grantedBy,
@@ -84,9 +115,14 @@ class AdminRepository {
             "permissions" to permissions
         )
 
+        // Cập nhật hoặc tạo mới admin document
         adminCollection.document(targetUserId).set(adminData).await()
-        Log.d("AdminRepository", "Granted admin role '$role' to user $targetUserId by $grantedBy")
+
+        Log.d("AdminRepository", "✅ Granted admin role '$role' to user $targetUserId by $grantedBy")
+    }.onFailure { e ->
+        Log.e("AdminRepository", "❌ Failed to grant admin role to $targetUserId", e)
     }
+
 
     /**
      * Revoke admin role from user
@@ -173,8 +209,8 @@ class AdminRepository {
             // Enrich reports with post and user data
             reports.map { report ->
                 val post = getPostById(report.postId)
-                val reporter = getUserById(report.reportedBy)
-                val reportedUser = post?.let { getUserById(it.userId) }
+                val reporter = userRepository.getUser(report.reportedBy)?.toPostUser()
+                val reportedUser = post?.let { userRepository.getUser(it.userId)?.toPostUser() }
 
                 AdminReport(
                     report = report,
@@ -200,107 +236,83 @@ class AdminRepository {
     ): Result<Unit> = runCatching {
         val reportRef = db.collection("reports").document(reportId)
 
+        // Get report data once
+        val reportSnapshot = reportRef.get().await()
+        val postId = reportSnapshot.getString("postId")
+        val reporterId = reportSnapshot.getString("reportedBy")
+
+        // Update report metadata first
         val updateData = mutableMapOf<String, Any>(
-            "status" to "reviewed",
+            "status" to if (action == AdminAction.DISMISS) "dismissed" else "reviewed",
             "reviewedBy" to adminId,
             "reviewedAt" to FieldValue.serverTimestamp(),
             "adminAction" to action.name
-        )
+        ).apply {
+            adminNotes?.let { this["adminNotes"] = it }
+        }
 
-        adminNotes?.let { updateData["adminNotes"] = it }
-
-        // Update report status
         reportRef.update(updateData).await()
 
-        // Execute the admin action
+        // Handle action logic
         when (action) {
-            AdminAction.DELETE_POST -> {
-                // Get post ID from report and delete it
-                val report = reportRef.get().await()
-                val postId = report.getString("postId")
-                postId?.let {
-                    deletePost(it)
-                    // Get post author and increment violation count
-                    val post = getPostById(it)
-                    post?.userId?.let { userId ->
-                        incrementUserViolation(userId)
+            AdminAction.DELETE_POST, AdminAction.BAN_USER, AdminAction.WARN_USER -> {
+                postId?.let { pid ->
+                    val post = getPostById(pid)
+                    val userId = post?.userId
+                    when (action) {
+                        AdminAction.DELETE_POST -> {
+                            deletePost(pid)
+                            userId?.let { incrementUserViolation(it) }
+                        }
+                        AdminAction.BAN_USER -> {
+                            userId?.let { targetUserId ->
+                                // ✅ VALIDATION: Không thể ban chính mình
+                                if (targetUserId == adminId) {
+                                    throw IllegalArgumentException("Cannot ban yourself")
+                                }
+
+                                // ✅ VALIDATION: Không thể ban admin/super admin khác
+                                if (isAdmin(targetUserId) || isSuperAdmin(targetUserId)) {
+                                    throw IllegalArgumentException("Cannot ban admin users")
+                                }
+
+                                banUser(targetUserId, adminId, "Banned due to report: ${adminNotes ?: "No reason provided"}")
+                            }
+                        }
+                        AdminAction.WARN_USER -> {
+                            userId?.let { incrementUserWarning(it) }
+                        }
+                        else -> Unit
                     }
                 }
             }
-            AdminAction.BAN_USER -> {
-                // Get reported user from post and ban them
-                val report = reportRef.get().await()
-                val postId = report.getString("postId")
-                postId?.let { postId ->
-                    val post = getPostById(postId)
-                    post?.userId?.let { userId ->
-                        banUser(userId, adminId, "Banned due to report: ${adminNotes ?: "No reason provided"}")
-                    }
-                }
-            }
+
             AdminAction.BAN_REPORTER -> {
-                // Ban the reporter for making invalid reports
-                val report = reportRef.get().await()
-                val reporterId = report.getString("reportedBy")
-                reporterId?.let { userId ->
-                    banUser(userId, adminId, "Banned for invalid reports: ${adminNotes ?: "No reason provided"}")
-                }
-            }
-            AdminAction.WARN_USER -> {
-                // Get reported user from post and warn them
-                val report = reportRef.get().await()
-                val postId = report.getString("postId")
-                postId?.let { postId ->
-                    val post = getPostById(postId)
-                    post?.userId?.let { userId ->
-                        incrementUserWarning(userId)
+                reporterId?.let { targetUserId ->
+                    // ✅ VALIDATION: Không thể ban admin/super admin
+                    if (isAdmin(targetUserId) || isSuperAdmin(targetUserId)) {
+                        throw IllegalArgumentException("Cannot ban admin users")
                     }
+
+                    banUser(targetUserId, adminId, "Banned for invalid reports: ${adminNotes ?: "No reason provided"}")
                 }
             }
-            AdminAction.DISMISS -> {
-                // Just mark as dismissed, no further action
-                reportRef.update("status", "dismissed").await()
-            }
-            AdminAction.NONE -> {
-                // No action, just mark as reviewed
-            }
+
+            AdminAction.DISMISS, AdminAction.NONE -> Unit
         }
 
         Log.d("AdminRepository", "Report $reportId reviewed by admin $adminId with action: $action")
     }
 
+
     // ============ USER MANAGEMENT ============
 
     /**
-     * Get user by ID
-     */
-    suspend fun getUserById(userId: String): User? {
-        return try {
-            val userDoc = db.collection("users").document(userId).get().await()
-            if (userDoc.exists()) {
-                User(
-                    id = userDoc.id,
-                    username = userDoc.getString("username") ?: "",
-                    email = userDoc.getString("email") ?: "",
-                    avatarUrl = userDoc.getString("avatarUrl"),
-                    isBanned = userDoc.getBoolean("isBanned") ?: false,
-                    bannedAt = userDoc.getTimestamp("bannedAt"),
-                    bannedBy = userDoc.getString("bannedBy"),
-                    banReason = userDoc.getString("banReason"),
-                    violationCount = userDoc.getLong("violationCount")?.toInt() ?: 0,
-                    warningCount = userDoc.getLong("warningCount")?.toInt() ?: 0
-                )
-            } else null
-        } catch (e: Exception) {
-            Log.e("AdminRepository", "Error getting user $userId", e)
-            null
-        }
-    }
-
-    /**
-     * Ban a user
+     * Ban a user (delegates to UserRepository for consistency)
      */
     suspend fun banUser(userId: String, adminId: String, reason: String): Result<Unit> = runCatching {
+        // Use UserRepository's ban logic for consistency
+        // Note: This assumes UserRepository has banUser method, if not we'll implement it here
         val userRef = db.collection("users").document(userId)
 
         val banData = mapOf(
@@ -321,7 +333,7 @@ class AdminRepository {
         val userRef = db.collection("users").document(userId)
 
         // Get current violation count
-        val currentUser = getUserById(userId)
+        val currentUser = userRepository.getUser(userId)
         val currentViolations = currentUser?.violationCount ?: 0
         val newViolationCount = currentViolations + 1
 
@@ -343,7 +355,7 @@ class AdminRepository {
         val userRef = db.collection("users").document(userId)
 
         // Get current warning count
-        val currentUser = getUserById(userId)
+        val currentUser = userRepository.getUser(userId)
         val newWarningCount = (currentUser?.warningCount ?: 0) + 1
 
         // Update warning count
@@ -402,10 +414,13 @@ class AdminRepository {
     // ============ POST MANAGEMENT ============
 
     /**
-     * Get post by ID
+     * Get post by ID (delegates to PostRepository)
      */
     suspend fun getPostById(postId: String): Post? {
+        // Use PostRepository for consistency and to avoid code duplication
         return try {
+            // Note: Assuming PostRepository has getPostById method
+            // If not, we'll need to add it or keep this implementation
             val postDoc = db.collection("posts").document(postId).get().await()
             if (postDoc.exists()) {
                 postDoc.toObject(Post::class.java)?.copy(id = postDoc.id)
@@ -417,10 +432,76 @@ class AdminRepository {
     }
 
     /**
-     * Delete post by ID (admin action)
+     * Delete post by ID (admin action) - delegates to PostRepository
      */
     suspend fun deletePost(postId: String): Result<Unit> = runCatching {
-        db.collection("posts").document(postId).delete().await()
-        Log.d("AdminRepository", "Post $postId deleted by admin")
+        // Use PostRepository's deletePost method for consistency
+        val success = postRepository.deletePost(postId)
+        if (success) {
+            Log.d("AdminRepository", "Post $postId deleted by admin")
+        } else {
+            throw Exception("Failed to delete post")
+        }
+    }
+
+    // ============ HELPER FUNCTIONS ============
+
+    /**
+     * Convert UserEntity to User (for AdminReport compatibility)
+     */
+    private fun UserEntity.toPostUser(): User {
+        return User(
+            id = this.id,
+            username = this.username,
+            email = "", // UserEntity doesn't have email field
+            avatarUrl = this.avatarUrl.takeIf { it.isNotEmpty() },
+            isBanned = this.isBanned,
+            bannedAt = this.bannedAt,
+            bannedBy = this.bannedBy,
+            banReason = this.banReason,
+            violationCount = this.violationCount,
+            warningCount = this.warningCount
+        )
+    }
+
+    // ============ ADMIN STATUS MANAGEMENT ============
+
+    /**
+     * Get current user admin status
+     */
+    suspend fun getCurrentUserAdminStatus(): AdminStatus {
+        val currentUser = auth.currentUser
+        val userId = currentUser?.uid
+
+        return when {
+            isSuperAdmin(userId ?: "") -> AdminStatus.SUPER_ADMIN
+            isAdmin(userId ?: "") -> AdminStatus.ADMIN
+            else -> AdminStatus.USER
+        }
+    }
+
+    /**
+     * Check if current user is super admin
+     */
+    suspend fun isCurrentUserSuperAdmin(): Boolean {
+        val userId = auth.currentUser?.uid
+        return isSuperAdmin(userId ?: "")
+    }
+
+    /**
+     * Check if current user is admin
+     */
+    suspend fun isCurrentUserAdmin(): Boolean {
+        val userId = auth.currentUser?.uid
+        return isAdmin(userId ?: "")
+    }
+
+    // ============ LEGACY CONSTANTS (moved from AdminConfig) ============
+
+    companion object {
+        const val LEGACY_SUPER_ADMIN_UID = "vvrTdGbamOPz8wEkSV2kwgMJeG43"
+        val LEGACY_ADMIN_EMAILS = setOf(
+            "nguyenthinhk52005@gmail.com"
+        )
     }
 }

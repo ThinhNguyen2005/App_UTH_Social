@@ -25,6 +25,8 @@ local.properties
 
 # Thư mục chứa cache, index và các cài đặt workspace của người dùng
 .idea/
+.idea
+.kotlin
 # Dưới đây là các quy tắc cụ thể hơn để loại trừ, đề phòng trường hợp .idea/ bị commit nhầm
 .idea/caches/
 .idea/libraries/

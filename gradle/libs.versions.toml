@@ -19,6 +19,7 @@ animation = "1.9.4"
 volley = "1.2.1"
 
 litertSupportApi = "1.4.1"
+runtime = "1.9.4"
 
 
 [libraries]
@@ -47,10 +48,10 @@ androidx-compose-animation = { group = "androidx.compose.animation", name = "ani
 volley = { group = "com.android.volley", name = "volley", version.ref = "volley" }
 
 litert-support-api = { group = "com.google.ai.edge.litert", name = "litert-support-api", version.ref = "litertSupportApi" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-

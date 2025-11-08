@@ -26,6 +26,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.OutlinedTextField
 import com.example.uth_socials.ui.component.button.ComfirmAuthButton
 import com.example.uth_socials.ui.component.button.GoogleButton
+import com.example.uth_socials.ui.screen.RequestNotificationPermission
 
 
 @Composable
@@ -41,6 +42,8 @@ fun LoginScreen(
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+    RequestNotificationPermission()
 
     Column(
         modifier = Modifier
