@@ -20,13 +20,16 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.uth_socials.data.model.Product
 import com.example.uth_socials.R
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun ProductItem(
     product: Product,
     onClick: () -> Unit = {} //Callback khi click
 ){
-    var isFav by remember { mutableStateOf(product.isFavorite) }
+    var isFav by remember { mutableStateOf(product.favorite) }
     Column (modifier = Modifier
         .fillMaxWidth().height(260.dp)
             .clickable{ onClick() }
@@ -58,26 +61,31 @@ fun ProductItem(
         //Price & Name
         Column(modifier = Modifier.padding(vertical = 6.dp)) {
             Text(
-//                text = "${product.price.toInt()}.000 ₫",
-                text = formatVND(product.price),
-                fontSize = 20.sp,
-                color = Color(0xFFFF0000),
-                fontWeight = FontWeight.Bold
+                text = product.name,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = Color.Black
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = product.name,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = Color.Black
+                text = formatVND(product.price),
+                fontSize = 16.sp,
+                maxLines = 1,
+                color = Color(0xFFFF0000),
+                fontWeight = FontWeight.Bold
             )
         }
     }
 }
-
 fun formatVND(amount: Double): String {
-    val formatter = java.text.NumberFormat.getInstance()
-    return formatter.format(amount) + " 000₫"
+    val formatter = java.text.NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
+    return formatter.format(amount)
+}
+fun formatTime(date: Date?): String {
+    if (date == null) {
+        return "N/A"
+    }
+    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    return formatter.format(date)
 }

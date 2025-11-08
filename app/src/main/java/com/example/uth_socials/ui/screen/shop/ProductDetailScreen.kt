@@ -46,6 +46,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.uth_socials.ui.viewmodel.ProductViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun ProductDetailScreen(
@@ -131,7 +134,7 @@ fun ProductDetailContent(
         ) {
             //Image product
             item {
-                var isFav by remember { mutableStateOf(product.isFavorite) }
+                var isFav by remember { mutableStateOf(product.favorite) }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -230,7 +233,7 @@ fun ProductDetailContent(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
-                            text = "CS1 • Đăng: ${product.createdAt}",
+                            text = "Đăng ngày " + formatTime(product.createdAt),
                             fontSize = 14.sp,
                             color = Color.Gray
                         )

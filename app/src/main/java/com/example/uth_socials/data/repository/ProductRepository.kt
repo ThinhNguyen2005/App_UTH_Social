@@ -41,10 +41,12 @@ class ProductRepository {
      */
     fun getProductsStream(): Flow<List<Product>> {
         return productCollection
-            .orderBy("timestamp", Query.Direction.DESCENDING) // Sắp xếp
+            .orderBy("createdAt", Query.Direction.DESCENDING) // Sắp xếp
             .snapshots() //Tạo listener realtime
             .map { querySnapshot ->
-                querySnapshot.toObjects(Product::class.java) //Map QuerySnapshot sang List<Product>
+                querySnapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Product::class.java)?.copy(id = doc.id)
+                }
             }
             .catch { exception ->
                 //Xử lý lỗi nếu listener thất bại(Mất mạng/ Không có quyền truy cập), tránh crash app.
@@ -68,7 +70,7 @@ class ProductRepository {
     suspend fun getProductById(productId: String): Product? {
         return try {
             val document = productCollection.document(productId).get().await()
-            document.toObject(Product::class.java)
+            document.toObject(Product::class.java)?.copy(id = document.id)
         } catch (e: Exception) {
             Log.e("ProductRepository", "Lỗi khi lấy product by ID: $productId", e)
             null
@@ -82,7 +84,7 @@ class ProductRepository {
     suspend fun createProduct(product: Product): String {
         // .await() sẽ tự động ném ra Exception nếu Task thất bại.
         val documentRef = productCollection.add(product).await()
-
+        documentRef.update("id", documentRef.id).await()
         // Trả về ID của tài liệu mới được tạo
         return documentRef.id
     }

@@ -26,7 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.LibraryAdd
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,7 +63,6 @@ import com.example.uth_socials.R
 import com.example.uth_socials.ui.viewmodel.ProductViewModel
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.ColorFilter.Companion.tint
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
@@ -321,7 +325,7 @@ fun PostProductScreen(
                         .padding(16.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AddCircle,
+                        imageVector = Icons.Default.AddPhotoAlternate,
                         contentDescription = null,
                         tint = Color(0xFF009688),
                         modifier = Modifier.size(24.dp)
@@ -414,7 +418,7 @@ fun PostProductScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Edit,
+                            imageVector = Icons.Default.Image,
                             contentDescription = "Thư viện",
                             tint = Color(0xFF009688),
                             modifier = Modifier.size(32.dp)
@@ -441,7 +445,7 @@ fun PostProductScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.AddCircle,
+                            imageVector = Icons.Default.PhotoCamera,
                             contentDescription = "Camera",
                             tint = Color(0xFF009688),
                             modifier = Modifier.size(32.dp)

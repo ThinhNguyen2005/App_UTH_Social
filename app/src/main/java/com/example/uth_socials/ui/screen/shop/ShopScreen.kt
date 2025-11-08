@@ -50,7 +50,7 @@ fun ShopScreen(
         }
     ) { paddingValues ->
         Column(
-            Modifier.fillMaxSize().padding(paddingValues)
+            Modifier.fillMaxSize().padding(top = paddingValues.calculateTopPadding())
         ) {
             //Header with gradient background
             Box(
@@ -125,7 +125,7 @@ fun ShopScreen(
                             )
                         )
                     )
-                    .padding(horizontal = 16.dp).padding(top = 18.dp),
+                    .padding(horizontal = 16.dp).padding(top = 18.dp, bottom = 70.dp),
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {

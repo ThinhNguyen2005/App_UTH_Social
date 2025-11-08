@@ -97,4 +97,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     //Cung cap fun collectAsStateWithLifecycle()
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+
+    //Icons
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.material:material-icons-extended")
 }
