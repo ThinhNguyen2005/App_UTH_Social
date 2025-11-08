@@ -1,6 +1,5 @@
 package com.example.uth_socials.data.repository
 
-import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.post.Report
@@ -13,7 +12,10 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.Dispatchers
 import android.util.Log
 
 class PostRepository {
@@ -24,28 +26,31 @@ class PostRepository {
     private val reportsCollection = db.collection("reports")
     private val usersCollection = db.collection("users")
 
-    suspend fun getCategories(): List<Category> {
-        return try {
-            val snapshot = categoriesCollection.orderBy("order").get().await()
-            snapshot.toObjects(Category::class.java).mapIndexed { index, category ->
-                category.copy(id = snapshot.documents[index].id)
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
 
     fun getPostsFlow(categoryId: String): Flow<List<Post>> = callbackFlow {
         val currentUserId = auth.currentUser?.uid
 
-        // --- Giải quyết 🧩 a: Xử lý logic trùng lặp ---
-        // Xây dựng câu query dựa trên categoryId
+        // --- Category filtering logic (Category Optional) ---
         val query = when (categoryId) {
-            // "Tất cả" và "Mới nhất" dùng chung query, không cần lọc category
-            "all", "latest" -> postsCollection.orderBy("timestamp", Query.Direction.DESCENDING)
-            else -> postsCollection
-                .whereEqualTo("category", categoryId)
+            // "all" - show ALL posts (with or without category)
+            "all" -> postsCollection
                 .orderBy("timestamp", Query.Direction.DESCENDING)
+
+            // "latest" - show latest posts (same as "all")
+            "latest" -> postsCollection
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+
+            // Specific category - only posts with this category
+            else -> {
+                if (categoryId.isBlank()) {
+                    Log.w("PostRepository", "Empty categoryId provided, showing all posts")
+                    postsCollection.orderBy("timestamp", Query.Direction.DESCENDING)
+                } else {
+                    postsCollection
+                        .whereEqualTo("category", categoryId)
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                }
+            }
         }
 
         // Lắng nghe thay đổi thời gian thực
@@ -55,16 +60,20 @@ class PostRepository {
                 return@addSnapshotListener
             }
             if (snapshot != null) {
-                val posts = snapshot.documents.mapNotNull { doc ->
-                    doc.toPostOrNull()?.enrich(currentUserId)
-                }
-                trySend(posts) // Phát ra danh sách bài viết mới
+                // Emit raw documents to be processed on background thread
+                trySend(snapshot.documents)
             }
         }
 
         // Khi Flow bị hủy (ví dụ: ViewModel bị destroy), gỡ listener
         awaitClose { listener.remove() }
-    }
+    }.map { documents ->
+        // Process documents on background thread
+        val currentUserId = auth.currentUser?.uid
+        documents.mapNotNull { doc ->
+            doc.toPostOrNull()?.enrich(currentUserId)
+        }
+    }.flowOn(Dispatchers.IO)
 
     // 🔸 Xử lý Like/Unlike
     suspend fun toggleLikeStatus(postId: String, isCurrentlyLiked: Boolean) {
@@ -180,20 +189,24 @@ class PostRepository {
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
-                    val comments = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(Comment::class.java)?.let { comment ->
-                            val isLikedByCurrentUser = currentUserId?.let { comment.likedBy.contains(it) } == true
-                            comment.copy(
-                                id = doc.id,
-                                liked = isLikedByCurrentUser
-                            )
-                        }
-                    }
-                    trySend(comments) // Gửi danh sách bình luận mới nhất
+                    // Emit raw documents to be processed on background thread
+                    trySend(snapshot.documents)
                 }
             }
         awaitClose { listener.remove() } // Hủy listener khi Flow bị đóng
-    }
+    }.map { documents ->
+        // Process documents on background thread
+        val currentUserId = auth.currentUser?.uid
+        documents.mapNotNull { doc ->
+            doc.toObject(Comment::class.java)?.let { comment ->
+                val isLikedByCurrentUser = currentUserId?.let { comment.likedBy.contains(it) } == true
+                comment.copy(
+                    id = doc.id,
+                    liked = isLikedByCurrentUser
+                )
+            }
+        }
+    }.flowOn(Dispatchers.IO)
 
     // --- 🔸 HÀM ẨN BÀI VIẾT ---
     suspend fun hidePost(postId: String): Boolean {

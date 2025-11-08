@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.UserRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 
 data class ProfileUiState(
@@ -44,7 +45,7 @@ class ProfileViewModel(
 
     private fun loadData() {
         _uiState.update { it.copy(isLoading = true) }
-        viewModelScope.launch {
+        viewModelScope.launch (Dispatchers.IO){
             try {
                 // Chạy song song để tải nhanh hơn
                 val userDeferred = async { userRepository.getUser(userId) }
@@ -90,7 +91,7 @@ class ProfileViewModel(
         if (state.currentUserId == null) {
             _uiState.update { it.copy(currentUserId = resolvedCurrentUserId) }
         }
-        viewModelScope.launch {
+        viewModelScope.launch (Dispatchers.IO){
             val isCurrentlyFollowing = _uiState.value.isFollowing
             val success = userRepository.toggleFollow(resolvedCurrentUserId, userId, isCurrentlyFollowing)
             if (success) {
@@ -111,7 +112,7 @@ class ProfileViewModel(
         if (state.currentUserId == null) {
             _uiState.update { it.copy(currentUserId = resolvedCurrentUserId) }
         }
-        viewModelScope.launch {
+        viewModelScope.launch (Dispatchers.IO){
             userRepository.blockUser(resolvedCurrentUserId, userId)
             // Cân nhắc reload lại trang hoặc điều hướng đi
         }
@@ -119,7 +120,7 @@ class ProfileViewModel(
 
     fun onDeletePost(postId: String) {
         if (!_uiState.value.isOwner) return
-        viewModelScope.launch {
+        viewModelScope.launch (Dispatchers.IO){
             val success = postRepository.deletePost(postId)
             if (success) {
                 _uiState.update {

@@ -14,5 +14,11 @@ data class User(
     var blockedUsers: List<String> = emptyList(),
     var bio: String = "",
     var userId: String? = null,
-    var id: String = ""
+    var id: String = "",
+    var isBanned: Boolean = false,
+    var bannedAt: com.google.firebase.Timestamp? = null,
+    var bannedBy: String? = null,
+    var banReason: String? = null,
+    var violationCount: Int = 0,
+    var warningCount: Int = 0
 )

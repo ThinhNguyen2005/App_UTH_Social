@@ -6,7 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
+import com.example.uth_socials.config.AdminConfig
+import com.example.uth_socials.config.AdminStatus
 import com.example.uth_socials.data.repository.PostRepository
+import com.example.uth_socials.data.repository.CategoryRepository
+import com.example.uth_socials.data.repository.AdminRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,9 +19,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-//Mẫu khi có dữ liệu thật thì xóa cái này đi
-const val ALL_POSTS_ID = "all"
+
 
 //Enum để quản lý trạng thái gửi bình luận
 enum class CommentPostState { IDLE, POSTING, SUCCESS, ERROR }
@@ -55,24 +60,33 @@ data class HomeUiState(
     val currentUserId: String? = null,
     val hiddenPostIds: Set<String> = emptySet(),
     // 🔸 Pagination state
-    val paginationState: PaginationState = PaginationState()
+    val paginationState: PaginationState = PaginationState(),
+    // 🔸 Admin state
+    val isCurrentUserAdmin: Boolean = false,
+    val currentUserAdminStatus: AdminStatus = AdminStatus.USER,
+    val currentUserRole: String? = null
 )
 
-class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
+class HomeViewModel(
+    private val postRepository: PostRepository,
+    private val categoryRepository: CategoryRepository = CategoryRepository(),
+    private val adminRepository: AdminRepository = AdminRepository()
+) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var commentsJob: Job? = null
-    private val savingPosts = mutableSetOf<String>() // ngăn spam
+    private var categoriesJob: Job? = null
+    private val savingPosts = mutableSetOf<String>()
 
     init {
         loadCurrentUser()
         loadCategoriesAndInitialPosts()
         loadHiddenPosts()
+        checkAdminStatus()
     }
 
     private fun loadCurrentUser() {
-        viewModelScope.launch {
-            // --- LOGIC GIẢ ĐỊNH ---
+        viewModelScope.launch(Dispatchers.IO) {
             val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
             if (currentUser != null) {
                 _uiState.update { it.copy(currentUserId = currentUser.uid) }
@@ -81,25 +95,89 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     }
 
     private fun loadCategoriesAndInitialPosts() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val allCategories = postRepository.getCategories().sortedBy { it.order }
-            val initialCategory = allCategories.firstOrNull()
+        // Khởi tạo loading state
+        _uiState.update { it.copy(isLoading = true, error = null) }
 
-            if (initialCategory != null) {
-                _uiState.update { it.copy(categories = allCategories, selectedCategory = initialCategory) }
-                listenToPostChanges(initialCategory.id)
-            } else {
-                // 🔸 Fallback: nếu không có category nào, dùng "Tất cả"
-                val fallback = Category(id = ALL_POSTS_ID, name = "Tất cả", order = -1)
-                _uiState.update { it.copy(categories = listOf(fallback), selectedCategory = fallback) }
-                listenToPostChanges(fallback.id)
+        // 🔧 Chạy trên background thread để tránh blocking main thread
+        viewModelScope.launch(Dispatchers.IO) {
+            // Lắng nghe categories real-time
+            listenToCategoriesChanges()
+
+            // Load posts với category mặc định ban đầu (fallback)
+            listenToPostChanges("all") // Sử dụng "all" làm mặc định
+        }
+    }
+
+    /**
+     * Lắng nghe thay đổi categories theo thời gian thực
+     */
+    private fun listenToCategoriesChanges() {
+        categoriesJob?.cancel()
+        categoriesJob = viewModelScope.launch(Dispatchers.IO) {
+            categoryRepository.getCategoriesFlow().collect { categories ->
+                if (categories.isEmpty()) {
+                    // Nếu chưa có categories, thử tạo mặc định
+                    initializeDefaultCategoriesIfNeeded()
+                } else {
+                    // Cập nhật categories và chọn category đầu tiên nếu chưa có selectedCategory
+                    _uiState.update { currentState ->
+                        val newSelectedCategory = currentState.selectedCategory
+                            ?: categories.firstOrNull()
+
+                        currentState.copy(
+                            categories = categories,
+                            selectedCategory = newSelectedCategory,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
+
+                    // Nếu đây là lần đầu load categories, bắt đầu lắng nghe posts
+                    val currentState = _uiState.value
+                    if (currentState.selectedCategory == null && categories.isNotEmpty()) {
+                        listenToPostChanges(categories.first().id)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Khởi tạo categories mặc định nếu cần (Chạy trên IO thread)
+     */
+    private suspend fun initializeDefaultCategoriesIfNeeded() {
+        try {
+            // 🔧 Chạy trên IO thread để tránh blocking main thread
+            withContext(Dispatchers.IO) {
+                val existingCategories = categoryRepository.getCategories()
+                if (existingCategories.isNotEmpty()) {
+                    // Nếu đã có categories, emit chúng
+                    _uiState.update {
+                        it.copy(
+                            categories = existingCategories,
+                            selectedCategory = existingCategories.firstOrNull(),
+                            isLoading = false
+                        )
+                    }
+                } else {
+                    // Nếu thực sự chưa có, tạo mặc định
+                    categoryRepository.initializeDefaultCategories()
+                    // Sau khi tạo, Flow sẽ tự động emit lại
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "Error initializing categories", e)
+            _uiState.update {
+                it.copy(
+                    error = "Lỗi khởi tạo danh mục: ${e.localizedMessage ?: "Không xác định"}",
+                    isLoading = false
+                )
             }
         }
     }
 
     private fun loadHiddenPosts() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val hiddenIds = postRepository.getHiddenPostIds()
                 _uiState.update { it.copy(hiddenPostIds = hiddenIds.toSet()) }
@@ -109,11 +187,68 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         }
     }
 
+    /**
+     * Check and update current user's admin status
+     */
+    private fun checkAdminStatus() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // First, ensure super admin is initialized in Firebase
+                initializeSuperAdminIfNeeded()
+
+                val adminStatus = AdminConfig.getCurrentUserAdminStatus()
+                val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+
+                val isAdmin = adminStatus != AdminStatus.USER
+                val role = when (adminStatus) {
+                    AdminStatus.SUPER_ADMIN -> "super_admin"
+                    AdminStatus.ADMIN -> AdminConfig.getAdminRole(currentUserId)
+                    AdminStatus.USER -> null
+                }
+
+                _uiState.update { it.copy(
+                    isCurrentUserAdmin = isAdmin,
+                    currentUserAdminStatus = adminStatus,
+                    currentUserRole = role
+                )}
+
+                Log.d("HomeViewModel", "Admin check: isAdmin=$isAdmin, status=$adminStatus, role=$role")
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error checking admin status", e)
+                // Fallback to user status on error
+                _uiState.update { it.copy(
+                    isCurrentUserAdmin = false,
+                    currentUserAdminStatus = AdminStatus.USER,
+                    currentUserRole = null
+                )}
+            }
+        }
+    }
+
+    /**
+     * Initialize super admin in Firebase if not already done
+     * This migrates the legacy hard-coded super admin to Firebase
+     */
+    private suspend fun initializeSuperAdminIfNeeded() {
+        try {
+            if (!AdminConfig.isSuperAdminInitialized()) {
+                val result = AdminConfig.initializeSuperAdmin()
+                if (result.isSuccess) {
+                    Log.d("HomeViewModel", "Super admin initialized in Firebase")
+                } else {
+                    Log.e("HomeViewModel", "Failed to initialize super admin: ${result.exceptionOrNull()?.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("HomeViewModel", "Error initializing super admin", e)
+        }
+    }
+
     private var postsJob: Job? = null
 
     private fun listenToPostChanges(categoryId: String) {
         postsJob?.cancel()
-        postsJob = viewModelScope.launch {
+        postsJob = viewModelScope.launch(Dispatchers.IO) {
             postRepository.getPostsFlow(categoryId).collect { posts ->
                 _uiState.update { it.copy(posts = posts, isLoading = false) }
             }
@@ -130,7 +265,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     // --- LOGIC XỬ LÝ CÁC HÀNH ĐỘNG ---
 
     fun onLikeClicked(postId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             // Bước 1: Cập nhật UI ngay lập tức (Optimistic Update)
             val originalPosts = _uiState.value.posts
             val postToUpdate = originalPosts.find { it.id == postId } ?: return@launch
@@ -167,7 +302,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         }
 
         // Bắt đầu một coroutine mới để lắng nghe bình luận cho postId mới
-        commentsJob = viewModelScope.launch {
+        commentsJob = viewModelScope.launch(Dispatchers.IO) {
             postRepository.getCommentsFlow(postId).collect { comments ->
                 _uiState.update {
                     it.copy(
@@ -184,7 +319,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     fun addComment(postId: String, commentText: String) {
         if (commentText.isBlank()) return
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             // 1. Cập nhật UI sang trạng thái "Đang gửi"
             _uiState.update { it.copy(commentPostState = CommentPostState.POSTING) }
             try {
@@ -202,7 +337,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     }
 
     fun onCommentLikeClicked(postId: String, commentId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val state = _uiState.value
             val originalComments = state.commentsForSheet
             val commentToUpdate = originalComments.find { it.id == commentId } ?: return@launch
@@ -235,7 +370,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         // Nếu đang xử lý thì bỏ qua
         if (savingPosts.contains(postId)) return
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val originalPosts = _uiState.value.posts
             val postToUpdate = originalPosts.find { it.id == postId } ?: return@launch
 
@@ -275,7 +410,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
 
     // --- 🔸 HÀM XỬ LÝ ẨN BÀI VIẾT ---
     fun onHideClicked(postId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val success = postRepository.hidePost(postId)
                 if (success) {
@@ -320,7 +455,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
         val reason = _uiState.value.reportReason.ifEmpty { return }
         val description = _uiState.value.reportDescription
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isReporting = true) }
             try {
                 val success = postRepository.reportPost(reportingPostId, reason, description)
@@ -372,7 +507,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
     fun onConfirmDelete() {
         val postIdToDelete = _uiState.value.deletingPostId ?: return
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isDeleting = true) }
             try {
                 val success = postRepository.deletePost(postIdToDelete)
@@ -423,7 +558,7 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
 
         val categoryId = currentState.selectedCategory?.id ?: return
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update {
                 it.copy(
                     paginationState = it.paginationState.copy(isLoadingMore = true)
@@ -474,8 +609,17 @@ class HomeViewModel(private val postRepository: PostRepository) : ViewModel() {
             }
         }
     }
+
     fun onRetry() {
         _uiState.update { it.copy(error = null, isLoading = true) }
-        loadCategoriesAndInitialPosts()
+        // Restart categories listener
+        listenToCategoriesChanges()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        categoriesJob?.cancel()
+        commentsJob?.cancel()
+        postsJob?.cancel()
     }
 }
