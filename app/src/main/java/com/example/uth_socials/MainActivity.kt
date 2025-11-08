@@ -1,5 +1,8 @@
 package com.example.uth_socials
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,6 +17,10 @@ import com.example.uth_socials.ui.viewmodel.AuthViewModelFactory
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.messaging.FirebaseMessaging
+import androidx.annotation.RequiresApi
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.uth_socials.ui.screen.post.PostScreen
 
 //class MainActivity : ComponentActivity() {
 //    override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,9 +50,9 @@ import com.google.firebase.auth.FirebaseAuth
 //}
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         // --- Thiết lập các dependency cần thiết ---
         val auth = FirebaseAuth.getInstance()
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -71,12 +78,31 @@ class MainActivity : ComponentActivity() {
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
+        val channel = NotificationChannel(
+            "default_channel",
+            "Thông báo chung",
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
+
+
+        FirebaseMessaging.getInstance().subscribeToTopic("allUsers")
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    println("✅ Subscribed to all_users topic")
+                } else {
+                    println("❌ Failed to subscribe")
+                }
+            }
+
         setContent {
             UTH_SocialsTheme {
                 AppNavGraph(
                     viewModel = viewModel,
                     launcher = launcher
                 )
+
             }
         }
     }

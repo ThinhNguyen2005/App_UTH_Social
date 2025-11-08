@@ -1126,7 +1126,7 @@ private fun PostDetailModal(
 
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        "Category: ${post.category.ifEmpty { "Uncategorized" }}",
+                                        "Category: ${post.category?.ifEmpty { "Uncategorized" }}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
