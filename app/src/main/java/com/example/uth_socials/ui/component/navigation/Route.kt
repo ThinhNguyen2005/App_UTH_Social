@@ -16,15 +16,17 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile/{userId}") {
         fun createRoute(userId: String) = "profile/$userId"
     }
-    object ChatList : Screen("chat_list")
-    object ChatDetail : Screen("chat/{chatId}") {
-        fun createRoute(chatId: String) = "chat/$chatId"
-    }
-}
 
-// Các màn hình trong đồ thị xác thực (Auth)
-sealed class AuthScreen(val route: String) {
-    object Login : AuthScreen("login")
-    object Register : AuthScreen("register")
-    object ResetPassword : AuthScreen("reset_password")
+
+    object AdminDashboard : Screen("admin_dashboard/{tab}") {
+        fun createRoute(tab: String = "reports") = "admin_dashboard/$tab"
+    }
+    object Categories : Screen("categories")
+
+    // Các màn hình trong đồ thị xác thực (Auth)
+    sealed class AuthScreen(val route: String) {
+        object Login : AuthScreen("login")
+        object Register : AuthScreen("register")
+        object ResetPassword : AuthScreen("reset_password")
+    }
 }

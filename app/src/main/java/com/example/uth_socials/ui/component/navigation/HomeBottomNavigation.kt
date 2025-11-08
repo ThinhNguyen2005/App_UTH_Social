@@ -2,6 +2,7 @@ package com.example.uth_socials.ui.component.navigation
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Notifications
@@ -23,6 +24,10 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.ui.screen.UthTeal
+
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,7 +57,9 @@ fun HomeBottomNavigation(navController: NavController) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     NavigationBar(
-        modifier = Modifier.height(70.dp),
+
+        modifier = Modifier
+            .windowInsetsPadding(WindowInsets.navigationBars),
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp
     ) {

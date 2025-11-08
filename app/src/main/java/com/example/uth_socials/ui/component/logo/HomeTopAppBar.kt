@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -28,12 +33,15 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.R
 import com.example.uth_socials.ui.screen.UthRed
 import com.example.uth_socials.ui.screen.UthTeal
+import com.example.uth_socials.config.AdminConfig
+import kotlinx.coroutines.runBlocking
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeTopAppBar(
     onSearchClick: () -> Unit,
     onMessagesClick: () -> Unit,
+    onAdminClick: (() -> Unit)? = null,
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     TopAppBar(
@@ -50,6 +58,25 @@ fun HomeTopAppBar(
             )
         },
         actions = {
+            // Check if user is admin and show admin button
+            val isAdmin = runBlocking {
+                try {
+                    AdminConfig.getCurrentUserAdminStatus() != com.example.uth_socials.config.AdminStatus.USER
+                } catch (e: Exception) {
+                    false
+                }
+            }
+
+            if (isAdmin && onAdminClick != null) {
+                IconButton(onClick = onAdminClick) {
+                    Icon(
+                        imageVector = Icons.Filled.Settings,
+                        contentDescription = "Admin Dashboard",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
             IconButton(onClick = onMessagesClick) {
                 Icon(
                     imageVector = ImageVector.vectorResource(id = R.drawable.ic_chat),
@@ -103,7 +130,6 @@ fun LogoTopAppBar(
     )
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatTopAppBar(
@@ -117,7 +143,8 @@ fun ChatTopAppBar(
     TopAppBar(
         modifier = Modifier
             .fillMaxWidth(),
-         // ✅ Giới hạn chiều cao, không bị “phình”
+
+
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -158,3 +185,47 @@ fun ChatTopAppBar(
 
     )
 }
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TopAppBar(
+    userName: String,
+    onBackClick: () -> Unit
+) {
+    val darkAppBarColor = Color(0xFF1A2838)
+    val onDarkAppBarColor = Color.White
+
+    TopAppBar(
+        modifier = Modifier
+            .fillMaxWidth(),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = userName,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = onDarkAppBarColor
+                )
+            }
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = onDarkAppBarColor
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = darkAppBarColor
+        ),
+        windowInsets = WindowInsets(0.dp)
+
+    )
+}
+

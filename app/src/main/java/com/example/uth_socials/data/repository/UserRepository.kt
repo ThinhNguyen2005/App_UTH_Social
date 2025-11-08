@@ -19,7 +19,8 @@ class UserRepository {
     }
 
     /**
-     * ✅ HÀM QUAN TRỌNG: Tạo hồ sơ người dùng nếu chưa tồn tại.
+
+
      * Gọi hàm này ngay sau khi người dùng đăng nhập bằng Google thành công.
      */
     suspend fun createUserProfileIfNotExists(firebaseUser: FirebaseUser) {

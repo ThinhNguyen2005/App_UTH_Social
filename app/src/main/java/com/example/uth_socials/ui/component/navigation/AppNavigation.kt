@@ -25,12 +25,18 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.uth_socials.LoginScreen
 import com.example.uth_socials.ui.component.logo.HomeTopAppBar
+
 import com.example.uth_socials.ui.component.logo.LogoChatTopAppBar
 import com.example.uth_socials.ui.component.logo.LogoTopAppBar
 import com.example.uth_socials.ui.screen.RegisterScreen
 import com.example.uth_socials.ui.screen.ResetPasswordScreen
 import com.example.uth_socials.ui.screen.chat.ChatListScreen
 import com.example.uth_socials.ui.screen.chat.ChatScreen
+
+import com.example.uth_socials.ui.component.logo.LogoTopAppBar
+import com.example.uth_socials.ui.screen.RegisterScreen
+import com.example.uth_socials.ui.screen.ResetPasswordScreen
+import com.example.uth_socials.ui.screen.AdminDashboardScreen
 import com.example.uth_socials.ui.screen.home.CreatPost_ProductScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
@@ -72,10 +78,12 @@ fun NavGraphBuilder.authNavGraph(
     launcher: ActivityResultLauncher<Intent>
 ) {
     navigation(
-        startDestination = AuthScreen.Login.route,
+
+        startDestination = Screen.AuthScreen.Login.route,
         route = Graph.AUTH
     ) {
-        composable(AuthScreen.Login.route) {
+        composable(Screen.AuthScreen.Login.route) {
+
             LoginScreen(
                 viewModel = viewModel,
                 onGoogleLoginClick = {
@@ -83,17 +91,21 @@ fun NavGraphBuilder.authNavGraph(
                         launcher.launch(it)
                     }
                 },
-                onRegisterClick = { navController.navigate(AuthScreen.Register.route) },
+
+                onRegisterClick = { navController.navigate(Screen.AuthScreen.Register.route) },
+
                 onLoginSuccess = {
                     // Chuyển sang đồ thị chính và xóa đồ thị auth khỏi back stack
                     navController.navigate(Graph.MAIN) {
                         popUpTo(Graph.AUTH) { inclusive = true }
                     }
                 },
-                onResetPasswordClick = { navController.navigate(AuthScreen.ResetPassword.route) }
+
+                onResetPasswordClick = { navController.navigate(Screen.AuthScreen.ResetPassword.route) }
             )
         }
-        composable(AuthScreen.Register.route) {
+        composable(Screen.AuthScreen.Register.route) {
+
             RegisterScreen(
                 viewModel = viewModel,
                 onBackToLogin = { navController.popBackStack() },
@@ -104,7 +116,9 @@ fun NavGraphBuilder.authNavGraph(
                 }
             )
         }
-        composable(AuthScreen.ResetPassword.route) {
+
+        composable(Screen.AuthScreen.ResetPassword.route) {
+
             ResetPasswordScreen(
                 viewModel = viewModel,
                 onBackToLogin = { navController.popBackStack() },
@@ -142,8 +156,15 @@ fun MainScreen() {
         Screen.Market.route,
         Screen.Add.route,
         Screen.Notifications.route,
+
         Screen.Profile.route,
         Screen.ChatList.route-> true
+
+
+        Screen.Profile.route -> true
+
+        Screen.AdminDashboard.route,
+        Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
 
         else -> false
     }
@@ -152,13 +173,22 @@ fun MainScreen() {
             when (currentRoute) {
                 Screen.Home.route -> HomeTopAppBar(
                     onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ },
-                    onMessagesClick = {  navController.navigate(Screen.ChatList.route)}
+
+                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    }
                 )
 
                 Screen.Market.route -> LogoTopAppBar()
                 Screen.Add.route -> LogoTopAppBar()
                 Screen.Notifications.route -> LogoTopAppBar()
+
                 Screen.ChatList.route -> LogoChatTopAppBar()
+
+
                 else -> { /* no app bar */
                 }
             }
@@ -181,24 +211,38 @@ fun MainScreen() {
                         navController.navigate(Screen.Profile.createRoute(userId)) {
                             launchSingleTop = true
                         }
-                    },
+
+                    }
                 )
-            }
-            composable(Screen.ChatList.route) {
-                ChatListScreen(
-                    onChatSelected = { chatId ->
-                        navController.navigate(Screen.ChatDetail.createRoute(chatId))
-                    },
-                    onBack = { navController.popBackStack() }
-                )
-            }
-            composable(Screen.ChatDetail.route) { backStackEntry ->
-                val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
-                ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
             }
             composable(Screen.Market.route) { MarketScreen() }
             composable(Screen.Add.route) { CreatPost_ProductScreen() }
             composable(Screen.Notifications.route) { NotificationsScreen() }
+            composable(Screen.Categories.route) {
+                AdminDashboardScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUser = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+            composable(
+                route = Screen.AdminDashboard.route,
+                arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
+            ) { backStackEntry ->
+                AdminDashboardScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUser = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    backStackEntry = backStackEntry
+                )
+            }
+
             composable(
                 route = Screen.Profile.route,
                 arguments = listOf(navArgument("userId") { type = NavType.StringType })
