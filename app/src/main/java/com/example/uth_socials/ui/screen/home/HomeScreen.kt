@@ -1,7 +1,6 @@
 package com.example.uth_socials.ui.screen.home
 
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.rememberNavController
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.di.ViewModelFactory
 import com.example.uth_socials.ui.component.logo.HomeTopAppBar
@@ -34,11 +34,8 @@ import com.example.uth_socials.ui.viewmodel.HomeViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    // navController: NavHostController
-    onMessagesClick: () -> Unit = {}
+    onNavigateToProfile: (String) -> Unit = {}
 ) {
-// 🔹 Lấy FirebaseAuth để đăng xuất
-    val auth = com.google.firebase.auth.FirebaseAuth.getInstance()
     val postRepository = remember { PostRepository() } // Dùng remember để không tạo lại mỗi lần recomposition
     val viewModelFactory = remember { ViewModelFactory(postRepository) }
     val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
@@ -75,134 +72,120 @@ fun HomeScreen(
         }
     }
 
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Tabs lọc danh mục
+        FilterTabs(
+            categories = uiState.categories,
+            selectedCategory = uiState.selectedCategory,
+            onCategorySelected = { category ->
+                homeViewModel.onCategorySelected(category)
+            }
+        )
 
-
-    Scaffold(
-        topBar = {
-            HomeTopAppBar(
-                onSearchClick = { /* TODO */ },
-                onMessagesClick =  onMessagesClick
-            )
-        },
-        bottomBar = {
-            HomeBottomNavigation()
-        }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
-            // Tabs lọc danh mục
-            FilterTabs(
-                categories = uiState.categories,
-                selectedCategory = uiState.selectedCategory,
-                onCategorySelected = { category ->
-                    homeViewModel.onCategorySelected(category)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
-            )
-
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                when {
-                    uiState.isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                uiState.error != null -> {
+                    // 🔸 Error dialog đẹp hơn với icon và button
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            CircularProgressIndicator()
+                            Icon(
+                                imageVector = Icons.Default.ErrorOutline,
+                                contentDescription = "Error",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(64.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Oops! Có lỗi xảy ra",
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = uiState.error ?: "Vui lòng thử lại",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Button(
+                                onClick = { homeViewModel.onRetry() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                            ) {
+                                Text("Thử lại")
+                            }
                         }
                     }
-                    uiState.error != null -> {
-                        // 🔸 Error dialog đẹp hơn với icon và button
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ErrorOutline,
-                                    contentDescription = "Error",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(64.dp)
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "Oops! Có lỗi xảy ra",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = uiState.error ?: "Vui lòng thử lại",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 16.dp)
-                                )
-                                Spacer(modifier = Modifier.height(24.dp))
-                                Button(
-                                    onClick = { homeViewModel.onRetry() },
+                }
+                else -> {
+                    // 🔸 Filter hidden posts trước khi hiển thị
+                    val filteredPosts = remember(uiState.posts, uiState.hiddenPostIds) {
+                        uiState.posts.filter { it.id !in uiState.hiddenPostIds }
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp)
+                    ) {
+                        items(filteredPosts, key = { it.id }) { post ->
+                            PostCard(
+                                post = post,
+                                onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
+                                onCommentClicked = {
+                                    homeViewModel.onCommentClicked(post.id)
+                                },
+                                onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
+                                onShareClicked = { homeViewModel.onShareClicked(post.id) },
+                                onUserProfileClicked = { onNavigateToProfile(post.userId) },
+                                onReportClicked = { homeViewModel.onReportClicked(post.id) },
+                                onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
+                                onHideClicked = { homeViewModel.onHideClicked(post.id) },
+                                currentUserId = uiState.currentUserId
+                            )
+                        }
+
+                        // 🔸 Infinite scroll - load more trigger
+                        if (filteredPosts.isNotEmpty() && !uiState.paginationState.isLoadingMore) {
+                            item {
+                                LaunchedEffect(Unit) {
+                                    homeViewModel.onLoadMore()
+                                }
+                            }
+                        }
+
+                        // 🔸 Show loading indicator at bottom when loading more
+                        if (uiState.paginationState.isLoadingMore) {
+                            item {
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(48.dp)
+                                        .padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Thử lại")
-                                }
-                            }
-                        }
-                    }
-                    else -> {
-                        // 🔸 Filter hidden posts trước khi hiển thị
-                        val filteredPosts = remember(uiState.posts, uiState.hiddenPostIds) {
-                            uiState.posts.filter { it.id !in uiState.hiddenPostIds }
-                        }
-
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 16.dp)
-                        ) {
-                            items(filteredPosts, key = { it.id }) { post ->
-                                PostCard(
-                                    post = post,
-                                    onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
-                                    onCommentClicked = {
-                                        homeViewModel.onCommentClicked(post.id)
-                                    },
-                                    onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
-                                    onShareClicked = { homeViewModel.onShareClicked(post.id) },
-                                    onUserProfileClicked = { homeViewModel.onUserProfileClicked(post.userId) },
-                                    onReportClicked = { homeViewModel.onReportClicked(post.id) },
-                                    onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
-                                    onHideClicked = { homeViewModel.onHideClicked(post.id) },
-                                    currentUserId = uiState.currentUserId
-                                )
-                            }
-                            
-                            // 🔸 Infinite scroll - load more trigger
-                            if (!uiState.isLoading && filteredPosts.isNotEmpty() && !uiState.isLoadingMore) {
-                                item {
-                                    LaunchedEffect(Unit) {
-                                        homeViewModel.onLoadMore()
-                                    }
-                                }
-                            }
-                            
-                            // 🔸 Show loading indicator at bottom when loading more
-                            if (uiState.isLoadingMore) {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(32.dp)
-                                        )
-                                    }
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp)
+                                    )
                                 }
                             }
                         }
@@ -212,26 +195,28 @@ fun HomeScreen(
         }
     }
 
+
     if (uiState.commentSheetPostId != null) {
         ModalBottomSheet(
             onDismissRequest = { homeViewModel.onDismissCommentSheet() },
             sheetState = sheetState
         ) {
             CommentSheetContent(
+                postId = uiState.commentSheetPostId!!,
                 comments = uiState.commentsForSheet,
                 isLoading = uiState.isSheetLoading,
                 onAddComment = { commentText ->
                     homeViewModel.addComment(uiState.commentSheetPostId!!, commentText)
                 },
-                onLikeComment = homeViewModel::onCommentLikeClicked, // Dùng function reference
-                onUserProfileClick = homeViewModel::onUserProfileClicked,
+                onLikeComment = homeViewModel::onCommentLikeClicked,
+                onUserProfileClick = onNavigateToProfile,
                 commentPostState = uiState.commentPostState,
                 currentUserAvatarUrl = uiState.currentUserAvatarUrl
             )
         }
     }
 
-        // --- 🔸 REPORT DIALOG ---
+    // --- 🔸 REPORT DIALOG ---
     ReportDialog(
         isVisible = uiState.showReportDialog,
         onDismiss = { homeViewModel.onDismissReportDialog() },
@@ -252,5 +237,4 @@ fun HomeScreen(
     )
 
 }
-
 
