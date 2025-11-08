@@ -29,9 +29,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+//import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uth_socials.R
-import com.example.uth_socials.ui.viewmodel.HelloUserModel
+//import com.example.uth_socials.ui.viewmodel.HelloUserModel
 import kotlinx.coroutines.delay
 import com.example.uth_socials.ui.component.button.PrimaryButton
 import com.example.uth_socials.ui.component.common.ClickablePrivacyPolicyText
@@ -48,18 +48,18 @@ private val onboardingImages = listOf(
     R.drawable.truong,
     R.drawable.truong1,
 )
-@Composable
-fun OnboardingScreen(
-    helloUserModel: HelloUserModel = viewModel()
-) {
-    val uiState by helloUserModel.uiState.collectAsState()
-
-    OnboardingContent(
-        pagerIndex = uiState.pagerIndex,
-        onPagerIndexChange = { newIndex -> helloUserModel.updatePagerIndex(newIndex) },
-        onStartClicked = { helloUserModel.onStartClicked() }
-    )
-}
+//@Composable
+//fun OnboardingScreen(
+//    helloUserModel: HelloUserModel = viewModel()
+//) {
+//    val uiState by helloUserModel.uiState.collectAsState()
+//
+//    OnboardingContent(
+//        pagerIndex = uiState.pagerIndex,
+//        onPagerIndexChange = { newIndex -> helloUserModel.updatePagerIndex(newIndex) },
+//        onStartClicked = { helloUserModel.onStartClicked() }
+//    )
+//}
 
 
 @Composable
@@ -103,7 +103,6 @@ fun OnboardingPortraitLayout(
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(16.dp)),
                 images = onboardingImages,
-                currentIndex = pagerIndex,
                 onIndexChange = onPagerIndexChange
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -150,7 +149,6 @@ fun OnboardingLandscapeLayout(
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(16.dp)),
                 images = onboardingImages,
-                currentIndex = pagerIndex,
                 onIndexChange = onPagerIndexChange
             )
         }
@@ -203,10 +201,9 @@ fun Logo() {
 fun ImageSlideshowWithPager(
     modifier: Modifier = Modifier,
     images: List<Int>,
-    currentIndex: Int,
     onIndexChange: (Int) -> Unit,
     slideDuration: Long = 3000L,
-    loopCount: Int = 3 // <-- Giới hạn số vòng lặp ở đây
+    loopCount: Int = 3
 ) {
     val imageCount = images.size
     if (imageCount == 0) return // Tránh lỗi nếu không có ảnh

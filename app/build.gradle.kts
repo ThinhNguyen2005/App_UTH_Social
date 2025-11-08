@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.firebase.ai)
     implementation(libs.androidx.compose.animation)
     implementation(libs.volley)
+    implementation(libs.litert.support.api)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

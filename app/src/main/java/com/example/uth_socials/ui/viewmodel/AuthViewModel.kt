@@ -12,6 +12,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -48,7 +49,7 @@ class AuthViewModel(
 //    }
 
     fun login(email: String, password: String) {
-        viewModelScope.launch {
+        viewModelScope.launch (Dispatchers.IO){
             _state.value = AuthState.Loading
             try {
                 // ✅ Dùng .await() để code tuần tự và sạch sẽ hơn
@@ -83,7 +84,7 @@ class AuthViewModel(
 //    }
 
     fun register(email: String, password: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _state.value = AuthState.Loading
             try {
                 // ✅ Dùng .await()
@@ -110,7 +111,7 @@ class AuthViewModel(
     }
 
     fun handleGoogleResult(data: Intent?) {
-        viewModelScope.launch {
+        viewModelScope.launch (Dispatchers.IO){
             _state.value = AuthState.Loading
             try {
                 // Lấy thông tin tài khoản Google
@@ -141,7 +142,7 @@ class AuthViewModel(
         return auth.currentUser != null
     }
     fun resetPassword(email: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _state.value = AuthState.Loading
             auth.sendPasswordResetEmail(email)
                 .addOnCompleteListener { task ->

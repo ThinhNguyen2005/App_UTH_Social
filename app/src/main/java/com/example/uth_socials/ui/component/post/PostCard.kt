@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
@@ -63,12 +62,18 @@ import coil.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlin.math.abs
 import coil.request.ImageRequest
-
 import androidx.compose.foundation.gestures.awaitFirstDown
-
 import androidx.compose.runtime.Composable
-
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.animation.core.*
+import androidx.compose.ui.draw.drawWithContent
 
 
 @Composable
@@ -82,8 +87,8 @@ fun PostCard(
     onHideClicked: (String) -> Unit,
     onReportClicked: (String) -> Unit,
     onDeleteClicked: (String) -> Unit,
-    currentUserId: String? = null
-
+    currentUserId: String? = null,
+    onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.padding(vertical = 8.dp),
@@ -91,7 +96,7 @@ fun PostCard(
     ) {
         Column {
             Column(modifier = Modifier.padding(12.dp)) {
-                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId)
+                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId, onNavigateToUserProfile)
                 Spacer(modifier = Modifier.height(8.dp))
                 ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
             }
@@ -124,13 +129,16 @@ private fun PostHeader(
     onHideClicked: (String) -> Unit,
     onReportClicked: (String) -> Unit,
     onDeleteClicked: (String) -> Unit,
-    currentUserId: String? = null
+    currentUserId: String? = null,
+    onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onUserProfileClicked(post.userId) }
+            .clickable {
+                onNavigateToUserProfile?.invoke(post.userId) ?: onUserProfileClicked(post.userId)
+            }
     ) {
         AsyncImage(
             model = post.userAvatarUrl,
@@ -467,5 +475,192 @@ private fun PostActionItem(
             )
         }
     }
+}
+
+// Skeleton Loading Component for PostCard
+@Composable
+fun PostCardSkeleton(
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column {
+            // Header Skeleton
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Avatar skeleton
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape
+                        )
+                        .shimmerEffect()
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    // Username skeleton
+                    Box(
+                        modifier = Modifier
+                            .height(16.dp)
+                            .fillMaxWidth(0.6f)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .shimmerEffect()
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Timestamp skeleton
+                    Box(
+                        modifier = Modifier
+                            .height(12.dp)
+                            .fillMaxWidth(0.4f)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .shimmerEffect()
+                    )
+                }
+
+                // Menu skeleton
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape
+                        )
+                        .shimmerEffect()
+                )
+            }
+
+            // Content Skeleton
+            Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+                // Text content skeleton (multiple lines)
+                repeat(3) { index ->
+                    Box(
+                        modifier = Modifier
+                            .height(14.dp)
+                            .fillMaxWidth(if (index == 2) 0.7f else 1f)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .shimmerEffect()
+                    )
+                    if (index < 2) Spacer(modifier = Modifier.height(6.dp))
+                }
+            }
+
+            // Image skeleton (sometimes show, sometimes not for variety)
+            if (kotlin.random.Random.nextBoolean()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(0.dp)
+                        )
+                        .shimmerEffect()
+                )
+            }
+
+            // Actions skeleton
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Left actions
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    repeat(4) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    shape = CircleShape
+                                )
+                                .shimmerEffect()
+                        )
+                    }
+                }
+
+                // Right action (share)
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape
+                        )
+                        .shimmerEffect()
+                )
+            }
+
+            // Divider
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 0.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+        }
+    }
+}
+
+// Preview for PostCardSkeleton
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+fun PostCardSkeletonPreview() {
+    androidx.compose.material3.MaterialTheme {
+        Column {
+            repeat(3) {
+                PostCardSkeleton()
+            }
+        }
+    }
+}
+
+// Shimmer Effect Modifier
+fun Modifier.shimmerEffect(): Modifier = composed {
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val startOffsetX by transition.animateFloat(
+        initialValue = -2.0f * size.width.toFloat(),
+        targetValue = 2.0f * size.width.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer"
+    )
+
+    background(
+        brush = Brush.linearGradient(
+            colors = listOf(
+                MaterialTheme.colorScheme.surfaceVariant,
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                MaterialTheme.colorScheme.surfaceVariant
+            ),
+            start = Offset(startOffsetX, 0f),
+            end = Offset(startOffsetX + size.width.toFloat(), size.height.toFloat())
+        )
+    )
+        .onGloballyPositioned { size = it.size }
 }
 
