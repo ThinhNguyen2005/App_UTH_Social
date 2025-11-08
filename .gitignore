@@ -24,6 +24,8 @@ local.properties
 *.iws
 
 # Thư mục chứa cache, index và các cài đặt workspace của người dùng
+.idea
+.kotlin
 .idea/
 .idea
 .kotlin

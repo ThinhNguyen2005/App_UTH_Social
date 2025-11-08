@@ -109,9 +109,13 @@ object SecurityValidator {
     /**
      * Check if user can create report
      * Rules: request.auth.uid != null && request.resource.data.reportedBy == request.auth.uid
+     * Additional: Cannot report admin users
      */
-    fun canCreateReport(currentUserId: String?, reporterId: String): Boolean {
-        return currentUserId != null && currentUserId == reporterId
+    suspend fun canCreateReport(currentUserId: String?, reporterId: String): Boolean {
+        if (currentUserId == null || currentUserId != reporterId) return false
+
+        // Cannot report admin users
+        return !AdminConfig.isAdmin(reporterId) && !AdminConfig.isSuperAdmin(reporterId)
     }
 
     /**
@@ -136,26 +140,5 @@ object SecurityValidator {
      */
     suspend fun canModifyAdminRoles(currentUserId: String?): Boolean {
         return AdminConfig.isSuperAdmin(currentUserId ?: "")
-    }
-
-    /**
-     * Check if admin can ban a user
-     * Rules: Cannot ban yourself, cannot ban other admins/super admins
-     */
-    suspend fun canBanUser(adminId: String?, targetUserId: String): Boolean {
-        if (adminId == null) return false
-
-        // Cannot ban yourself
-        if (adminId == targetUserId) return false
-
-        // Cannot ban other admins/super admins (only super admin can ban regular admins)
-        val targetIsAdmin = AdminConfig.isAdmin(targetUserId)
-        val targetIsSuperAdmin = AdminConfig.isSuperAdmin(targetUserId)
-        val adminIsSuperAdmin = AdminConfig.isSuperAdmin(adminId)
-
-        if (targetIsSuperAdmin) return false  // Cannot ban super admin
-        if (targetIsAdmin && !adminIsSuperAdmin) return false  // Only super admin can ban regular admins
-
-        return true
     }
 }

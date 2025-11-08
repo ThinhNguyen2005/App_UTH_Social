@@ -241,6 +241,12 @@ class PostRepository {
     suspend fun reportPost(postId: String, reason: String, description: String): Boolean {
         val currentUserId = auth.currentUser?.uid ?: return false
 
+        // ✅ KIỂM TRA SECURITY: Không cho phép report admin
+        if (!SecurityValidator.canCreateReport(currentUserId, currentUserId)) {
+            Log.w("PostRepository", "Cannot report: User is admin or invalid")
+            return false
+        }
+
         return try {
             val report = Report(
                 postId = postId,
@@ -252,7 +258,7 @@ class PostRepository {
             reportsCollection.add(report).await()
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("PostRepository", "Error reporting post", e)
             false
         }
     }
