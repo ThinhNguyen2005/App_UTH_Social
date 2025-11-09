@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.post.Post
+import com.example.uth_socials.data.repository.ChatRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -135,6 +136,22 @@ class ProfileViewModel(
                 _uiState.update {
                     it.copy(posts = it.posts.filterNot { post -> post.id == postId })
                 }
+            }
+        }
+    }
+    private val chatRepository = ChatRepository()
+
+    fun createChatWithUser(targetUserId: String, onChatReady: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val chatId = chatRepository.getOrCreateChatId(targetUserId)
+                if (chatId != null) {
+                    onChatReady(chatId)
+                } else {
+                    Log.e("ProfileViewModel", "Không thể tạo cuộc trò chuyện")
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Lỗi tạo chat", e)
             }
         }
     }

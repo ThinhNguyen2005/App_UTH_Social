@@ -25,18 +25,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.uth_socials.LoginScreen
 import com.example.uth_socials.ui.component.logo.HomeTopAppBar
-
-import com.example.uth_socials.ui.component.logo.LogoChatTopAppBar
-import com.example.uth_socials.ui.component.logo.LogoTopAppBar
-import com.example.uth_socials.ui.screen.RegisterScreen
-import com.example.uth_socials.ui.screen.ResetPasswordScreen
-import com.example.uth_socials.ui.screen.chat.ChatListScreen
-import com.example.uth_socials.ui.screen.chat.ChatScreen
-
 import com.example.uth_socials.ui.component.logo.LogoTopAppBar
 import com.example.uth_socials.ui.screen.RegisterScreen
 import com.example.uth_socials.ui.screen.ResetPasswordScreen
 import com.example.uth_socials.ui.screen.AdminDashboardScreen
+import com.example.uth_socials.ui.screen.chat.ChatListScreen
+import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
@@ -78,12 +72,10 @@ fun NavGraphBuilder.authNavGraph(
     launcher: ActivityResultLauncher<Intent>
 ) {
     navigation(
-
         startDestination = Screen.AuthScreen.Login.route,
         route = Graph.AUTH
     ) {
         composable(Screen.AuthScreen.Login.route) {
-
             LoginScreen(
                 viewModel = viewModel,
                 onGoogleLoginClick = {
@@ -91,21 +83,17 @@ fun NavGraphBuilder.authNavGraph(
                         launcher.launch(it)
                     }
                 },
-
                 onRegisterClick = { navController.navigate(Screen.AuthScreen.Register.route) },
-
                 onLoginSuccess = {
                     // Chuyển sang đồ thị chính và xóa đồ thị auth khỏi back stack
                     navController.navigate(Graph.MAIN) {
                         popUpTo(Graph.AUTH) { inclusive = true }
                     }
                 },
-
                 onResetPasswordClick = { navController.navigate(Screen.AuthScreen.ResetPassword.route) }
             )
         }
         composable(Screen.AuthScreen.Register.route) {
-
             RegisterScreen(
                 viewModel = viewModel,
                 onBackToLogin = { navController.popBackStack() },
@@ -116,9 +104,7 @@ fun NavGraphBuilder.authNavGraph(
                 }
             )
         }
-
         composable(Screen.AuthScreen.ResetPassword.route) {
-
             ResetPasswordScreen(
                 viewModel = viewModel,
                 onBackToLogin = { navController.popBackStack() },
@@ -140,14 +126,14 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
     ) {
         // Tất cả các màn hình bên trong MainScreen đều được định nghĩa ở đây
         // Điều này cho phép điều hướng từ một tab này sang một màn hình chi tiết khác.
-        composable(Screen.Home.route) { MainScreen(navController = navController) } // Chỉ cần gọi MainScreen ở đây
+        composable(Screen.Home.route) { MainScreen() } // Chỉ cần gọi MainScreen ở đây
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(navController: NavHostController) {
-
+fun MainScreen() {
+    val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -156,14 +142,10 @@ fun MainScreen(navController: NavHostController) {
         Screen.Market.route,
         Screen.Add.route,
         Screen.Notifications.route,
-
-        Screen.Profile.route,
-        Screen.ChatList.route-> true
-
+        Screen.Profile.route -> true
 
         Screen.AdminDashboard.route,
         Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
-
         else -> false
     }
     Scaffold(
@@ -171,8 +153,7 @@ fun MainScreen(navController: NavHostController) {
             when (currentRoute) {
                 Screen.Home.route -> HomeTopAppBar(
                     onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ },
-
-                    onMessagesClick = {navController.navigate(Screen.ChatList.route)},
+                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
                     onAdminClick = {
                         navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
                             launchSingleTop = true
@@ -183,10 +164,6 @@ fun MainScreen(navController: NavHostController) {
                 Screen.Market.route -> LogoTopAppBar()
                 Screen.Add.route -> LogoTopAppBar()
                 Screen.Notifications.route -> LogoTopAppBar()
-
-                Screen.ChatList.route -> LogoChatTopAppBar()
-
-
                 else -> { /* no app bar */
                 }
             }
@@ -209,7 +186,6 @@ fun MainScreen(navController: NavHostController) {
                         navController.navigate(Screen.Profile.createRoute(userId)) {
                             launchSingleTop = true
                         }
-
                     }
                 )
             }
@@ -252,7 +228,6 @@ fun MainScreen(navController: NavHostController) {
                     backStackEntry = backStackEntry
                 )
             }
-
             composable(
                 route = Screen.Profile.route,
                 arguments = listOf(navArgument("userId") { type = NavType.StringType })
@@ -268,8 +243,11 @@ fun MainScreen(navController: NavHostController) {
                         viewModel = profileViewModel,
                         onBackClicked = { navController.popBackStack() },
                         onMessageClicked = { targetUserId ->
-                            // TODO: Điều hướng đến màn hình chat với user này
-                            Log.d("AppNavigation", "Message user: $targetUserId")
+                            profileViewModel.createChatWithUser(targetUserId) { chatId ->
+                                navController.navigate(Screen.ChatDetail.createRoute(chatId)) {
+                                    launchSingleTop = true
+                                }
+                            }
                         }
                     )
                 } else {
@@ -280,4 +258,3 @@ fun MainScreen(navController: NavHostController) {
         }
     }
 }
-

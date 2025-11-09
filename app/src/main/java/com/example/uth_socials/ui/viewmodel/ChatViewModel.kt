@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.chat.Message
@@ -89,53 +90,39 @@ class ChatViewModel : ViewModel() {
             }
     }
     fun sendMessage(chatId: String, senderId: String, text: String) {
+        Log.d("ChatDebug", "▶️ sendMessage called: chatId=$chatId, sender=$senderId, text=$text")
+
+        val db = FirebaseFirestore.getInstance()
+        val chatRef = db.collection("chats").document(chatId)
         val message = hashMapOf(
             "senderId" to senderId,
             "text" to text,
-            "lastSenderId" to senderId,
             "timestamp" to Timestamp.now(),
             "seen" to false
         )
 
-        val chatRef = db.collection("chats").document(chatId)
+        viewModelScope.launch {
+            try {
+                // 🟢 Thêm message vào subcollection
+                chatRef.collection("messages").add(message).await()
 
-        db.runTransaction { transaction ->
-            val snapshot = transaction.get(chatRef)
-            if (!snapshot.exists()) {
-                // 🔹 Nếu chat chưa tồn tại, tạo mới
-                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@runTransaction null
-                val parts = chatId.split("_")
-                if (parts.size != 2) return@runTransaction null
-
-                // ✅ Xác định người nhận chắc chắn
-                val receiverId = if (parts[0] == senderId) parts[1] else parts[0]
-                val participants = listOf(currentUserId, receiverId)
-
-                transaction.set(
-                    chatRef,
-                    hashMapOf(
-                        "participants" to participants,
-                        "lastMessage" to text,
-                        "timestamp" to Timestamp.now()
-                    )
-                )
-            } else {
-                // 🔹 Nếu chat đã tồn tại, chỉ cập nhật lastMessage
-                transaction.update(
-                    chatRef,
+                // 🟢 Cập nhật thông tin chat (last message, last sender, timestamp)
+                chatRef.update(
                     mapOf(
                         "lastMessage" to text,
                         "lastSenderId" to senderId,
                         "timestamp" to Timestamp.now()
                     )
-                )
-            }
+                ).await()
 
-            // 🔹 Thêm tin nhắn con vào subcollection messages
-            val messageRef = chatRef.collection("messages").document()
-            transaction.set(messageRef, message)
+                Log.d("ChatDebug", "✅ Message sent successfully.")
+            } catch (e: Exception) {
+                Log.e("ChatDebug", "❌ Failed to send message", e)
+            }
         }
     }
+
+
 
     override fun onCleared(){
         listenerRegistration?.remove()
@@ -150,6 +137,21 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    suspend fun getOrCreateChatId(targetUserId: String): String? {
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return null
+        val chatId = getChatId(currentUserId, targetUserId)
+        val chatRef = db.collection("chats").document(chatId)
 
+        val snapshot = chatRef.get().await()
+        if (!snapshot.exists()) {
+            val newChat = hashMapOf(
+                "participants" to listOf(currentUserId, targetUserId),
+                "lastMessage" to "",
+                "timestamp" to Timestamp.now()
+            )
+            chatRef.set(newChat).await()
+        }
+        return chatId
+    }
 
 }

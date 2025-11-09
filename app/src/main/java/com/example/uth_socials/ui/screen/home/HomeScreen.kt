@@ -22,7 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.compose.rememberNavController
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.config.AdminConfig
 import com.example.uth_socials.ui.viewmodel.ViewModelFactory
@@ -39,7 +38,6 @@ import com.example.uth_socials.ui.viewmodel.HomeViewModel
 fun HomeScreen(
     onNavigateToProfile: (String) -> Unit = {}
 ) {
-
     val postRepository =
         remember { PostRepository() } // Dùng remember để không tạo lại mỗi lần recomposition
     val viewModelFactory = remember { ViewModelFactory(postRepository) }
@@ -87,11 +85,9 @@ fun HomeScreen(
             selectedCategory = uiState.selectedCategory,
             onCategorySelected = { category ->
                 homeViewModel.onCategorySelected(category)
-
             },
             isLoading = uiState.categories.isEmpty() && uiState.isLoading,
             error = if (uiState.categories.isEmpty() && uiState.error != null) uiState.error else null
-
         )
 
         Box(
@@ -100,7 +96,6 @@ fun HomeScreen(
         ) {
             when {
                 uiState.isLoading -> {
-
                     // 🔸 Skeleton Loading - Hiển thị 5-7 skeleton posts
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -111,7 +106,6 @@ fun HomeScreen(
                         }
                     }
                 }
-
 
                 uiState.error != null -> {
                     // 🔸 Error dialog đẹp hơn với icon và button
@@ -124,7 +118,6 @@ fun HomeScreen(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth()
-
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ErrorOutline,
@@ -235,32 +228,11 @@ fun HomeScreen(
                                     isPostOwnerAdmin = isPostOwnerAdmin
                                 )
                             }
-
-
-                            // 🔸 Infinite scroll - load more trigger
-                            if (filteredPosts.isNotEmpty() && !uiState.paginationState.isLoadingMore) {
-                                item {
-                                    LaunchedEffect(Unit) {
-                                        homeViewModel.onLoadMore()
-                                    }
-                                }
-                            }
-
-                            // 🔸 Show skeleton loading when loading more posts
-                            if (uiState.paginationState.isLoadingMore) {
-                                items(2) { // Show 2 skeleton posts for pagination loading
-                                    PostCardSkeleton()
-
-                                }
-                            }
-
-
                         }
                     }
                 }
             }
         }
-
 
 
         if (uiState.commentSheetPostId != null) {
@@ -281,9 +253,7 @@ fun HomeScreen(
                     currentUserAvatarUrl = uiState.currentUserAvatarUrl
                 )
             }
-
         }
-
 
         // --- 🔸 REPORT DIALOG ---
         ReportDialog(
@@ -296,7 +266,6 @@ fun HomeScreen(
             reportDescription = uiState.reportDescription,
             isReporting = uiState.isReporting
         )
-
 
         // --- 🔸 DELETE CONFIRM DIALOG ---
         DeleteConfirmDialog(
