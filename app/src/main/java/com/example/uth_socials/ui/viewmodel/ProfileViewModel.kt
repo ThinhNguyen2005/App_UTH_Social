@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
 
 import kotlinx.coroutines.Dispatchers
 
@@ -141,18 +142,27 @@ class ProfileViewModel(
     }
     private val chatRepository = ChatRepository()
 
-    fun createChatWithUser(targetUserId: String, onChatReady: (String) -> Unit) {
+    fun openChatWithUser(targetUserId: String, onChatReady: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                val chatId = chatRepository.getOrCreateChatId(targetUserId)
-                if (chatId != null) {
-                    onChatReady(chatId)
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+
+                // 🔹 Kiểm tra chat đã tồn tại chưa
+                val existingChatId = chatRepository.getExistingChatId(targetUserId)
+
+                // 🔹 Nếu có rồi → mở ngay
+                if (existingChatId != null) {
+                    onChatReady(existingChatId)
                 } else {
-                    Log.e("ProfileViewModel", "Không thể tạo cuộc trò chuyện")
+                    // 🔹 Nếu chưa có → tạo chatId tạm để vào ChatScreen trống
+                    val newChatId = chatRepository.buildChatId(currentUserId, targetUserId)
+                    onChatReady(newChatId)
                 }
             } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Lỗi tạo chat", e)
+                Log.e("ProfileViewModel", "Lỗi mở chat", e)
             }
         }
     }
+
+
 }

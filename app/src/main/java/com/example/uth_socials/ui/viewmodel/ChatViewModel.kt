@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.chat.Message
+import com.example.uth_socials.data.repository.ChatRepository
 import com.example.uth_socials.ui.screen.chat.ChatSummary
 import kotlinx.coroutines.launch
 
@@ -12,6 +13,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
@@ -51,6 +53,7 @@ class ChatViewModel : ViewModel() {
                 }
             }
     }
+
     fun listenToChatList(currentUserId: String) {
         _isLoading.value = true
 
@@ -64,8 +67,11 @@ class ChatViewModel : ViewModel() {
                         val lastMsg = doc.getString("lastMessage") ?: ""
                         val lastSenderId = doc.getString("lastSenderId") ?: ""
                         val timestamp = doc.getTimestamp("timestamp")?.toDate()?.time ?: 0L
-                        val participants = doc.get("participants") as? List<*> ?: return@mapNotNull null
-                        val otherUserId = participants.firstOrNull { it != currentUserId }?.toString() ?: return@mapNotNull null
+                        val participants =
+                            doc.get("participants") as? List<*> ?: return@mapNotNull null
+                        val otherUserId =
+                            participants.firstOrNull { it != currentUserId }?.toString()
+                                ?: return@mapNotNull null
 
 
                         val userDoc = db.collection("users").document(otherUserId).get().await()
@@ -89,38 +95,58 @@ class ChatViewModel : ViewModel() {
 
             }
     }
-    fun sendMessage(chatId: String, senderId: String, text: String) {
-        Log.d("ChatDebug", "▶️ sendMessage called: chatId=$chatId, sender=$senderId, text=$text")
 
-        val db = FirebaseFirestore.getInstance()
-        val chatRef = db.collection("chats").document(chatId)
-        val message = hashMapOf(
-            "senderId" to senderId,
-            "text" to text,
-            "timestamp" to Timestamp.now(),
-            "seen" to false
-        )
+    fun sendMessage(chatId: String, senderId: String, text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isBlank()) return
 
         viewModelScope.launch {
             try {
-                // 🟢 Thêm message vào subcollection
-                chatRef.collection("messages").add(message).await()
+                val parts = chatId.split("_")
+                val targetUserId = parts.firstOrNull { it != senderId } ?: return@launch
 
-                // 🟢 Cập nhật thông tin chat (last message, last sender, timestamp)
-                chatRef.update(
-                    mapOf(
-                        "lastMessage" to text,
-                        "lastSenderId" to senderId,
-                        "timestamp" to Timestamp.now()
-                    )
-                ).await()
+                // 1. Chuẩn bị Refs và Data
+                val chatRef = db.collection("chats").document(chatId)
+                val messageRef = chatRef.collection("messages").document() // Ref cho tin nhắn mới
 
-                Log.d("ChatDebug", "✅ Message sent successfully.")
+                val messageData = hashMapOf(
+                    "senderId" to senderId,
+                    "text" to trimmed,
+                    "timestamp" to Timestamp.now(),
+                    "seen" to false
+                )
+
+                // Dữ liệu cho document chat (cả tạo mới và cập nhật)
+                val chatUpdateData = mapOf(
+                    "participants" to listOf(senderId, targetUserId), // Sẽ được merge khi tạo mới
+                    "lastMessage" to trimmed,
+                    "lastSenderId" to senderId,
+                    "timestamp" to Timestamp.now()
+                )
+
+                // 2. Chạy Batch (Atomic)
+                db.runBatch { batch ->
+
+                    // Thao tác 1: Set document chat.
+                    // SetOptions.merge() sẽ:
+                    // - TẠO MỚI (nếu chưa có) với "participants", "lastMessage",... -> dùng 'allow create'
+                    // - CẬP NHẬT (nếu đã có) "lastMessage",... -> dùng 'allow update'
+                    batch.set(chatRef, chatUpdateData, SetOptions.merge())
+
+                    // Thao tác 2: Tạo tin nhắn mới
+                    batch.set(messageRef, messageData)
+
+                }.await() // Gửi cả 2 thao tác lên server cùng lúc
+
+                Log.d("ChatDebug", "✅ Message sent successfully (atomic batch).")
+
             } catch (e: Exception) {
-                Log.e("ChatDebug", "❌ Failed to send message", e)
+                // Lỗi này giờ có thể là do rule 'create' hoặc 'update' của bạn
+                Log.e("ChatDebug", "❌ Failed to send message with batch", e)
             }
         }
     }
+
 
 
 
@@ -137,21 +163,6 @@ class ChatViewModel : ViewModel() {
         }
     }
 
-    suspend fun getOrCreateChatId(targetUserId: String): String? {
-        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return null
-        val chatId = getChatId(currentUserId, targetUserId)
-        val chatRef = db.collection("chats").document(chatId)
 
-        val snapshot = chatRef.get().await()
-        if (!snapshot.exists()) {
-            val newChat = hashMapOf(
-                "participants" to listOf(currentUserId, targetUserId),
-                "lastMessage" to "",
-                "timestamp" to Timestamp.now()
-            )
-            chatRef.set(newChat).await()
-        }
-        return chatId
-    }
 
 }

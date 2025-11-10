@@ -243,10 +243,8 @@ fun MainScreen() {
                         viewModel = profileViewModel,
                         onBackClicked = { navController.popBackStack() },
                         onMessageClicked = { targetUserId ->
-                            profileViewModel.createChatWithUser(targetUserId) { chatId ->
-                                navController.navigate(Screen.ChatDetail.createRoute(chatId)) {
-                                    launchSingleTop = true
-                                }
+                            profileViewModel.openChatWithUser(targetUserId) { chatId ->
+                                navController.navigate(Screen.ChatDetail.createRoute(chatId))
                             }
                         }
                     )
