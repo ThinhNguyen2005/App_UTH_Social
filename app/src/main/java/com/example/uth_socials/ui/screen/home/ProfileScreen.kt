@@ -40,7 +40,7 @@ fun ProfileScreen(
         onFollowClicked = { viewModel.onFollowClicked() },
         onBlockUser = { viewModel.onBlockUser() },
         onDeletePost = { postId -> viewModel.onDeletePost(postId) },
-        onMessageClicked = onMessageClicked
+        onMessageClicked = { onMessageClicked(uiState.profileUserId) }
     )
 }
 

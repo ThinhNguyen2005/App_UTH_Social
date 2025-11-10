@@ -29,6 +29,8 @@ import com.example.uth_socials.ui.component.logo.LogoTopAppBar
 import com.example.uth_socials.ui.screen.RegisterScreen
 import com.example.uth_socials.ui.screen.ResetPasswordScreen
 import com.example.uth_socials.ui.screen.AdminDashboardScreen
+import com.example.uth_socials.ui.screen.chat.ChatListScreen
+import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
@@ -151,7 +153,7 @@ fun MainScreen() {
             when (currentRoute) {
                 Screen.Home.route -> HomeTopAppBar(
                     onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ },
-                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
                     onAdminClick = {
                         navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
                             launchSingleTop = true
@@ -229,14 +231,27 @@ fun MainScreen() {
                         viewModel = profileViewModel,
                         onBackClicked = { navController.popBackStack() },
                         onMessageClicked = { targetUserId ->
-                            // TODO: Điều hướng đến màn hình chat với user này
-                            Log.d("AppNavigation", "Message user: $targetUserId")
+                            profileViewModel.openChatWithUser(targetUserId) { chatId ->
+                                navController.navigate(Screen.ChatDetail.createRoute(chatId))
+                            }
                         }
                     )
                 } else {
                     // Xử lý trường hợp không có userId (ví dụ: hiển thị lỗi hoặc quay lại)
                     Text("Lỗi: Không tìm thấy ID người dùng.")
                 }
+            }
+            composable(Screen.ChatList.route) {
+                ChatListScreen(
+                    onChatSelected = { chatId ->
+                        navController.navigate(Screen.ChatDetail.createRoute(chatId))
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.ChatDetail.route) { backStackEntry ->
+                val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+                ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
             }
         }
     }
