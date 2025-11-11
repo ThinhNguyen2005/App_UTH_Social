@@ -43,7 +43,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
             // 🔹 Tạo notification
             val builder = NotificationCompat.Builder(this, "default_channel")
-                .setSmallIcon(R.drawable.logo_uth) // Đảm bảo icon này tồn tại!
+                .setSmallIcon(R.drawable.lg_uth) // Đảm bảo icon này tồn tại!
                 .setContentTitle(title)
                 .setContentText(body)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)

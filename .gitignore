@@ -53,7 +53,7 @@ local.properties
 # =================================================================
 
 # File dịch vụ của Google (Firebase, Google Maps, v.v.)
-google-services.json
+app/google-services.json
 /app/google-services.json
 
 # Các file Keystore chứa khóa để ký ứng dụng, tuyệt đối không đưa lên Git

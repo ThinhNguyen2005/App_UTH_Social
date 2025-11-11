@@ -4,6 +4,11 @@ import android.app.Activity
 import android.content.Intent
 import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -32,9 +37,10 @@ import com.example.uth_socials.ui.screen.AdminDashboardScreen
 import com.example.uth_socials.ui.screen.chat.ChatListScreen
 import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
-import com.example.uth_socials.ui.screen.home.MarketScreen
+import com.example.uth_socials.ui.screen.market.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.home.ProfileScreen
+import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
@@ -146,28 +152,32 @@ fun MainScreen() {
 
         Screen.AdminDashboard.route,
         Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
+        Screen.ProductDetail.route -> false  // THÊM: Ẩn bottom bar cho ProductDetail
         else -> false
     }
+
     Scaffold(
         topBar = {
-            when (currentRoute) {
-                Screen.Home.route -> HomeTopAppBar(
-                    onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ },
-                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                    onAdminClick = {
-                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                            launchSingleTop = true
+            // Nếu đang ở Market -> không vẽ topBar
+            if (currentRoute != Screen.Market.route) {
+                when (currentRoute) {
+                    Screen.Home.route -> HomeTopAppBar(
+                        onSearchClick = { /* TODO */ },
+                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+                        onAdminClick = {
+                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                                launchSingleTop = true
+                            }
                         }
-                    }
-                )
+                    )
 
-                Screen.Market.route -> LogoTopAppBar()
-                Screen.Add.route -> LogoTopAppBar()
-                Screen.Notifications.route -> LogoTopAppBar()
-                else -> { /* no app bar */
+                    Screen.Add.route -> LogoTopAppBar()
+                    Screen.Notifications.route -> LogoTopAppBar()
+                    // các trường hợp khác nếu cần
+                    else -> {}
                 }
             }
-
+            // else: nothing -> Market không có topBar
         },
         bottomBar = {
             if (showBottomBar) {
@@ -189,7 +199,58 @@ fun MainScreen() {
                     }
                 )
             }
-            composable(Screen.Market.route) { MarketScreen() }
+            composable(
+                Screen.Market.route,
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                }
+            ) {
+                MarketScreen(
+                    navController = navController,
+                    onProductClick = { productId ->
+                        navController.navigate(Screen.ProductDetail.createRoute(productId))
+                    }
+                )
+            }
+
+            // ===== THÊM ProductDetailScreen =====
+            composable(
+                route = Screen.ProductDetail.route,
+                arguments = listOf(
+                    navArgument("productId") { type = NavType.StringType }
+                ),
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) { backStackEntry ->
+                val productId = backStackEntry.arguments?.getString("productId")
+                ProductDetailScreen(
+                    productId = productId,
+                    onBack = { navController.popBackStack() },
+                    onShare = { /* TODO: Implement share functionality */ },
+                    onCall = { /* TODO: Implement call functionality */ },
+                    onMessage = { /* TODO: Implement message functionality */ }
+                )
+            }
+
             composable(Screen.Add.route) { PostScreen(navController = navController) }
             composable(Screen.Notifications.route) { NotificationsScreen() }
             composable(Screen.Categories.route) {
