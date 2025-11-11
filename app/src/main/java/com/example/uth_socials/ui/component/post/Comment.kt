@@ -3,8 +3,6 @@ package com.example.uth_socials.ui.component.post
 import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,7 +16,6 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,12 +26,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.example.uth_socials.R
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.ui.component.common.formatTimeAgo
 import com.example.uth_socials.ui.viewmodel.CommentPostState
@@ -49,7 +45,6 @@ fun CommentSheetContent(
     onUserProfileClick: (String) -> Unit,
     commentPostState: CommentPostState,
     commentErrorMessage: String? = null,
-    currentUserAvatarUrl: String?
 
 ) {
     var commentText by remember { mutableStateOf("") }
@@ -64,24 +59,42 @@ fun CommentSheetContent(
         Text("Bình luận", style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(16.dp))
 
-        Box(modifier = Modifier.weight(1f)) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (comments.isEmpty()) {
-                Text("Chưa có bình luận nào.", modifier = Modifier.align(Alignment.Center))
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(comments, key = { it.id }) { comment ->
-                        CommentItem(
-                            comment = comment,
-                            onUserClick = onUserProfileClick,
-                            onLikeClick = { onLikeComment(postId, it) },
-                            onReplyClick = { handleReply(comment.username) }
-                        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator()
+                }
+                comments.isEmpty() -> {
+                    Text(
+                        text = "Chưa có bình luận nào.",
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                else -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(comments, key = { it.id }) { comment ->
+                            CommentItem(
+                                comment = comment,
+                                onUserClick = onUserProfileClick,
+                                onLikeClick = { onLikeComment(postId, it) },
+                                onReplyClick = { handleReply(comment.username) }
+                            )
+                        }
                     }
                 }
             }
         }
+
 
         // Error message display
         commentErrorMessage?.let { error ->
@@ -145,17 +158,6 @@ fun CommentSheetContent(
                 .padding(top = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1. Avatar người dùng (thêm cảm giác cá nhân hóa)
-            // TODO: Thay thế bằng URL avatar của người dùng đang đăng nhập
-            AsyncImage(
-                model = currentUserAvatarUrl,
-                contentDescription = "My Avatar",
-                placeholder = painterResource(id = R.drawable.ic_user_placeholder), // Thêm placeholder
-                error = painterResource(id = R.drawable.ic_user_placeholder), // Thêm ảnh lỗi
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-            )
 
             Spacer(modifier = Modifier.width(12.dp))
 

@@ -19,7 +19,8 @@ fun ReportDialog(
     onSubmit: () -> Unit,
     reportReason: String,
     reportDescription: String,
-    isReporting: Boolean
+    isReporting: Boolean,
+    reportErrorMessage: String? = null
 ) {
     if (!isVisible) return
 
@@ -92,6 +93,19 @@ fun ReportDialog(
                     maxLines = 4,
                     enabled = !isReporting
                 )
+
+                // ✅ Hiển thị error message nếu có
+                if (reportErrorMessage != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = reportErrorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    )
+                }
             }
         },
         confirmButton = {

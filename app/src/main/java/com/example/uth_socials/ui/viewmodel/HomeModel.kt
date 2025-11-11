@@ -43,6 +43,7 @@ data class HomeUiState(
     val reportReason: String = "",
     val reportDescription: String = "",
     val isReporting: Boolean = false,
+    val reportErrorMessage: String? = null,  // 🔸 Thêm error message cho report
     // 🔸 Thêm state cho delete confirmation dialog
     val showDeleteConfirmDialog: Boolean = false,
     val deletingPostId: String? = null,
@@ -94,13 +95,19 @@ class HomeViewModel(
      * 1. loadCurrentUser() - Lấy thông tin user hiện tại
      * 2. loadCategoriesAndInitialPosts() - Load categories và posts ban đầu
      * 3. loadHiddenPosts() - Load danh sách bài viết đã ẩn
-     * 4. checkAdminStatus() - Kiểm tra quyền admin
+     * 4. checkAdminStatus() - Delay để tránh blocking UI (không cần lúc khởi động)
+     *
+     * ✅ OPTIMIZATION: Delay admin check để tránh skipped frames
      */
     init {
         loadCurrentUser()
         loadCategoriesAndInitialPosts()
         loadHiddenPosts()
-        checkAdminStatus()
+        // ✅ Delay admin check đến sau 1.5s - không cần lúc khởi động
+        viewModelScope.launch(Dispatchers.IO) {
+            delay(1500)
+            checkAdminStatus()
+        }
     }
 
     /**
@@ -221,13 +228,9 @@ class HomeViewModel(
      private fun checkAdminStatus() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                initializeSuperAdminIfNeeded()
+                // ✅ OPTIMIZATION: Chỉ check admin status, không gọi init (đã gọi ở loadCurrentUser)
                 val isAdmin = adminRepository.isCurrentUserAdmin()
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-                if (!adminRepository.isSuperAdminInitialized()) {
-                    Log.w("HomeModel", "No super admin found, initializing legacy super admin")
-                    adminRepository.initializeLegacySuperAdmin()
-                }
                 val role = if (isAdmin) {
                     adminRepository.getAdminRole(currentUserId ?: "")
                 } else null
@@ -238,6 +241,7 @@ class HomeViewModel(
                         currentUserRole = role
                     )
                 }
+                Log.d("HomeViewModel", "Admin status checked: isAdmin=$isAdmin, role=$role")
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Error checking admin status", e)
                 _uiState.update { it.copy(
@@ -284,20 +288,9 @@ class HomeViewModel(
      * Khởi tạo quản trị viên cấp cao trong Firebase nếu chưa thực hiện
      * Thao tác này sẽ di chuyển quản trị viên cấp cao được mã hóa cứng sang Firebase
      */
-    private suspend fun initializeSuperAdminIfNeeded() {
-        try {
-            if (!adminRepository.isSuperAdminInitialized()) {
-                val result = adminRepository.initializeSuperAdmin(superAdminUserId = "super_admin")
-                if (result.isSuccess) {
-                    Log.d("HomeViewModel", "Super admin initialized in Firebase")
-                } else {
-                    Log.e("HomeViewModel", "Failed to initialize super admin: ${result.exceptionOrNull()?.message}")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("HomeViewModel", "Error initializing super admin", e)
-        }
-    }
+    // ✅ REMOVED: initializeSuperAdminIfNeeded() - gọi ở lần đầu login, không cần lúc khởi động ViewModel
+    // Super admin initialization nên được xử lý ở AuthViewModel lúc login, không phải lúc mở Home
+    // Điều này sẽ giảm tác vụ nặng lúc khởi động app
 
 
     suspend fun getAdminStatus(userId: String): Boolean {
@@ -550,7 +543,7 @@ class HomeViewModel(
         val description = _uiState.value.reportDescription
 
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(isReporting = true) }
+            _uiState.update { it.copy(isReporting = true, reportErrorMessage = null) }
             try {
                 val success = postRepository.reportPost(reportingPostId, reason, description)
                 if (success) {
@@ -560,14 +553,31 @@ class HomeViewModel(
                             isReporting = false,
                             reportingPostId = null,
                             reportReason = "",
-                            reportDescription = ""
+                            reportDescription = "",
+                            reportErrorMessage = null
                         )
                     }
                     Log.d("HomeViewModel", "Report submitted successfully")
+                } else {
+                    // ✅ FIX: Xử lý khi báo cáo thất bại
+                    val errorMsg = "Gửi báo cáo thất bại. Vui lòng thử lại."
+                    _uiState.update {
+                        it.copy(
+                            isReporting = false,
+                            reportErrorMessage = errorMsg
+                        )
+                    }
+                    Log.w("HomeViewModel", "Report submission failed: $errorMsg")
                 }
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Error submitting report", e)
-                _uiState.update { it.copy(isReporting = false) }
+                val errorMsg = "Lỗi khi gửi báo cáo: ${e.message ?: "Vui lòng thử lại"}"
+                _uiState.update {
+                    it.copy(
+                        isReporting = false,
+                        reportErrorMessage = errorMsg
+                    )
+                }
             }
         }
     }
@@ -578,7 +588,9 @@ class HomeViewModel(
                 showReportDialog = false,
                 reportingPostId = null,
                 reportReason = "",
-                reportDescription = ""
+                reportDescription = "",
+                reportErrorMessage = null,
+                isReporting = false
             )
         }
     }

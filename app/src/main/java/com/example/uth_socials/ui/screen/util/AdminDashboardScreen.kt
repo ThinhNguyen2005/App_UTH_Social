@@ -436,13 +436,22 @@ private fun ReportCard(
 
             report.post?.let { post ->
                 Text("Post: ${post.textContent.take(50)}...")
-                Text("By: ${report.reportedUser?.username ?: "Unknown"}")
+                Text(
+                    "By: ${report.reportedUser?.username ?: "Unknown User"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (report.reportedUser?.username == "[Deleted User]") 
+                        MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified
+                )
+            } ?: run {
+                Text("Post: [Post deleted or not found]", style = MaterialTheme.typography.bodySmall)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Reported by: ${report.reporter?.username ?: "Unknown"}",
-                style = MaterialTheme.typography.bodySmall
+                "Reported by: ${report.reporter?.username ?: "Unknown User"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (report.reporter?.username == "[Deleted User]")
+                    MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified
             )
             Text(
                 "Reason: ${report.report.description}",

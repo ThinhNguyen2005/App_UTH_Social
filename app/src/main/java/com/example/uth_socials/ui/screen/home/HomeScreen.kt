@@ -29,6 +29,7 @@ import com.example.uth_socials.ui.component.common.ReportDialog
 import com.example.uth_socials.ui.component.common.DeleteConfirmDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.data.util.SecurityValidator
+import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -192,13 +193,13 @@ fun HomeScreen(
 
                                 LaunchedEffect(post.userId) {
                                     if (adminStatusCache[post.userId] == null) {
-                                        // Check admin status nếu chưa có trong cache
                                         try {
                                             val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(post.userId)
                                             adminStatusCache[post.userId] = isAdmin
                                             isPostOwnerAdmin = isAdmin
+                                        } catch (e: CancellationException) {
+                                            throw e
                                         } catch (_: Exception) {
-                                            // Mặc định không admin nếu có lỗi
                                             adminStatusCache[post.userId] = false
                                             isPostOwnerAdmin = false
                                         }
@@ -246,7 +247,6 @@ fun HomeScreen(
                     onUserProfileClick = onNavigateToProfile,
                     commentPostState = uiState.commentPostState,
                     commentErrorMessage = uiState.commentErrorMessage,
-                    currentUserAvatarUrl = uiState.currentUserAvatarUrl
                 )
             }
         }
@@ -260,7 +260,8 @@ fun HomeScreen(
             onSubmit = { homeViewModel.onSubmitReport() },
             reportReason = uiState.reportReason,
             reportDescription = uiState.reportDescription,
-            isReporting = uiState.isReporting
+            isReporting = uiState.isReporting,
+            reportErrorMessage = uiState.reportErrorMessage
         )
 
         // --- 🔸 DELETE CONFIRM DIALOG ---

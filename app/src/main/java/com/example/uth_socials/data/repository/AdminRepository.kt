@@ -163,8 +163,16 @@ class AdminRepository(
             // Enrich reports with post and user data
             reports.map { report ->
                 val post = getPostById(report.postId)
+                
+                // ✅ FIX: Lấy reporter user data, fallback với ID nếu user không tồn tại
                 val reporter = userRepository.getUser(report.reportedBy)?.toPostUser()
-                val reportedUser = post?.let { userRepository.getUser(it.userId)?.toPostUser() }
+                    ?: User(id = report.reportedBy, username = "[Deleted User]")
+                
+                // ✅ FIX: Lấy reported user data, fallback nếu post bị xóa hoặc user không tồn tại
+                val reportedUser = post?.let { 
+                    userRepository.getUser(it.userId)?.toPostUser()
+                        ?: User(id = it.userId, username = "[Deleted User]")
+                }
 
                 AdminReport(
                     report = report,
