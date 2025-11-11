@@ -26,9 +26,9 @@ import androidx.navigation.navArgument
 import com.example.uth_socials.LoginScreen
 import com.example.uth_socials.ui.component.logo.HomeTopAppBar
 import com.example.uth_socials.ui.component.logo.LogoTopAppBar
-import com.example.uth_socials.ui.screen.RegisterScreen
-import com.example.uth_socials.ui.screen.ResetPasswordScreen
-import com.example.uth_socials.ui.screen.AdminDashboardScreen
+import com.example.uth_socials.ui.screen.util.RegisterScreen
+import com.example.uth_socials.ui.screen.util.ResetPasswordScreen
+import com.example.uth_socials.ui.screen.util.AdminDashboardScreen
 import com.example.uth_socials.ui.screen.chat.ChatListScreen
 import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen

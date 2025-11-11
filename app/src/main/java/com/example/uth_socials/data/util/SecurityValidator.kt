@@ -45,18 +45,10 @@ object SecurityValidator {
     }
 
     /**
-     * Kiểm tra xem người dùng có thể sửa đổi nội dung bài đăng hay không
-     * Quy tắc: request.auth.uid != null && resource.data.userId == request.auth.uid
-     */
-    fun canModifyPost(currentUserId: String?, postOwnerId: String): Boolean {
-        return currentUserId != null && currentUserId == postOwnerId
-    }
-
-    /**
      * Kiểm tra xem người dùng có thể sửa đổi tương tác bài đăng (thích/lưu) hay không
      * Quy tắc: request.auth.uid != null && chỉ các trường likedBy/likes/savedBy/saveCount
      */
-    fun canModifyPostInteractions(currentUserId: String?): Boolean {
+    fun checkCurrentUserId(currentUserId: String?): Boolean {
         return currentUserId != null
     }
 
@@ -68,23 +60,6 @@ object SecurityValidator {
         if (currentUserId == null) return false
         return currentUserId == postOwnerId || adminRepository.isAdmin(currentUserId)
     }
-
-    /**
-     * Kiểm tra xem người dùng có thể tạo bình luận hay không
-     * Quy tắc: request.auth.uid != null && request.resource.data.userId == request.auth.uid
-     */
-    fun canCreateComment(currentUserId: String?, commentUserId: String): Boolean {
-        return currentUserId != null && currentUserId == commentUserId
-    }
-
-    /**
-     * Kiểm tra xem người dùng có thể sửa đổi tương tác bình luận hay không
-     * Quy tắc: request.auth.uid != null && chỉ các trường likedBy/likes
-     */
-    fun canModifyCommentInteractions(currentUserId: String?): Boolean {
-        return currentUserId != null
-    }
-
     /**
      * Kiểm tra xem người dùng có thể xóa bình luận hay không
      * Quy tắc: request.auth.uid != null && (chủ bình luận || bài viết chủ || quản trị viên)
@@ -109,14 +84,6 @@ object SecurityValidator {
     }
 
     /**
-     * Kiểm tra xem người dùng có thể đọc báo cáo hay không
-     * Quy tắc: isAdmin()
-     */
-    suspend fun canReadReports(currentUserId: String?): Boolean {
-        return adminRepository.isAdmin(currentUserId ?: "")
-    }
-
-    /**
      * Kiểm tra xem người dùng có thể tạo báo cáo hay không
      * Quy tắc: request.auth.uid != null && request.resource.data.reportedBy == request.auth.uid
      * Bổ sung: Không thể báo cáo người dùng quản trị
@@ -126,30 +93,6 @@ object SecurityValidator {
 
         // Cannot report admin users
         return !adminRepository.isAdmin(reporterId) && !adminRepository.isSuperAdmin(reporterId)
-    }
-
-    /**
-     * Kiểm tra xem người dùng có thể sửa đổi báo cáo hay không (xem lại)
-     * Quy tắc: isAdmin()
-     */
-    suspend fun canModifyReports(currentUserId: String?): Boolean {
-        return adminRepository.isAdmin(currentUserId ?: "")
-    }
-
-    /**
-     * Check if user can delete reports
-     * Rules: isSuperAdmin()
-     */
-    suspend fun canDeleteReports(currentUserId: String?): Boolean {
-        return adminRepository.isSuperAdmin(currentUserId ?: "")
-    }
-
-    /**
-     * Check if user can modify admin roles
-     * Rules: isSuperAdmin()
-     */
-    suspend fun canModifyAdminRoles(currentUserId: String?): Boolean {
-        return adminRepository.isSuperAdmin(currentUserId ?: "")
     }
 
     // ===== CÁC HÀM MỚI CHO COMMENTS =====
@@ -206,15 +149,6 @@ object SecurityValidator {
      */
     fun clearCache() {
         adminCache.clear()
-    }
-
-    /**
-     * Validate user input data
-     */
-    fun isValidUserInput(input: String, maxLength: Int = 100): Boolean {
-        return input.trim().length in 1..maxLength &&
-               !input.contains("<script") && // Basic XSS protection
-               !input.contains("javascript:")
     }
 }
 

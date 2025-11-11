@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.repository.UserRepository
+import com.example.uth_socials.data.util.SecurityValidator
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.firebase.Firebase
@@ -69,6 +70,7 @@ class AuthViewModel(
                     if (userProfile?.isBanned == true) {
                         // Nếu bị cấm, buộc đăng xuất và báo lỗi
                         auth.signOut()
+                        SecurityValidator.clearCache()
                         _state.value = AuthState.Error("Tài khoản của bạn đã bị khóa.")
                     } else {
                         // Nếu không, cho phép đăng nhập
@@ -86,19 +88,6 @@ class AuthViewModel(
             }
         }
     }
-
-//    fun register(email: String, password: String) {
-//        viewModelScope.launch {
-//            _state.value = AuthState.Loading
-//            auth.createUserWithEmailAndPassword(email, password)
-//                .addOnCompleteListener { task ->
-//                    _state.value = if (task.isSuccessful)
-//                        AuthState.Success("Đăng ký thành công")
-//                    else
-//                        AuthState.Error(task.exception?.message ?: "Lỗi đăng ký")
-//                }
-//        }
-//    }
 
     fun register(email: String, password: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -151,6 +140,7 @@ class AuthViewModel(
                         // Nếu bị cấm, đăng xuất (cả Firebase và Google) và báo lỗi
                         auth.signOut()
                         googleClient.signOut() // Đăng xuất khỏi Google
+                        SecurityValidator.clearCache()
                         _state.value = AuthState.Error("Tài khoản của bạn đã bị khóa.")
                     } else {
                         // Nếu không, đăng nhập thành công

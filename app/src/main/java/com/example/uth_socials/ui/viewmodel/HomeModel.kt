@@ -15,7 +15,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
+import com.google.firebase.auth.FirebaseAuth
+import com.example.uth_socials.data.util.SecurityValidator
 
 
 //Enum để quản lý trạng thái gửi bình luận
@@ -36,6 +37,7 @@ data class HomeUiState(
     val commentErrorMessage: String? = null, // Thêm error message cho comments
     val currentUserAvatarUrl: String? = null,
     // 🔸 Thêm state cho report dialog
+
     val showReportDialog: Boolean = false,
     val reportingPostId: String? = null,
     val reportReason: String = "",
@@ -49,11 +51,26 @@ data class HomeUiState(
     val hiddenPostIds: Set<String> = emptySet(),
     // 🔸 Admin state
     val isCurrentUserAdmin: Boolean = false,
-    val currentUserRole: String? = null
+    val currentUserRole: String? = null,
+    // 🔸 Generic confirmation dialog
+    val showGenericDialog: Boolean = false,
+    val genericDialogAction: (() -> Unit)? = null
 )
 
+/**
+ * HomeViewModel - Quản lý toàn bộ logic của màn hình chính (Home Screen)
+ *
+ * Chức năng chính:
+ * - Quản lý danh sách bài viết theo category
+ * - Xử lý tương tác bài viết (like, save, share, hide)
+ * - Quản lý hệ thống bình luận
+ * - Xử lý báo cáo và xóa bài viết
+ * - Quản lý quyền admin và moderation
+ *
+ * Kiến trúc: MVVM với StateFlow cho reactive UI updates
+ */
 class HomeViewModel(
-    private val postRepository: PostRepository,
+    private val postRepository: PostRepository = PostRepository(),
     private val categoryRepository: CategoryRepository = CategoryRepository(),
     private val adminRepository: AdminRepository = AdminRepository()
 ) : ViewModel() {
@@ -66,6 +83,19 @@ class HomeViewModel(
     private var categoriesJob: Job? = null
     private val savingPosts = mutableSetOf<String>()
 
+    // ==========================================
+    // INITIALIZATION (Khởi tạo ViewModel)
+    // ==========================================
+
+    /**
+     * Block khởi tạo ViewModel - chạy ngay khi ViewModel được tạo
+     *
+     * Thứ tự thực hiện:
+     * 1. loadCurrentUser() - Lấy thông tin user hiện tại
+     * 2. loadCategoriesAndInitialPosts() - Load categories và posts ban đầu
+     * 3. loadHiddenPosts() - Load danh sách bài viết đã ẩn
+     * 4. checkAdminStatus() - Kiểm tra quyền admin
+     */
     init {
         loadCurrentUser()
         loadCategoriesAndInitialPosts()
@@ -73,11 +103,20 @@ class HomeViewModel(
         checkAdminStatus()
     }
 
+    /**
+     * Load thông tin user hiện tại từ Firebase Auth
+     *
+     * Logic:
+     * - Lấy currentUser từ FirebaseAuth
+     * - Nếu có user, lưu userId và refresh admin status
+     * - Chạy trên background thread (IO dispatcher)
+     */
     private fun loadCurrentUser() {
         viewModelScope.launch(Dispatchers.IO) {
-            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            val currentUser = FirebaseAuth.getInstance().currentUser
             if (currentUser != null) {
                 _uiState.update { it.copy(currentUserId = currentUser.uid) }
+                refreshAdminStatus()
             }
         }
     }
@@ -178,31 +217,28 @@ class HomeViewModel(
     /**
      * Check and update current user's admin status
      */
-    private fun checkAdminStatus() {
+     private fun checkAdminStatus() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // First, ensure super admin is initialized in Firebase
                 initializeSuperAdminIfNeeded()
-
-                val adminStatus = adminRepository.getCurrentUserAdminStatus()
-                val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-
-                val isAdmin = adminStatus != AdminRepository.AdminStatus.USER
-                val role = when (adminStatus) {
-                    AdminRepository.AdminStatus.SUPER_ADMIN -> "super_admin"
-                    AdminRepository.AdminStatus.ADMIN -> adminRepository.getAdminRole(currentUserId ?: "")
-                    AdminRepository.AdminStatus.USER -> null
+                val isAdmin = adminRepository.isCurrentUserAdmin()
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                if (!adminRepository.isSuperAdminInitialized()) {
+                    Log.w("HomeModel", "No super admin found, initializing legacy super admin")
+                    adminRepository.initializeLegacySuperAdmin()
                 }
+                val role = if (isAdmin) {
+                    adminRepository.getAdminRole(currentUserId ?: "")
+                } else null
 
-                _uiState.update { it.copy(
-                    isCurrentUserAdmin = isAdmin,
-                    currentUserRole = role
-                )}
-
-                Log.d("HomeViewModel", "Admin check: isAdmin=$isAdmin, status=$adminStatus, role=$role")
+                _uiState.update {
+                    it.copy(
+                        isCurrentUserAdmin = isAdmin,
+                        currentUserRole = role
+                    )
+                }
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Error checking admin status", e)
-                // Fallback to user status on error
                 _uiState.update { it.copy(
                     isCurrentUserAdmin = false,
                     currentUserRole = null
@@ -211,6 +247,38 @@ class HomeViewModel(
         }
     }
 
+    private fun refreshAdminStatus() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+                val (isAdmin, isSuperAdmin) = SecurityValidator.getCachedAdminStatus(currentUserId)
+
+                val role = when {
+                    isSuperAdmin -> "super_admin"
+                    isAdmin -> "admin"
+                    else -> null
+                }
+
+                _uiState.update {
+                    it.copy(
+                        isCurrentUserAdmin = isAdmin || isSuperAdmin,
+                        currentUserRole = role
+                    )
+                }
+
+                Log.d("HomeViewModel", "Admin status refreshed: isAdmin=${isAdmin || isSuperAdmin}, role=$role")
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error refreshing admin status", e)
+                // Fallback to non-admin status
+                _uiState.update {
+                    it.copy(
+                        isCurrentUserAdmin = false,
+                        currentUserRole = null
+                    )
+                }
+            }
+        }
+    }
     /**
      * Khởi tạo quản trị viên cấp cao trong Firebase nếu chưa thực hiện
      * Thao tác này sẽ di chuyển quản trị viên cấp cao được mã hóa cứng sang Firebase

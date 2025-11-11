@@ -1,4 +1,4 @@
-package com.example.uth_socials.ui.screen
+package com.example.uth_socials.ui.screen.util
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -61,13 +61,13 @@ fun AdminDashboardScreen(
     var showActionDialog by remember { mutableStateOf<AdminReport?>(null) }
     var showGrantAdminDialog by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
-    var showEditCategoryDialog by remember { mutableStateOf<com.example.uth_socials.data.post.Category?>(null) }
+    var showEditCategoryDialog by remember { mutableStateOf<Category?>(null) }
     // 🔸 Ban dialog state
     var showBanDialog by remember { mutableStateOf<User?>(null) }
     // 🔸 Post detail modal state
     var showPostDetail by remember { mutableStateOf<AdminReport?>(null) }
     // 🔸 Delete category dialog state
-    var showDeleteCategoryDialog by remember { mutableStateOf<com.example.uth_socials.data.post.Category?>(null) }
+    var showDeleteCategoryDialog by remember { mutableStateOf<Category?>(null) }
 
     // Check if current user is super admin
     val adminRepo = remember { AdminRepository() }
@@ -575,7 +575,7 @@ private fun AdminsTab(
 
 @Composable
 private fun CategoriesTab(
-    categories: List<com.example.uth_socials.data.post.Category>,
+    categories: List<Category>,
     isLoading: Boolean,
     onEditCategory: (com.example.uth_socials.data.post.Category) -> Unit,
     onDeleteCategory: (com.example.uth_socials.data.post.Category) -> Unit

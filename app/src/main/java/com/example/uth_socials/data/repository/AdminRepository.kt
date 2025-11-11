@@ -7,7 +7,6 @@ import com.example.uth_socials.data.user.User as UserEntity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.tasks.await
 
 /**
@@ -54,42 +53,6 @@ class AdminRepository(
     }
 
     /**
-     * Get admin user details
-     */
-    suspend fun getAdminUser(userId: String): AdminUser? {
-        return try {
-            val snapshot = adminCollection.document(userId).get().await()
-
-            if (!snapshot.exists()) return null
-
-            val role = snapshot.getString("role") ?: ""
-            val grantedBy = snapshot.getString("grantedBy") ?: ""
-            val grantedAt = snapshot.getTimestamp("grantedAt")
-
-            // Lấy permissions an toàn hơn
-            val permissions = (snapshot.get("permissions") as? List<*>) // List<*>, không giả định kiểu ngay
-                ?.filterIsInstance<String>()                            // chỉ giữ phần tử kiểu String
-                ?: emptyList()
-
-            AdminUser(
-                userId = snapshot.id,
-                role = role,
-                grantedBy = grantedBy,
-                grantedAt = grantedAt,
-                permissions = permissions
-            )
-
-        } catch (e: FirebaseFirestoreException) {
-            Log.e("AdminRepository", "Firestore error getting admin user $userId", e)
-            null
-        } catch (e: Exception) {
-            Log.e("AdminRepository", "Unexpected error getting admin user $userId", e)
-            null
-        }
-    }
-
-
-    /**
      * Grant admin role to user (only super admin can do this)
      */
     suspend fun grantAdminRole(
@@ -117,9 +80,9 @@ class AdminRepository(
         // Cập nhật hoặc tạo mới admin document
         adminCollection.document(targetUserId).set(adminData).await()
 
-        Log.d("AdminRepository", "✅ Granted admin role '$role' to user $targetUserId by $grantedBy")
+        Log.d("AdminRepository", "Granted admin role '$role' to user $targetUserId by $grantedBy")
     }.onFailure { e ->
-        Log.e("AdminRepository", "❌ Failed to grant admin role to $targetUserId", e)
+        Log.e("AdminRepository", "Failed to grant admin role to $targetUserId", e)
     }
 
 
@@ -130,15 +93,6 @@ class AdminRepository(
         adminCollection.document(userId).delete().await()
         Log.d("AdminRepository", "Revoked admin role from user $userId")
     }
-
-    /**
-     * Update admin permissions
-     */
-    suspend fun updateAdminPermissions(userId: String, permissions: List<String>): Result<Unit> = runCatching {
-        adminCollection.document(userId).update("permissions", permissions).await()
-        Log.d("AdminRepository", "Updated permissions for admin $userId")
-    }
-
     /**
      * Get all admin users (for super admin only)
      */
@@ -488,14 +442,36 @@ class AdminRepository(
         val userId = auth.currentUser?.uid
         return isAdmin(userId ?: "")
     }
+    suspend fun initializeLegacySuperAdmin(): Result<Unit> = runCatching {
+        Log.w("AdminRepository", "EMERGENCY: Initializing legacy super admin")
 
-    // ============ LEGACY CONSTANTS (moved from AdminConfig) ============
+        // Double-check: Chỉ tạo nếu thực sự không có super admin
+        if (isSuperAdminInitialized()) {
+            Log.d("AdminRepository", "Super admin already exists, skipping legacy initialization")
+            return@runCatching
+        }
 
+        // Tạo super admin từ legacy UID
+        val superAdminData = mapOf(
+            "role" to "super_admin",
+            "grantedBy" to "legacy_system_emergency",
+            "grantedAt" to FieldValue.serverTimestamp(),
+            "permissions" to listOf("all"),
+            "isLegacy" to true, // Mark as legacy admin
+            "legacyUid" to LEGACY_SUPER_ADMIN_UID
+        )
+
+        adminCollection.document(LEGACY_SUPER_ADMIN_UID).set(superAdminData).await()
+
+        Log.d("AdminRepository", "Legacy super admin initialized: $LEGACY_SUPER_ADMIN_UID")
+
+
+
+    }.onFailure { e ->
+        Log.e("AdminRepository", "Failed to initialize legacy super admin", e)
+    }
     companion object {
         const val LEGACY_SUPER_ADMIN_UID = "vvrTdGbamOPz8wEkSV2kwgMJeG43"
-        val LEGACY_ADMIN_EMAILS = setOf(
-            "nguyenthinhk52005@gmail.com"
-        )
     }
     enum class AdminStatus {
     USER,       // Regular user

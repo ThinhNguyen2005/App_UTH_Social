@@ -23,9 +23,9 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.uth_socials.data.repository.UserRepository
-import com.example.uth_socials.ui.screen.UthTeal
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
+import com.example.uth_socials.ui.theme.UthTeal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,9 +76,6 @@ fun HomeBottomNavigation(navController: NavController) {
                         )
                     }
                 },
-//                label = {
-//                    if (isSelected) Text(text = item.label, style = MaterialTheme.typography.labelSmall)
-//                },
                 selected = isSelected,
 
                 onClick = {

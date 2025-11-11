@@ -27,12 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.uth_socials.R
-import com.example.uth_socials.ui.screen.UthRed
-import com.example.uth_socials.ui.screen.UthTeal
 import com.example.uth_socials.data.repository.AdminRepository
 import androidx.compose.runtime.produceState
+import com.example.uth_socials.ui.screen.util.UthRed
+import com.example.uth_socials.ui.theme.UthTeal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

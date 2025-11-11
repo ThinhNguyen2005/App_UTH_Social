@@ -105,7 +105,14 @@ fun PostCard(
             // Column này chứa các hành động (actions) và cũng có padding
             Column(modifier = Modifier.padding(vertical = 0.dp, horizontal = 12.dp)) {//Khoảng cách ngang
                 Spacer(modifier = Modifier.height(0.dp))
-                PostActions(post, onLikeClicked, onCommentClicked, onSaveClicked, onShareClicked)
+                PostActions(
+                    post = post,
+                    onLikeClicked = onLikeClicked,
+                    onCommentClicked = onCommentClicked,
+                    onSaveClicked = onSaveClicked,
+                    onShareClicked = onShareClicked,
+                    isEnabled = currentUserId != null
+                )
             }
             // Đường kẻ ngang cắt giữa các bài viết
             HorizontalDivider(
@@ -382,7 +389,8 @@ private fun PostActions(
     onLikeClicked: (String) -> Unit,
     onCommentClicked: (String) -> Unit,
     onSaveClicked: (String) -> Unit,
-    onShareClicked: (String) -> Unit
+    onShareClicked: (String) -> Unit,
+    isEnabled: Boolean = true
 ) {
     val defaultColor = MaterialTheme.colorScheme.onSurface
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -405,31 +413,34 @@ private fun PostActions(
         // Nhóm các nút bên trái
         Row(verticalAlignment = Alignment.CenterVertically) {
             PostActionItem(
-                onClick = { onLikeClicked(post.id) },
+                onClick = { if (isEnabled) onLikeClicked(post.id) },
                 icon = likeIcon,
                 count = post.likes,
                 tint = likeColor,
-                contentDescription = "Like"
+                contentDescription = "Like",
+                enabled = isEnabled
             )
             // Thêm khoảng cách giữa các nút
             Spacer(modifier = Modifier.width(16.dp))
             PostActionItem(
-                onClick = { onCommentClicked(post.id) },
+                onClick = { if (isEnabled) onCommentClicked(post.id) },
                 icon = Icons.Outlined.ModeComment,
                 count = post.commentCount,
                 tint = defaultColor,
-                contentDescription = "Comment"
+                contentDescription = "Comment",
+                enabled = isEnabled
             )
         }
 
         // Nhóm các nút bên phải
         Row(verticalAlignment = Alignment.CenterVertically) {
             PostActionItem(
-                onClick = { onSaveClicked(post.id) },
+                onClick = { if (isEnabled) onSaveClicked(post.id) },
                 icon = saveIcon,
                 count = post.saveCount,
                 tint = saveColor,
-                contentDescription = "Save"
+                contentDescription = "Save",
+                enabled = isEnabled
             )
             Spacer(modifier = Modifier.width(16.dp))
             PostActionItem(
@@ -437,7 +448,8 @@ private fun PostActions(
                 icon = Icons.Outlined.Share,
                 count = post.shareCount,
                 tint = defaultColor,
-                contentDescription = "Share"
+                contentDescription = "Share",
+                enabled = true
             )
         }
     }
@@ -449,7 +461,8 @@ private fun PostActionItem(
     icon: ImageVector,
     count: Int,
     tint: Color,
-    contentDescription: String
+    contentDescription: String,
+    enabled: Boolean = true
 ) {
     // Row này để nhóm icon và số đếm, và để tăng vùng nhấn
     Row(
@@ -457,17 +470,18 @@ private fun PostActionItem(
         modifier = Modifier.clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null, // Tắt hiệu ứng gợn sóng để dùng hiệu ứng của IconButton
-            onClick = onClick
+            onClick = { if (enabled) onClick() }
         )
     ) {
         IconButton(
             onClick = onClick,
+            enabled = enabled,
             modifier = Modifier.size(40.dp) // Kích thước vùng nhấn
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = tint,
+                tint = if (enabled) tint else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp) // Kích thước của riêng icon
             )
         }
