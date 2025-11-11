@@ -86,8 +86,6 @@ class UserRepository {
      * Xử lý logic theo dõi/bỏ theo dõi.
      */
     suspend fun toggleFollow(currentUserId: String, targetUserId: String, isCurrentlyFollowing: Boolean): Boolean {
-        ensureUserDocument(currentUserId)
-        ensureUserDocument(targetUserId)
         val currentUserRef = usersCollection.document(currentUserId)
         val targetUserRef = usersCollection.document(targetUserId)
 
@@ -122,6 +120,59 @@ class UserRepository {
             true
         } catch (e: Exception) {
             Log.e("UserRepository", "Error blocking user", e)
+            false
+        }
+    }
+
+    /**
+     * Verify và ensure user document có đủ fields cho commenting
+     */
+    suspend fun ensureUserReadyForCommenting(userId: String): Boolean {
+        return try {
+            val userDoc = usersCollection.document(userId).get().await()
+
+            if (!userDoc.exists()) {
+                Log.w("UserRepository", "User document not found for $userId, creating...")
+                // Tạo document với dữ liệu tối thiểu
+                val bootstrapData = hashMapOf(
+                    "userId" to userId,
+                    "username" to "User",
+                    "avatarUrl" to "",
+                    "isBanned" to false,
+                    "followers" to emptyList<String>(),
+                    "following" to emptyList<String>(),
+                    "bio" to "",
+                    "createdAt" to FieldValue.serverTimestamp()
+                )
+                usersCollection.document(userId).set(bootstrapData, SetOptions.merge()).await()
+                Log.d("UserRepository", "Created minimal user document for $userId")
+                return true
+            }
+
+            // Kiểm tra các trường cần thiết
+            val isBanned = userDoc.getBoolean("isBanned") ?: false
+            val username = userDoc.getString("username") ?: ""
+            val avatarUrl = userDoc.getString("avatarUrl") ?: ""
+
+            Log.d("UserRepository", "User $userId ready for commenting: banned=$isBanned, username='$username'")
+
+            // Nếu bị ban thì không cho comment
+            if (isBanned) {
+                Log.w("UserRepository", "User $userId is banned, cannot comment")
+                return false
+            }
+
+            // Nếu thiếu username, cập nhật
+            if (username.isBlank()) {
+                usersCollection.document(userId)
+                    .update("username", "User")
+                    .await()
+                Log.d("UserRepository", "Updated username for $userId")
+            }
+
+            true
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error ensuring user ready for commenting", e)
             false
         }
     }

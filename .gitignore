@@ -72,3 +72,7 @@ google-services.json
 
 # Các file log và báo cáo
 /lint-results-debug.xml
+
+/firestore.indexes.json
+/firestore.rules
+/firebase.json

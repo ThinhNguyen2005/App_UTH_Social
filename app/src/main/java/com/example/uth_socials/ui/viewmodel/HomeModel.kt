@@ -6,18 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
-import com.example.uth_socials.config.AdminConfig
-import com.example.uth_socials.config.AdminStatus
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.CategoryRepository
 import com.example.uth_socials.data.repository.AdminRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,6 +33,7 @@ data class HomeUiState(
     val commentsForSheet: List<Comment> = emptyList(),
     val isSheetLoading: Boolean = false,
     val commentPostState: CommentPostState = CommentPostState.IDLE,
+    val commentErrorMessage: String? = null, // Thêm error message cho comments
     val currentUserAvatarUrl: String? = null,
     // 🔸 Thêm state cho report dialog
     val showReportDialog: Boolean = false,
@@ -53,7 +49,6 @@ data class HomeUiState(
     val hiddenPostIds: Set<String> = emptySet(),
     // 🔸 Admin state
     val isCurrentUserAdmin: Boolean = false,
-    val currentUserAdminStatus: AdminStatus = AdminStatus.USER,
     val currentUserRole: String? = null
 )
 
@@ -63,7 +58,10 @@ class HomeViewModel(
     private val adminRepository: AdminRepository = AdminRepository()
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
+    private val adminStatusCache = mutableMapOf<String, Boolean>()
+
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
     private var commentsJob: Job? = null
     private var categoriesJob: Job? = null
     private val savingPosts = mutableSetOf<String>()
@@ -186,19 +184,18 @@ class HomeViewModel(
                 // First, ensure super admin is initialized in Firebase
                 initializeSuperAdminIfNeeded()
 
-                val adminStatus = AdminConfig.getCurrentUserAdminStatus()
+                val adminStatus = adminRepository.getCurrentUserAdminStatus()
                 val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
 
-                val isAdmin = adminStatus != AdminStatus.USER
+                val isAdmin = adminStatus != AdminRepository.AdminStatus.USER
                 val role = when (adminStatus) {
-                    AdminStatus.SUPER_ADMIN -> "super_admin"
-                    AdminStatus.ADMIN -> AdminConfig.getAdminRole(currentUserId)
-                    AdminStatus.USER -> null
+                    AdminRepository.AdminStatus.SUPER_ADMIN -> "super_admin"
+                    AdminRepository.AdminStatus.ADMIN -> adminRepository.getAdminRole(currentUserId ?: "")
+                    AdminRepository.AdminStatus.USER -> null
                 }
 
                 _uiState.update { it.copy(
                     isCurrentUserAdmin = isAdmin,
-                    currentUserAdminStatus = adminStatus,
                     currentUserRole = role
                 )}
 
@@ -208,7 +205,6 @@ class HomeViewModel(
                 // Fallback to user status on error
                 _uiState.update { it.copy(
                     isCurrentUserAdmin = false,
-                    currentUserAdminStatus = AdminStatus.USER,
                     currentUserRole = null
                 )}
             }
@@ -216,13 +212,13 @@ class HomeViewModel(
     }
 
     /**
-     * Initialize super admin in Firebase if not already done
-     * This migrates the legacy hard-coded super admin to Firebase
+     * Khởi tạo quản trị viên cấp cao trong Firebase nếu chưa thực hiện
+     * Thao tác này sẽ di chuyển quản trị viên cấp cao được mã hóa cứng sang Firebase
      */
     private suspend fun initializeSuperAdminIfNeeded() {
         try {
-            if (!AdminConfig.isSuperAdminInitialized()) {
-                val result = AdminConfig.initializeSuperAdmin()
+            if (!adminRepository.isSuperAdminInitialized()) {
+                val result = adminRepository.initializeSuperAdmin(superAdminUserId = "super_admin")
                 if (result.isSuccess) {
                     Log.d("HomeViewModel", "Super admin initialized in Firebase")
                 } else {
@@ -233,6 +229,19 @@ class HomeViewModel(
             Log.e("HomeViewModel", "Error initializing super admin", e)
         }
     }
+
+
+    suspend fun getAdminStatus(userId: String): Boolean {
+        return adminStatusCache.getOrPut(userId) {
+            try {
+                adminRepository.isAdmin(userId) || adminRepository.isSuperAdmin(userId)
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Lỗi khi kiểm tra trạng thái quản trị viên", e)
+                false
+            }
+        }
+    }
+
 
     private var postsJob: Job? = null
 
@@ -307,21 +316,47 @@ class HomeViewModel(
     }
 
     fun addComment(postId: String, commentText: String) {
-        if (commentText.isBlank()) return
+        Log.d("HomeViewModel", "addComment called with postId: $postId, commentText: '$commentText'")
+        if (commentText.isBlank()) {
+            Log.w("HomeViewModel", "Comment text is blank, returning early")
+            return
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             // 1. Cập nhật UI sang trạng thái "Đang gửi"
-            _uiState.update { it.copy(commentPostState = CommentPostState.POSTING) }
-            try {
-                postRepository.addComment(postId, commentText)
+            _uiState.update {
+                it.copy(
+                    commentPostState = CommentPostState.POSTING,
+                    commentErrorMessage = null // Clear previous error
+                )
+            }
+
+            val result = postRepository.addComment(postId, commentText)
+            result.onSuccess {
                 // 2. Cập nhật UI sang trạng thái "Thành công"
                 _uiState.update { it.copy(commentPostState = CommentPostState.SUCCESS) }
                 // 3. Reset lại trạng thái sau một khoảng thời gian ngắn
                 delay(1500)
-                _uiState.update { it.copy(commentPostState = CommentPostState.IDLE) }
-            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        commentPostState = CommentPostState.IDLE,
+                        commentErrorMessage = null
+                    )
+                }
+            }.onFailure { e ->
                 Log.e("HomeViewModel", "Failed to add comment", e)
-                _uiState.update { it.copy(commentPostState = CommentPostState.ERROR) }
+                // Show specific error message based on exception
+                val errorMessage = when (e) {
+                    is IllegalStateException -> e.message ?: "Lỗi không xác định"
+                    else -> "Không thể gửi bình luận. Vui lòng thử lại."
+                }
+                Log.e("HomeViewModel", "Comment error: $errorMessage")
+                _uiState.update {
+                    it.copy(
+                        commentPostState = CommentPostState.ERROR,
+                        commentErrorMessage = errorMessage
+                    )
+                }
             }
         }
     }

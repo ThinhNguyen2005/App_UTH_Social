@@ -58,23 +58,18 @@ import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.material.icons.rounded.ImageNotSupported
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.SubcomposeAsyncImage
-//import com.android.volley.toolbox.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlin.math.abs
 import coil.request.ImageRequest
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.core.*
-import androidx.compose.ui.draw.drawWithContent
-
 
 @Composable
 fun PostCard(
@@ -89,6 +84,7 @@ fun PostCard(
     onDeleteClicked: (String) -> Unit,
     currentUserId: String? = null,
     isPostOwnerAdmin: Boolean = false,
+    isCurrentUserAdmin: Boolean = false,
     onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Card(
@@ -97,7 +93,7 @@ fun PostCard(
     ) {
         Column {
             Column(modifier = Modifier.padding(12.dp)) {
-                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId, isPostOwnerAdmin, onNavigateToUserProfile)
+                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId, isPostOwnerAdmin, isCurrentUserAdmin ,onNavigateToUserProfile)
                 Spacer(modifier = Modifier.height(8.dp))
                 ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
             }
@@ -132,6 +128,7 @@ private fun PostHeader(
     onDeleteClicked: (String) -> Unit,
     currentUserId: String? = null,
     isPostOwnerAdmin: Boolean = false,
+    isCurrentUserAdmin: Boolean = false,
     onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Row(
@@ -198,8 +195,8 @@ private fun PostHeader(
                 )
             }
 
-            // Chỉ hiển thị "Xóa" nếu người dùng hiện tại là chủ bài
-            if (post.userId == currentUserId) {
+            // Hiện tùy chọn xóa nếu là admin và chủ bài viết
+            if (post.userId == currentUserId || isCurrentUserAdmin) {
                 menuItems.add(
                     MenuItemData(
                         text = "Xóa",

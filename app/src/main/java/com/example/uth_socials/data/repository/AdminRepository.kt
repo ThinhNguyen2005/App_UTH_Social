@@ -1,7 +1,6 @@
 package com.example.uth_socials.data.repository
 
 import android.util.Log
-import com.example.uth_socials.config.AdminStatus
 import com.example.uth_socials.data.post.*
 import com.example.uth_socials.data.user.AdminUser
 import com.example.uth_socials.data.user.User as UserEntity
@@ -151,8 +150,9 @@ class AdminRepository(
                     role = doc.getString("role") ?: "",
                     grantedBy = doc.getString("grantedBy") ?: "",
                     grantedAt = doc.getTimestamp("grantedAt"),
-                    permissions = doc.get("permissions") as? List<String> ?: emptyList()
-                )
+                    permissions = (doc.get("permissions") as? List<*>)
+                        ?.filterIsInstance<String>()  // Chỉ lấy phần tử là String
+                        ?: emptyList()                )
             }
         } catch (e: Exception) {
             Log.e("AdminRepository", "Error getting all admins", e)
@@ -250,7 +250,7 @@ class AdminRepository(
         }
 
         // Update report metadata first
-        val updateData = mutableMapOf<String, Any>(
+        val updateData = mutableMapOf(
             "status" to if (action == AdminAction.DISMISS) "dismissed" else "reviewed",
             "reviewedBy" to adminId,
             "reviewedAt" to FieldValue.serverTimestamp(),
@@ -497,4 +497,9 @@ class AdminRepository(
             "nguyenthinhk52005@gmail.com"
         )
     }
+    enum class AdminStatus {
+    USER,       // Regular user
+    ADMIN,      // Regular admin
+    SUPER_ADMIN // Super admin with all permissions
+}
 }

@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.component.post
 
+import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -14,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.Send
@@ -46,6 +48,7 @@ fun CommentSheetContent(
     onLikeComment: (String, String) -> Unit,
     onUserProfileClick: (String) -> Unit,
     commentPostState: CommentPostState,
+    commentErrorMessage: String? = null,
     currentUserAvatarUrl: String?
 
 ) {
@@ -76,6 +79,36 @@ fun CommentSheetContent(
                             onReplyClick = { handleReply(comment.username) }
                         )
                     }
+                }
+            }
+        }
+
+        // Error message display
+        commentErrorMessage?.let { error ->
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
@@ -163,6 +196,7 @@ fun CommentSheetContent(
             // 3. Nút gửi
             IconButton(
                 onClick = {
+                    Log.d("CommentSheet", "Send button clicked, commentText: '$commentText'")
                     onAddComment(commentText)
                     commentText = ""
                 },

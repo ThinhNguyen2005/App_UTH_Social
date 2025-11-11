@@ -19,8 +19,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.FirebaseMessaging
 import androidx.annotation.RequiresApi
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.uth_socials.ui.screen.post.PostScreen
+
 
 //class MainActivity : ComponentActivity() {
 //    override fun onCreate(savedInstanceState: Bundle?) {

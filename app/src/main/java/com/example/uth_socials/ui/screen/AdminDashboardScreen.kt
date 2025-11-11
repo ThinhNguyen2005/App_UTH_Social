@@ -6,16 +6,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,11 +21,13 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import coil.compose.AsyncImage
-import com.example.uth_socials.config.AdminConfig
 import com.example.uth_socials.data.post.AdminAction
 import com.example.uth_socials.data.post.AdminReport
+import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.post.User
+import com.example.uth_socials.data.repository.AdminRepository
 import com.example.uth_socials.data.user.AdminUser
+import com.example.uth_socials.ui.component.logo.OnlyLogo
 import com.example.uth_socials.ui.viewmodel.AdminDashboardViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -72,21 +70,17 @@ fun AdminDashboardScreen(
     var showDeleteCategoryDialog by remember { mutableStateOf<com.example.uth_socials.data.post.Category?>(null) }
 
     // Check if current user is super admin
+    val adminRepo = remember { AdminRepository() }
     var isSuperAdmin by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-        isSuperAdmin = currentUserId?.let { AdminConfig.isSuperAdmin(it) } ?: false
+        isSuperAdmin = adminRepo.isCurrentUserSuperAdmin()
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(selectedTab.title) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Default.ArrowBack, "Back")
-                    }
-                }
+            OnlyLogo(
+                userName = selectedTab.title,
+                onBackClick = onNavigateBack
             )
         },
         floatingActionButton = {
@@ -110,7 +104,6 @@ fun AdminDashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .windowInsetsPadding(WindowInsets.statusBars)
         ) {
             // Tab selector - filter tabs based on permissions
             val availableTabs = if (isSuperAdmin) {
@@ -780,7 +773,7 @@ private fun ReportActionDialog(
 
 @Composable
 private fun CategoryCard(
-    category: com.example.uth_socials.data.post.Category,
+    category: Category,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -808,7 +801,7 @@ private fun CategoryCard(
                     Text("Edit")
                 }
 
-                if (!com.example.uth_socials.data.post.Category.DEFAULT_CATEGORIES.any { it.id == category.id }) {
+                if (!Category.DEFAULT_CATEGORIES.any { it.id == category.id }) {
                     TextButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.textButtonColors(
@@ -851,14 +844,6 @@ private fun AddCategoryDialog(
                     isError = showError != null,
                     supportingText = showError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } }
                 )
-
-                if (categoryName.isNotBlank()) {
-                    Text(
-                        "Generated ID: ${categoryName.lowercase().replace(Regex("[^a-z0-9\\s]"), "").replace(Regex("\\s+"), "_").take(20)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
             }
         },
         confirmButton = {
@@ -1388,3 +1373,4 @@ val AdminAction.displayName: String
         AdminAction.BAN_USER -> "Ban User"
         AdminAction.BAN_REPORTER -> "Ban Reporter"
     }
+

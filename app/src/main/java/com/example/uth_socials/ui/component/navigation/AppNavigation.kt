@@ -116,15 +116,13 @@ fun NavGraphBuilder.authNavGraph(
     }
 }
 
-// ===== ĐỒ THỊ CON CHO CÁC MÀN HÌNH CHÍNH =====
+// Điều hướng chính, tất cả đều hướng chỉ nên thay đổi và cập nhật trong MainScreen
 fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
     navigation(
         startDestination = Screen.Home.route,
         route = Graph.MAIN
     ) {
-        // Tất cả các màn hình bên trong MainScreen đều được định nghĩa ở đây
-        // Điều này cho phép điều hướng từ một tab này sang một màn hình chi tiết khác.
-        composable(Screen.Home.route) { MainScreen() } // Chỉ cần gọi MainScreen ở đây
+        composable(Screen.Home.route) { MainScreen() }
     }
 }
 
@@ -142,16 +140,18 @@ fun MainScreen() {
         Screen.Notifications.route,
         Screen.Profile.route -> true
 
-        Screen.AdminDashboard.route,
-        Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
+        //true là gì, là sẽ show là bottomBar fasle ngược lại khỏi
+        // Nói chung là đừng đụng vào
         else -> false
     }
     Scaffold(
         topBar = {
+            //topBar này thì được định nghĩa sẵn trong logo/HomeTopAppBar, logo/LogoTopAppBar
+            //Biết sao không back được không, vì chưa composable cụ thể navback làm gì đó
             when (currentRoute) {
                 Screen.Home.route -> HomeTopAppBar(
-                    onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ },
-                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                    onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ }, // gắn on Search trong trang đó có gì gắn nav back chẳng hạn chưa đủ, xuống dưới định nghĩa composable nữa
+                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },// gắn on Messages, trong trang đó có gì gắn nav back chẳng hạn chưa đủ, xuống dưới định nghĩa composable nữa
                     onAdminClick = {
                         navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
                             launchSingleTop = true
@@ -159,25 +159,29 @@ fun MainScreen() {
                     }
                 )
 
-                Screen.Market.route -> LogoTopAppBar()
+                Screen.Market.route -> LogoTopAppBar() // chỉ logo
                 Screen.Add.route -> LogoTopAppBar()
                 Screen.Notifications.route -> LogoTopAppBar()
-                else -> { /* no app bar */
-                }
+                else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
             }
 
         },
         bottomBar = {
+            //Cái này coi tao show cái này ở những trang nào, định nghĩa ở trên
             if (showBottomBar) {
                 HomeBottomNavigation(navController = navController)
             }
         }
     ) { innerPadding ->
+        // Cần thêm composable cho trang phụ trong đó định nghĩa back các kiểu tùy trang
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+
+            //Hướng dẫn sử dụng nha tạo route, rồi
+            //Home nav này chuyển đến trang profile của người dùng khi nhấn vào tên
             composable(Screen.Home.route) {
                 HomeScreen(
                     onNavigateToProfile = { userId ->
@@ -187,33 +191,25 @@ fun MainScreen() {
                     }
                 )
             }
+            //Shop                            - Trang test
             composable(Screen.Market.route) { MarketScreen() }
+            //Create post - product
             composable(Screen.Add.route) { PostScreen(navController = navController) }
+            //Notifications                 - Trang test
             composable(Screen.Notifications.route) { NotificationsScreen() }
-            composable(Screen.Categories.route) {
-                AdminDashboardScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToUser = { userId ->
-                        navController.navigate(Screen.Profile.createRoute(userId)) {
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
-            composable(
-                route = Screen.AdminDashboard.route,
-                arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
-            ) { backStackEntry ->
-                AdminDashboardScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToUser = { userId ->
-                        navController.navigate(Screen.Profile.createRoute(userId)) {
-                            launchSingleTop = true
-                        }
-                    },
-                    backStackEntry = backStackEntry
-                )
-            }
+
+            //Trang này ban đầu test, cứ để đó xóa sau
+//            composable(Screen.Categories.route) {
+//                AdminDashboardScreen(
+//                    onNavigateBack = { navController.popBackStack() },
+//                    onNavigateToUser = { userId ->
+//                        navController.navigate(Screen.Profile.createRoute(userId)) {
+//                            launchSingleTop = true
+//                        }
+//                    }
+//                )
+//            }
+            //Profile
             composable(
                 route = Screen.Profile.route,
                 arguments = listOf(navArgument("userId") { type = NavType.StringType })
@@ -237,6 +233,20 @@ fun MainScreen() {
                     // Xử lý trường hợp không có userId (ví dụ: hiển thị lỗi hoặc quay lại)
                     Text("Lỗi: Không tìm thấy ID người dùng.")
                 }
+            }
+            composable(
+                route = Screen.AdminDashboard.route,
+                arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
+            ) { backStackEntry ->
+                AdminDashboardScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUser = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    backStackEntry = backStackEntry
+                )
             }
         }
     }

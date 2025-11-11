@@ -11,10 +11,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
-import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,8 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.uth_socials.data.repository.AdminRepository
 import com.example.uth_socials.data.repository.PostRepository
-import com.example.uth_socials.config.AdminConfig
 import com.example.uth_socials.ui.viewmodel.ViewModelFactory
 import com.example.uth_socials.ui.component.navigation.FilterTabs
 import com.example.uth_socials.ui.component.post.CommentSheetContent
@@ -168,7 +167,7 @@ fun HomeScreen(
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Article,
+                                    imageVector = Icons.AutoMirrored.Filled.Article,
                                     contentDescription = "No posts",
                                     modifier = Modifier.size(64.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -202,21 +201,13 @@ fun HomeScreen(
                                 var isPostOwnerAdmin by remember(post.userId) { mutableStateOf(adminStatusCache[post.userId] ?: false) }
 
                                 LaunchedEffect(post.userId) {
-                                    if (adminStatusCache[post.userId] == null) {
-                                        // Check admin status nếu chưa có trong cache
-                                        val isAdmin = AdminConfig.isAnyAdmin(post.userId)
-                                        adminStatusCache[post.userId] = isAdmin
-                                        isPostOwnerAdmin = isAdmin
-                                    } else {
-                                        isPostOwnerAdmin = adminStatusCache[post.userId] ?: false
-                                    }
+                                    isPostOwnerAdmin = homeViewModel.getAdminStatus(post.userId)
                                 }
 
                                 PostCard(
                                     post = post,
                                     onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
-                                    onCommentClicked = {
-                                        homeViewModel.onCommentClicked(post.id)
+                                    onCommentClicked = { homeViewModel.onCommentClicked(post.id)
                                     },
                                     onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
                                     onShareClicked = { homeViewModel.onShareClicked(post.id) },
@@ -225,7 +216,8 @@ fun HomeScreen(
                                     onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
                                     onHideClicked = { homeViewModel.onHideClicked(post.id) },
                                     currentUserId = uiState.currentUserId,
-                                    isPostOwnerAdmin = isPostOwnerAdmin
+                                    isPostOwnerAdmin = isPostOwnerAdmin,
+                                    isCurrentUserAdmin = uiState.isCurrentUserAdmin
                                 )
                             }
                         }
@@ -250,6 +242,7 @@ fun HomeScreen(
                     onLikeComment = homeViewModel::onCommentLikeClicked,
                     onUserProfileClick = onNavigateToProfile,
                     commentPostState = uiState.commentPostState,
+                    commentErrorMessage = uiState.commentErrorMessage,
                     currentUserAvatarUrl = uiState.currentUserAvatarUrl
                 )
             }
@@ -277,5 +270,3 @@ fun HomeScreen(
 
     }
 }
-
-

@@ -3,9 +3,9 @@ package com.example.uth_socials.ui.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.uth_socials.config.AdminConfig
 import com.example.uth_socials.data.post.AdminAction
 import com.example.uth_socials.data.post.Category
+import com.example.uth_socials.data.repository.AdminRepository
 import com.example.uth_socials.data.repository.CategoryRepository
 import com.example.uth_socials.data.user.AdminDashboardUiState
 import com.google.firebase.auth.FirebaseAuth
@@ -19,6 +19,8 @@ import kotlinx.coroutines.launch
 
 class AdminDashboardViewModel : ViewModel() {
     private val categoryRepository = CategoryRepository()
+    private val adminRepository = AdminRepository()
+
 
     private val _uiState = MutableStateFlow(AdminDashboardUiState())
     val uiState: StateFlow<AdminDashboardUiState> = _uiState.asStateFlow()
@@ -43,7 +45,7 @@ class AdminDashboardViewModel : ViewModel() {
     private suspend fun loadPendingReportsBackground() {
         _uiState.update { it.copy(isLoadingReports = true) }
         try {
-            val reports = AdminConfig.getPendingReports()
+            val reports = adminRepository.getPendingReports()
             _uiState.update {
                 it.copy(
                     pendingReports = reports,
@@ -66,7 +68,7 @@ class AdminDashboardViewModel : ViewModel() {
     private suspend fun loadBannedUsersBackground() {
         _uiState.update { it.copy(isLoadingUsers = true) }
         try {
-            val bannedUsers = AdminConfig.getBannedUsers()
+            val bannedUsers = adminRepository.getBannedUsers()
             _uiState.update {
                 it.copy(
                     bannedUsers = bannedUsers,
@@ -89,7 +91,7 @@ class AdminDashboardViewModel : ViewModel() {
     private suspend fun loadAdminsBackground() {
         _uiState.update { it.copy(isLoadingAdmins = true) }
         try {
-            val admins = AdminConfig.getAllAdmins()
+            val admins = adminRepository.getAllAdmins()
             _uiState.update {
                 it.copy(
                     admins = admins,
@@ -105,13 +107,14 @@ class AdminDashboardViewModel : ViewModel() {
             }
         }
     }
+    // Xem xét báo cáo
     fun reviewReport(reportId: String, action: AdminAction, adminNotes: String?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                     ?: throw IllegalStateException("No admin user logged in")
 
-                val result = AdminConfig.reviewReport(reportId, currentUserId, action, adminNotes)
+                val result = adminRepository.reviewReport(reportId, currentUserId, action, adminNotes)
                 if (result.isSuccess) {
                     Log.d("AdminDashboardViewModel", "Report reviewed successfully.")
                     loadPendingReportsBackground()
@@ -128,62 +131,63 @@ class AdminDashboardViewModel : ViewModel() {
         }
     }
 
+    //chặn user
     fun banUser(userId: String, reason: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                     ?: throw IllegalStateException("No admin user logged in")
 
-                val result = AdminConfig.banUser(userId, currentUserId, reason)
+                val result = adminRepository.banUser(userId, currentUserId, reason)
                 if (result.isSuccess) {
-                    // Log success message
-                    Log.d("AdminDashboardViewModel", "User banned successfully.")
-
-                    // Refresh banned users list
+                    Log.d("AdminDashboardViewModel", "Chặn user thành công: ${userId}.")
+                    //Làm mới danh sách người bị chặn
                     loadBannedUsersBackground()
                 } else {
                     _uiState.update {
-                        it.copy(error = "Failed to ban user: ${result.exceptionOrNull()?.message}")
+                        it.copy(error = "Chặn thất bại: ${result.exceptionOrNull()?.message}")
                     }
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(error = "Failed to ban user: ${e.message}")
+                    it.copy(error = "Chặn thất bại: ${e.message}")
                 }
             }
         }
     }
 
+    // Bỏ chặn user
     fun unbanUser(userId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val result = AdminConfig.unbanUser(userId)
+                val result = adminRepository.unbanUser(userId)
                 if (result.isSuccess) {
                     // Log success message
-                    Log.d("AdminDashboardViewModel", "User unbanned successfully.")
+                    Log.d("AdminDashboardViewModel", "Gỡ chặn thành công: ${userId}.")
 
                     // Refresh banned users list
                     loadBannedUsersBackground()
                 } else {
                     _uiState.update {
-                        it.copy(error = "Failed to unban user: ${result.exceptionOrNull()?.message}")
+                        it.copy(error = "Gỡ chặn thất bại: ${result.exceptionOrNull()?.message}")
                     }
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(error = "Failed to unban user: ${e.message}")
+                    it.copy(error = "Gỡ chặn thất bại: ${e.message}")
                 }
             }
         }
     }
 
+    //Cấp quyền admin
     fun grantAdminRole(userId: String, role: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                     ?: throw IllegalStateException("No admin user logged in")
 
-                val result = AdminConfig.grantAdminRole(
+                val result = adminRepository.grantAdminRole(
                     targetUserId = userId,
                     role = role,
                     grantedBy = currentUserId
@@ -191,49 +195,45 @@ class AdminDashboardViewModel : ViewModel() {
 
                 if (result.isSuccess) {
                     // Log success message
-                    Log.d("AdminDashboardViewModel", "Admin role granted successfully.")
+                    Log.d("AdminDashboardViewModel", "Cấp quyền admin thành công: ${userId}.")
 
                     loadAdminsBackground()
                 } else {
                     _uiState.update {
-                        it.copy(error = "Failed to grant admin role: ${result.exceptionOrNull()?.message}")
+                        it.copy(error = "Cấp quyền admin thất bại: ${result.exceptionOrNull()?.message}")
                     }
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(error = "Failed to grant admin role: ${e.message}")
+                    it.copy(error = "Cấp quyền admin thất bại: ${e.message}")
                 }
             }
         }
     }
 
+    // Thu hồi quyền admin
     fun revokeAdminRole(userId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val result = AdminConfig.revokeAdminRole(userId)
+                val result = adminRepository.revokeAdminRole(userId)
                 if (result.isSuccess) {
                     // Log success message
-                    Log.d("AdminDashboardViewModel", "Admin role revoked successfully.")
-
-                    // Refresh admin list
+                    Log.d("AdminDashboardViewModel", "Đã cấp quyền cho admin: ${userId}.")
                     loadAdminsBackground()
                 } else {
                     _uiState.update {
-                        it.copy(error = "Failed to revoke admin role: ${result.exceptionOrNull()?.message}")
+                        it.copy(error = "Thu hồi quyền admin thất bại: ${result.exceptionOrNull()?.message}")
                     }
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(error = "Failed to revoke admin role: ${e.message}")
+                    it.copy(error = "Thu hồi quyền admin thất bại: ${e.message}")
                 }
             }
         }
     }
-    /**
-     * Background version của loadCategories
-     */
 
-
+    // Category add/edit/delete
     private suspend fun loadCategoriesBackground() {
         _uiState.update { it.copy(isLoadingCategories = true) }
         try {
@@ -271,15 +271,13 @@ class AdminDashboardViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             val cleanName = name.trim()
             val categories = _uiState.value.categories // Lấy danh sách hiện tại từ State
-
-            // 1. Kiểm tra trùng tên (case-insensitive)
             val nameExists = categories.any {
                 it.name.equals(cleanName, ignoreCase = true)
             }
 
             if (nameExists) {
                 _uiState.update {
-                    it.copy(error = "Lỗi: Tên danh mục '$cleanName' đã tồn tại.")
+                    it.copy(error = "Tên danh mục '$cleanName' đã tồn tại. Hãy tạo danh mục khác.")
                 }
                 return@launch
             }
@@ -294,17 +292,13 @@ class AdminDashboardViewModel : ViewModel() {
                 }
                 return@launch
             }
-            // --- KẾT THÚC KIỂM TRA ---
-
-
-            // Nếu không trùng, mới tiếp tục gọi Repository
             val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
             val result = categoryRepository.addCategory(newCategory, currentUserId)
 
             result.onSuccess {
                 loadCategoriesBackground()
             }.onFailure { e ->
-                handleFailure(e, "add category") // Giả sử bạn có hàm này
+                handleFailure(e, "add category")
             }
         }
     }

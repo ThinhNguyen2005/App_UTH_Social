@@ -23,7 +23,6 @@ class PostRepository {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val postsCollection = db.collection("posts")
-    private val categoriesCollection = db.collection("categories")
     private val reportsCollection = db.collection("reports")
     private val usersCollection = db.collection("users")
 
@@ -147,32 +146,73 @@ class PostRepository {
         }
     }
 
-    suspend fun addComment(postId: String, commentText: String): Result<Unit> = runCatching {
-        val currentUserId = auth.currentUser?.uid
-            ?: throw IllegalStateException("User not logged in")
+    suspend fun addComment(postId: String, commentText: String): Result<Unit> {
+        return try {
+            Log.d("PostRepository", "Starting addComment for post: $postId")
 
-        val userDoc = db.collection("users").document(currentUserId).get().await()
-        val username = userDoc.getString("username") ?: "User"
-        val avatarUrl = userDoc.getString("avatarUrl") ?: ""
+            val currentUserId = auth.currentUser?.uid
+                ?: throw IllegalStateException("User not logged in")
 
-        val postRef = postsCollection.document(postId)
+            Log.d("PostRepository", "Current user ID: $currentUserId")
 
-        val newCommentRef = postRef.collection("comments").document()
-        val commentData = hashMapOf(
-            "id" to newCommentRef.id,
-            "userId" to currentUserId,
-            "username" to username,
-            "userAvatarUrl" to avatarUrl,
-            "text" to commentText,
-            "timestamp" to FieldValue.serverTimestamp(),
-            "likedBy" to emptyList<String>(),
-            "likes" to 0
-        )
+            // Validate comment content first
+            if (!SecurityValidator.isValidCommentContent(commentText)) {
+                throw IllegalArgumentException("Comment content is invalid (empty, too long, or contains inappropriate content)")
+            }
 
-        db.runTransaction { transaction ->
-            transaction.update(postRef, "commentCount", FieldValue.increment(1))
-            transaction.set(newCommentRef, commentData)
-        }.await()
+            // Ensure user is ready for commenting
+            val userRepository = UserRepository()
+            val user = userRepository.getUser(currentUserId)
+                ?: throw IllegalStateException("User profile not found. Cannot comment.")
+
+            // 2. Kiểm tra user có bị cấm không
+            if (user.isBanned) {
+                throw IllegalStateException("User is banned. Cannot comment.")
+            }
+
+            // 3. Lấy username và avatar từ đối tượng user
+            val username = user.username
+            val avatarUrl = user.avatarUrl
+
+            Log.d("PostRepository", "Username: $username, Avatar: $avatarUrl")
+
+            val postRef = postsCollection.document(postId)
+
+            // Check if post exists
+            val postSnapshot = postRef.get().await()
+            Log.d("PostRepository", "Post exists: ${postSnapshot.exists()}")
+
+            if (!postSnapshot.exists()) {
+                throw IllegalStateException("Post not found.")
+            }
+
+            val newCommentRef = postRef.collection("comments").document()
+            val commentData = hashMapOf(
+                "id" to newCommentRef.id,
+                "userId" to currentUserId,
+                "username" to username,
+                "userAvatarUrl" to avatarUrl,
+                "text" to commentText,
+                "timestamp" to FieldValue.serverTimestamp(),
+                "likedBy" to emptyList<String>(),
+                "likes" to 0
+            )
+
+            Log.d("PostRepository", "Comment data prepared: $commentData")
+
+            db.runTransaction { transaction ->
+                Log.d("PostRepository", "Starting transaction")
+                transaction.update(postRef, "commentCount", FieldValue.increment(1))
+                transaction.set(newCommentRef, commentData)
+                Log.d("PostRepository", "Transaction operations set")
+            }.await()
+
+            Log.d("PostRepository", "Comment added successfully")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to add comment", e)
+            Result.failure(e)
+        }
     }
 
     /**
