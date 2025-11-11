@@ -30,4 +30,9 @@ sealed class Screen(val route: String) {
         object Register : AuthScreen("register")
         object ResetPassword : AuthScreen("reset_password")
     }
+
+    object ChatList : Screen("chat_list")
+    object ChatDetail : Screen("chat_detail/{chatId}") {
+        fun createRoute(chatId: String) = "chat_detail/$chatId"
+    }
 }

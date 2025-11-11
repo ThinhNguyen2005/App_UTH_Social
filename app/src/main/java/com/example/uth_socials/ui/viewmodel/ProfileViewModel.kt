@@ -4,12 +4,14 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.post.Post
+import com.example.uth_socials.data.repository.ChatRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 
@@ -126,6 +128,29 @@ class ProfileViewModel(
                 _uiState.update {
                     it.copy(posts = it.posts.filterNot { post -> post.id == postId })
                 }
+            }
+        }
+    }
+    private val chatRepository = ChatRepository()
+
+    fun openChatWithUser(targetUserId: String, onChatReady: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+
+                // 🔹 Kiểm tra chat đã tồn tại chưa
+                val existingChatId = chatRepository.getExistingChatId(targetUserId)
+
+                // 🔹 Nếu có rồi → mở ngay
+                if (existingChatId != null) {
+                    onChatReady(existingChatId)
+                } else {
+                    // 🔹 Nếu chưa có → tạo chatId tạm để vào ChatScreen trống
+                    val newChatId = chatRepository.buildChatId(currentUserId, targetUserId)
+                    onChatReady(newChatId)
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Lỗi mở chat", e)
             }
         }
     }

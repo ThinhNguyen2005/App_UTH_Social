@@ -128,59 +128,7 @@ fun LogoTopAppBar(
         scrollBehavior = scrollBehavior
     )
 }
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ChatTopAppBar(
-    userName: String,
-    avatarUrl: String,
-    onBackClick: () -> Unit
-) {
-    val darkAppBarColor = Color(0xFF1A2838)
-    val onDarkAppBarColor = Color.White
 
-    TopAppBar(
-        modifier = Modifier
-            .fillMaxWidth(),
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AsyncImage(
-                    model = avatarUrl.ifEmpty {
-                        "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                    },
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = userName,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = onDarkAppBarColor
-                )
-            }
-        },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = onDarkAppBarColor
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = darkAppBarColor
-        ),
-        windowInsets = WindowInsets(0.dp)
-
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
