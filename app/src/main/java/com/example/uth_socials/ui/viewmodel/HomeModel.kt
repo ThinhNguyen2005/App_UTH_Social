@@ -214,6 +214,7 @@ class HomeViewModel(
         }
     }
 
+
     /**
      * Check and update current user's admin status
      */

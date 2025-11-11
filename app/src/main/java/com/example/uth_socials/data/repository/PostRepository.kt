@@ -273,9 +273,33 @@ class PostRepository {
             if (user.isBanned) {
                 throw IllegalStateException("User is banned. Cannot comment.")
             }
-            if (!SecurityValidator.isValidCommentContent(commentText)) {
-                throw IllegalArgumentException("Comment content is invalid")
-            }
+            val postRef = postsCollection.document(postId)
+            val newCommentRef = postRef.collection("comments").document()
+            val commentData = hashMapOf(
+                "id" to newCommentRef.id,
+                "userId" to currentUserId,
+                "username" to user.username,
+                "userAvatarUrl" to user.avatarUrl,
+                "text" to commentText,
+                "timestamp" to FieldValue.serverTimestamp(),
+                "likedBy" to emptyList<String>(),
+                "likes" to 0
+            )
+
+            Log.d("PostRepository", "Comment data prepared: $commentData")
+
+            // ✅ BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
+            db.runTransaction { transaction ->
+                Log.d("PostRepository", "Starting transaction")
+                transaction.update(postRef, "commentCount", FieldValue.increment(1))
+                transaction.set(newCommentRef, commentData)
+                Log.d("PostRepository", "Transaction operations set")
+            }.await()
+
+            // ✅ BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
+            usersCollection.document(currentUserId)
+                .update("lastCommentAt", FieldValue.serverTimestamp())
+                .await()
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to add comment", e)
@@ -407,10 +431,10 @@ class PostRepository {
      */
     suspend fun reportPost(postId: String, reason: String, description: String): Boolean {
         val currentUserId = auth.currentUser?.uid ?: return false
-
-        // ✅ KIỂM TRA SECURITY: Không cho phép report admin
+        
+        // ✅ KIỂM TRA SECURITY: Validate người báo cáo
         if (!SecurityValidator.canCreateReport(currentUserId, currentUserId)) {
-            Log.w("PostRepository", "Cannot report: User is admin or invalid")
+            Log.w("PostRepository", "Cannot report: Invalid user")
             return false
         }
 
@@ -423,9 +447,10 @@ class PostRepository {
                 status = "pending"
             )
             reportsCollection.add(report).await()
+            Log.d("PostRepository", "Report created successfully for post: $postId")
             true
         } catch (e: Exception) {
-            Log.e("PostRepository", "Error reporting post", e)
+            Log.e("PostRepository", "Error reporting post: ${e.message}", e)
             false
         }
     }

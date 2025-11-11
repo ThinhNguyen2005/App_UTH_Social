@@ -60,20 +60,6 @@ object SecurityValidator {
         if (currentUserId == null) return false
         return currentUserId == postOwnerId || adminRepository.isAdmin(currentUserId)
     }
-    /**
-     * Kiểm tra xem người dùng có thể xóa bình luận hay không
-     * Quy tắc: request.auth.uid != null && (chủ bình luận || bài viết chủ || quản trị viên)
-     */
-    suspend fun canDeleteComment(
-        currentUserId: String?,
-        commentOwnerId: String,
-        postOwnerId: String
-    ): Boolean {
-        if (currentUserId == null) return false
-        return currentUserId == commentOwnerId ||
-               currentUserId == postOwnerId ||
-                adminRepository.isAdmin(currentUserId)
-    }
 
     /**
      * Kiểm tra xem người dùng có thể sửa đổi danh mục hay không
@@ -86,42 +72,12 @@ object SecurityValidator {
     /**
      * Kiểm tra xem người dùng có thể tạo báo cáo hay không
      * Quy tắc: request.auth.uid != null && request.resource.data.reportedBy == request.auth.uid
-     * Bổ sung: Không thể báo cáo người dùng quản trị
+     * 
+     * Note: Server-side (firestore.rules) sẽ xác thực thêm bất kỳ quy tắc nào về nội dung
+     * Client-side chỉ kiểm tra authentication & reporterId
      */
-    suspend fun canCreateReport(currentUserId: String?, reporterId: String): Boolean {
-        if (currentUserId == null || currentUserId != reporterId) return false
-
-        // Cannot report admin users
-        return !adminRepository.isAdmin(reporterId) && !adminRepository.isSuperAdmin(reporterId)
-    }
-
-    // ===== CÁC HÀM MỚI CHO COMMENTS =====
-
-    /**
-     * Validate comment content
-     */
-    fun isValidCommentContent(content: String): Boolean {
-        return content.trim().isNotEmpty() &&
-               content.length <= 500 &&
-               !containsProfanity(content)
-    }
-
-    /**
-     * Check for basic profanity (có thể mở rộng)
-     */
-    private fun containsProfanity(content: String): Boolean {
-        val badWords = listOf("spam", "test", "dummy") // Mở rộng theo nhu cầu
-        return badWords.any { content.lowercase().contains(it) }
-    }
-
-    /**
-     * Rate limiting cho comments (client-side check)
-     * Rules: Không thể implement trong Firestore Rules
-     */
-    fun canCommentBasedOnRateLimit(lastCommentTime: Long?): Boolean {
-        if (lastCommentTime == null) return true
-        val timeSinceLastComment = System.currentTimeMillis() - lastCommentTime
-        return timeSinceLastComment >= 30000 // 30 giây giữa comments
+    fun canCreateReport(currentUserId: String?, reporterId: String): Boolean {
+        return currentUserId != null && currentUserId == reporterId
     }
 
     // ===== CACHING FUNCTIONS =====
