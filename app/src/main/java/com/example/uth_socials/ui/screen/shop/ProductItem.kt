@@ -30,6 +30,7 @@ fun ProductItem(
     onClick: () -> Unit = {} //Callback khi click
 ){
     var isFav by remember { mutableStateOf(product.favorite) }
+
     Column (modifier = Modifier
         .fillMaxWidth().height(260.dp)
             .clickable{ onClick() }
@@ -42,7 +43,7 @@ fun ProductItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(190.dp)
-                    .clip(RoundedCornerShape(20.dp)),
+                    .clip(RoundedCornerShape(12.dp)),
             )
             IconButton(
                 onClick = {isFav = !isFav},
@@ -67,7 +68,6 @@ fun ProductItem(
                 overflow = TextOverflow.Ellipsis,
                 color = Color.Black
             )
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = formatVND(product.price),
                 fontSize = 16.sp,

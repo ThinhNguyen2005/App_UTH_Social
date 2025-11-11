@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -24,6 +25,8 @@ import kotlinx.coroutines.launch
 data class ListUiState(
     val isLoading: Boolean = false,
     val products: List<Product> = emptyList(),
+    val filteredProducts: List<Product> = emptyList(), // Danh sách sau khi search
+    val searchQuery: String = "",
     val error: String? = null
 )
 
@@ -48,6 +51,10 @@ class ProductViewModel(
 //    private val repository: ProductRepository //Them repository vao constructor
 ) : ViewModel() {
     private val repository = ProductRepository()
+
+    // MutableStateFlow để lưu query tìm kiếm
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
 
     //------------------------------------------------------------------------------------------------------------------------------------------------
 //    private val _products = MutableStateFlow<List<Product>>(emptyList())
@@ -74,19 +81,53 @@ class ProductViewModel(
 //    }
     //------------------------------------------------------------------------------------------------------------------------------------------------
 
-    // --- 1. STATE CHO DANH SÁCH REALTIME ---
-    val listUiState: StateFlow<ListUiState> = repository.getProductsStream()
-        .map { productList ->
-            ListUiState(products = productList, isLoading = false)
+    // --- 1. STATE CHO DANH SÁCH REALTIME với SEARCH ---
+    val listUiState: StateFlow<ListUiState> = combine(
+        repository.getProductsStream(),
+        _searchQuery
+    ) { productList, query ->
+        val filtered = if (query.isBlank()) {
+            productList
+        } else {
+            productList.filter { product ->
+                // Tìm kiếm theo tên
+                val matchesName = product.name.contains(query, ignoreCase = true)
+
+                // Tìm kiếm theo giá (nếu query là số)
+                val matchesPrice = try {
+                    val searchPrice = query.toDoubleOrNull()
+                    if (searchPrice != null) {
+                        // Tìm sản phẩm có giá gần đúng (± 10%)
+                        val lowerBound = searchPrice * 0.9
+                        val upperBound = searchPrice * 1.1
+                        product.price in lowerBound..upperBound
+                    } else {
+                        false
+                    }
+                } catch (e: Exception) {
+                    false
+                }
+
+                matchesName || matchesPrice
+            }
         }
+
+        ListUiState(
+            products = productList,
+            filteredProducts = filtered,
+            searchQuery = query,
+            isLoading = false
+        )
+    }
         .catch { e ->
             emit(ListUiState(isLoading = false, error = e.message))
         }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),    //nếu người dùng thoát app quá 5 giây thì tự ngắt kết nối realtime để tiết kiệm pin/băng thông.
-            initialValue = ListUiState(isLoading = true) // Ban đầu là loading
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = ListUiState(isLoading = true)
         )
+
     // --- 2. STATE CHO CÁC TÁC VỤ (C, U, D) ---
     private val _operationState = MutableStateFlow<OperationUiState>(OperationUiState.Idle)
     val operationState = _operationState.asStateFlow()
@@ -94,6 +135,24 @@ class ProductViewModel(
     // --- 3. STATE CHO MÀN HÌNH CHI TIẾT (Get by ID) ---
     private val _detailState = MutableStateFlow(DetailUiState())
     val detailState = _detailState.asStateFlow()
+
+    // === HÀM TÌM KIẾM ===
+    /**
+     * Cập nhật query tìm kiếm
+     * Hỗ trợ tìm theo:
+     * - Tên sản phẩm (text)
+     * - Giá sản phẩm (số)
+     */
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    /**
+     * Xóa query tìm kiếm
+     */
+    fun clearSearch() {
+        _searchQuery.value = ""
+    }
 
     // === CÁC HÀM TÁC VỤ (gọi từ UI) ===
     /**

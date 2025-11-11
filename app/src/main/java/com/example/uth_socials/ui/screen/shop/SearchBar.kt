@@ -29,22 +29,24 @@ import com.example.uth_socials.ui.theme.SearchBg
 @Composable
 fun SearchBar(
     modifier: Modifier = Modifier,
+    query: String = "", // Nhận query từ ViewModel
     hint: String = "Tìm sản phẩm...",
-    onSearch: (String) -> Unit = {}
+    onQueryChange: (String) -> Unit = {}, // Gọi khi text thay đổi
+    onSearch: (String) -> Unit = {}, // Gọi khi nhấn search
+    onClear: () -> Unit = {} // Gọi khi nhấn clear
 ) {
-    var query by remember { mutableStateOf("") }
     var isFocused by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val borderColor by animateColorAsState(
         targetValue = if (isFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                else Color.Transparent,
+        else Color.Transparent,
         label = "borderColorAnim"
     )
 
     OutlinedTextField(
         value = query,
-        onValueChange = { query = it },
+        onValueChange = onQueryChange, // Cập nhật ngay khi text thay đổi
         placeholder = {
             Text(
                 text = hint,
@@ -68,12 +70,14 @@ fun SearchBar(
                         contentDescription = "Clear",
                         tint = Color.DarkGray,
                         modifier = Modifier
-                            .clickable (
+                            .clickable(
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             ) {
-                                query = ""
-                            }.padding(4.dp)
+                                onClear() // Gọi callback clear
+                                keyboardController?.hide()
+                            }
+                            .padding(4.dp)
                     )
                 }
             }
@@ -83,8 +87,7 @@ fun SearchBar(
             fontSize = 18.sp,
             fontWeight = FontWeight.Normal
         ),
-        //Enter to search
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search), //Change btn enter to btn search
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(
             onSearch = {
                 onSearch(query)
@@ -93,7 +96,6 @@ fun SearchBar(
         ),
         modifier = modifier
             .fillMaxWidth()
-//            .height(60.dp)
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .shadow(4.dp, RoundedCornerShape(28.dp))
             .onFocusChanged { isFocused = it.isFocused },
@@ -112,5 +114,11 @@ fun SearchBar(
 @Preview(showBackground = true)
 @Composable
 fun SearchBarPreview() {
-    SearchBar()
+    var query by remember { mutableStateOf("") }
+    SearchBar(
+        query = query,
+        onQueryChange = { query = it },
+        onSearch = { /* Handle search */ },
+        onClear = { query = "" }
+    )
 }
