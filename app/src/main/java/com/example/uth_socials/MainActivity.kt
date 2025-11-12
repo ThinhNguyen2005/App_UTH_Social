@@ -17,6 +17,7 @@ import com.example.uth_socials.ui.component.navigation.AppNavGraph
 import com.example.uth_socials.ui.theme.UTH_SocialsTheme
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 import com.example.uth_socials.ui.viewmodel.AuthViewModelFactory
+import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
@@ -27,7 +28,7 @@ import androidx.annotation.RequiresApi
 
 
 class MainActivity : ComponentActivity() {
-    private var bannedStatusListener: ListenerRegistration? = null
+    private lateinit var banStatusViewModel: BanStatusViewModel
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,8 +48,8 @@ class MainActivity : ComponentActivity() {
         val authViewModelFactory = AuthViewModelFactory(auth, userRepository, googleClient)
         val viewModel = ViewModelProvider(this, authViewModelFactory)[AuthViewModel::class.java]
 
-        // ✅ THÊM: Setup real-time banned status listener
-        setupBannedStatusListener()
+        // ✅ THÊM: Khởi tạo BanStatusViewModel để theo dõi trạng thái ban
+        banStatusViewModel = ViewModelProvider(this)[BanStatusViewModel::class.java]
 
         // --- Xử lý kết quả từ Google Sign-In ---
         val launcher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -89,49 +90,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun setupBannedStatusListener() {
-        val currentUser = FirebaseAuth.getInstance().currentUser
-        if (currentUser != null) {
-            val userDocRef = FirebaseFirestore.getInstance()
-                .collection("users")
-                .document(currentUser.uid)
-
-            bannedStatusListener = userDocRef.addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e("MainActivity", "Error listening to banned status", error)
-                    return@addSnapshotListener
-                }
-
-                if (snapshot != null && snapshot.exists()) {
-                    val isBanned = snapshot.getBoolean("isBanned") ?: false
-
-                    if (isBanned) {
-                        Log.w("MainActivity", "User banned - forcing immediate logout")
-
-                        // ✅ FORCE LOGOUT - Sign out from Firebase
-                        FirebaseAuth.getInstance().signOut()
-
-                        // ✅ CLEAR CACHE - Clear admin status cache
-                        SecurityValidator.clearCache()
-
-                        // ✅ RESTART APP - Navigate back to login
-                        val intent = Intent(this, MainActivity::class.java).apply {
-                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                        }
-                        startActivity(intent)
-                        finish()
-                    }
-                }
-            }
-            Log.d("MainActivity", "Banned status listener setup for user: ${currentUser.uid}")
-        }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        // ✅ CLEANUP: Remove listener to prevent memory leaks
-        bannedStatusListener?.remove()
-        bannedStatusListener = null
-        Log.d("MainActivity", "Banned status listener removed")
-    }
+    // ✅ REMOVED: setupBannedStatusListener() - Logic đã được chuyển sang BanStatusViewModel
+    // BanStatusViewModel sẽ tự động theo dõi trạng thái ban real-time
+    // UI components sẽ observe banStatus từ ViewModel thay vì force logout
 }

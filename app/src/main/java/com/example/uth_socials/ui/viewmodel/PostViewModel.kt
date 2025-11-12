@@ -42,8 +42,18 @@ class PostViewModel : ViewModel() {
         loadCategories()
     }
 
+    var showBanDialog by mutableStateOf(false)
+
     fun postArticle(userId: String) {
         viewModelScope.launch {
+            // Check ban status trước khi đăng
+            val userRepository = UserRepository()
+            val user = userRepository.getUser(userId)
+            if (user?.isBanned == true) {
+                showBanDialog = true
+                return@launch
+            }
+            
             isLoading = true
             val result = uploadPost(content, imageUris, selectedCategory.value,userId)
             isLoading = false

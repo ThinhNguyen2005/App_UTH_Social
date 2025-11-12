@@ -27,8 +27,12 @@ import com.example.uth_socials.ui.component.post.PostCard
 import com.example.uth_socials.ui.component.post.PostCardSkeleton
 import com.example.uth_socials.ui.component.common.ReportDialog
 import com.example.uth_socials.ui.component.common.DeleteConfirmDialog
+import com.example.uth_socials.ui.component.common.BannedUserDialog
+import com.example.uth_socials.ui.component.common.EditPostDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
+import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import com.example.uth_socials.data.util.SecurityValidator
+import com.google.firebase.auth.FirebaseAuth
 import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,10 +41,20 @@ fun HomeScreen(
     onNavigateToProfile: (String) -> Unit = {}
 ) {
     val homeViewModel: HomeViewModel = viewModel()
+    val banStatusViewModel: BanStatusViewModel = viewModel()
     val uiState by homeViewModel.uiState.collectAsState()
+    val banStatus by banStatusViewModel.banStatus.collectAsState()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
+    
+    // Update HomeViewModel ban status when BanStatusViewModel changes
+    LaunchedEffect(banStatus.isBanned) {
+        if (uiState.isUserBanned != banStatus.isBanned) {
+            // Ban status changed, but we can't directly update HomeViewModel state
+            // The ban status will be checked before each action anyway
+        }
+    }
 
 
     LaunchedEffect(uiState.commentSheetPostId) {
@@ -220,8 +234,10 @@ fun HomeScreen(
                                     onReportClicked = { homeViewModel.onReportClicked(post.id) },
                                     onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
                                     onHideClicked = { homeViewModel.onHideClicked(post.id) },
+                                    onEditClicked = { homeViewModel.onEditPostClicked(post.id) },
                                     currentUserId = uiState.currentUserId,
-                                    isPostOwnerAdmin = isPostOwnerAdmin
+                                    isPostOwnerAdmin = isPostOwnerAdmin,
+                                    isUserBanned = uiState.isUserBanned
                                 )
                             }
                         }
@@ -270,6 +286,28 @@ fun HomeScreen(
             onDismiss = { homeViewModel.onDismissDeleteDialog() },
             onConfirm = { homeViewModel.onConfirmDelete() },
             isDeleting = uiState.isDeleting
+        )
+
+        // --- 🔸 BANNED USER DIALOG ---
+        BannedUserDialog(
+            isVisible = uiState.showBanDialog,
+            banReason = banStatus.banReason,
+            onDismiss = { homeViewModel.onDismissBanDialog() },
+            onLogout = {
+                FirebaseAuth.getInstance().signOut()
+                homeViewModel.onDismissBanDialog()
+                // Navigation will be handled by AppNavGraph when auth state changes
+            }
+        )
+
+        // --- 🔸 EDIT POST DIALOG ---
+        EditPostDialog(
+            isVisible = uiState.showEditPostDialog,
+            currentContent = uiState.editingPostContent,
+            isLoading = uiState.isSavingPost,
+            errorMessage = uiState.editPostErrorMessage,
+            onDismiss = { homeViewModel.onDismissEditDialog() },
+            onSave = { homeViewModel.onSaveEditedPost() }
         )
 
     }

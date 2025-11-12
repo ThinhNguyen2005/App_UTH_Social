@@ -26,10 +26,16 @@ import com.example.uth_socials.data.repository.UserRepository
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import com.example.uth_socials.ui.theme.UthTeal
+import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeBottomNavigation(navController: NavController) {
+fun HomeBottomNavigation(
+    navController: NavController,
+    onBanDialogRequest: (() -> Unit)? = null
+) {
     data class NavItem(
         val route: String,
         val label: String,
@@ -46,10 +52,15 @@ fun HomeBottomNavigation(navController: NavController) {
         NavItem(Screen.Profile.route, "Profile", Icons.Rounded.AccountCircle, Icons.Outlined.AccountCircle, 0)
     )
     val currentUserIdState = remember { mutableStateOf<String?>(null) }
+    val banStatusViewModel: BanStatusViewModel = viewModel()
+    val banStatus by banStatusViewModel.banStatus.collectAsState()
+    
     LaunchedEffect(Unit) {
-        currentUserIdState.value = UserRepository().getCurrentUserId()
+        val userRepo = UserRepository()
+        currentUserIdState.value = userRepo.getCurrentUserId()
     }
     val currentUserId = currentUserIdState.value
+    val isUserBanned = banStatus.isBanned
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -79,6 +90,12 @@ fun HomeBottomNavigation(navController: NavController) {
                 selected = isSelected,
 
                 onClick = {
+                    // Check ban status trước khi navigate (trừ Home route)
+                    if (isUserBanned && item.route != Screen.Home.route) {
+                        onBanDialogRequest?.invoke()
+                        return@NavigationBarItem
+                    }
+                    
                     val destinationRoute = if (item.route.contains("{userId}")) {
                         currentUserId?.let { Screen.Profile.createRoute(it) } ?: return@NavigationBarItem
                     } else {

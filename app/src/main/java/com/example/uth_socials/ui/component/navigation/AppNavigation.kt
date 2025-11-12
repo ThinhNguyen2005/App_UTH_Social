@@ -39,6 +39,12 @@ import com.example.uth_socials.ui.screen.post.PostScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModelFactory
+import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
+import com.example.uth_socials.ui.component.common.BannedUserDialog
+import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
+import androidx.navigation.NavGraph.Companion.findStartDestination
 
 @Composable
 fun AppNavGraph(
@@ -171,7 +177,37 @@ fun MainScreen() {
         bottomBar = {
             //Cái này coi tao show cái này ở những trang nào, định nghĩa ở trên
             if (showBottomBar) {
-                HomeBottomNavigation(navController = navController)
+                var showBanDialog by remember { mutableStateOf(false) }
+                val banStatusViewModel: BanStatusViewModel = viewModel()
+                val banStatus by banStatusViewModel.banStatus.collectAsState()
+                
+                // Show ban dialog when ban status changes
+                LaunchedEffect(banStatus.isBanned) {
+                    if (banStatus.isBanned && currentRoute != Screen.Home.route) {
+                        showBanDialog = true
+                    }
+                }
+                
+                HomeBottomNavigation(
+                    navController = navController,
+                    onBanDialogRequest = { showBanDialog = true }
+                )
+                
+                // Ban dialog for navigation
+                BannedUserDialog(
+                    isVisible = showBanDialog,
+                    banReason = banStatus.banReason,
+                    onDismiss = { showBanDialog = false },
+                    onLogout = {
+                        FirebaseAuth.getInstance().signOut()
+                        showBanDialog = false
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
             }
         }
     ) { innerPadding ->

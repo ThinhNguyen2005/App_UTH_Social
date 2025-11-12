@@ -23,6 +23,7 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.data.util.DateUtils
 import com.example.uth_socials.ui.component.logo.ChatBottomBar
 import com.example.uth_socials.ui.component.logo.ChatTopAppBar
+import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.example.uth_socials.ui.viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -100,5 +101,18 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
                 )
             }
         }
+        
+        // Ban dialog
+        val showBanDialog by vm.showBanDialog.collectAsState()
+        BannedUserDialog(
+            isVisible = showBanDialog,
+            banReason = null,
+            onDismiss = { vm.onDismissBanDialog() },
+            onLogout = {
+                FirebaseAuth.getInstance().signOut()
+                vm.onDismissBanDialog()
+                onBack()
+            }
+        )
     }
 }

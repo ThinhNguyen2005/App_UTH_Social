@@ -240,8 +240,8 @@ class AdminRepository(
         when (action) {
             AdminAction.DELETE_POST, AdminAction.BAN_USER, AdminAction.WARN_USER -> {
                 postId?.let { pid ->
-                    val post = getPostById(pid)
-                    val userId = post?.userId
+                    val targetPost = getPostById(pid)
+                    val userId = targetPost?.userId
                     when (action) {
                         AdminAction.DELETE_POST -> {
                             deletePost(pid)
@@ -411,7 +411,7 @@ class AdminRepository(
             // If not, we'll need to add it or keep this implementation
             val postDoc = db.collection("posts").document(postId).get().await()
             if (postDoc.exists()) {
-                postDoc.toObject(Post::class.java)?.copy(id = postDoc.id ?: postId)
+                postDoc.toObject(Post::class.java)?.copy(id = postDoc.id)
             } else null
         } catch (e: Exception) {
             Log.e("AdminRepository", "Error getting post $postId", e)

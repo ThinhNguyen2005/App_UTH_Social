@@ -508,6 +508,38 @@ class PostRepository {
      *
      * Similar to post like nhưng cho comments
      */
+    /**
+     * Cập nhật nội dung text của bài viết
+     * 
+     * @param postId ID của bài viết
+     * @param newContent Nội dung mới
+     * @return Result<Unit> - Thành công hoặc thất bại
+     */
+    suspend fun updatePostContent(postId: String, newContent: String): Result<Unit> {
+        return try {
+            val currentUserId = auth.currentUser?.uid
+                ?: return Result.failure(IllegalStateException("User not logged in"))
+            
+            val postRef = postsCollection.document(postId)
+            val postSnapshot = postRef.get().await()
+            
+            if (!postSnapshot.exists()) {
+                return Result.failure(IllegalStateException("Post not found"))
+            }
+            
+            val ownerId = postSnapshot.getString("userId")
+            if (ownerId != currentUserId) {
+                return Result.failure(SecurityException("Only post owner can edit"))
+            }
+            
+            postRef.update("textContent", newContent).await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error updating post content", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun toggleCommentLikeStatus(postId: String, commentId: String, isCurrentlyLiked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
         if (!SecurityValidator.checkCurrentUserId(currentUserId)) {

@@ -37,6 +37,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HideSource
 import androidx.compose.material.icons.filled.Report
@@ -83,9 +84,11 @@ fun PostCard(
     onHideClicked: (String) -> Unit,
     onReportClicked: (String) -> Unit,
     onDeleteClicked: (String) -> Unit,
+    onEditClicked: ((String) -> Unit)? = null,
     currentUserId: String? = null,
     isPostOwnerAdmin: Boolean = false,
     isCurrentUserAdmin: Boolean = false,
+    isUserBanned: Boolean = false,
     onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Card(
@@ -94,7 +97,18 @@ fun PostCard(
     ) {
         Column {
             Column(modifier = Modifier.padding(12.dp)) {
-                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId, isPostOwnerAdmin, isCurrentUserAdmin ,onNavigateToUserProfile)
+                PostHeader(
+                    post = post,
+                    onUserProfileClicked = onUserProfileClicked,
+                    onHideClicked = onHideClicked,
+                    onReportClicked = onReportClicked,
+                    onDeleteClicked = onDeleteClicked,
+                    onEditClicked = onEditClicked,
+                    currentUserId = currentUserId,
+                    isPostOwnerAdmin = isPostOwnerAdmin,
+                    isCurrentUserAdmin = isCurrentUserAdmin,
+                    onNavigateToUserProfile = onNavigateToUserProfile
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
             }
@@ -112,7 +126,7 @@ fun PostCard(
                     onCommentClicked = onCommentClicked,
                     onSaveClicked = onSaveClicked,
                     onShareClicked = onShareClicked,
-                    isEnabled = currentUserId != null
+                    isEnabled = currentUserId != null && !isUserBanned
                 )
             }
             // Đường kẻ ngang cắt giữa các bài viết
@@ -134,6 +148,7 @@ private fun PostHeader(
     onHideClicked: (String) -> Unit,
     onReportClicked: (String) -> Unit,
     onDeleteClicked: (String) -> Unit,
+    onEditClicked: ((String) -> Unit)? = null,
     currentUserId: String? = null,
     isPostOwnerAdmin: Boolean = false,
     isCurrentUserAdmin: Boolean = false,
@@ -203,6 +218,20 @@ private fun PostHeader(
                 )
             }
 
+            // Hiện tùy chọn chỉnh sửa nếu là chủ bài viết
+            if (post.userId == currentUserId && onEditClicked != null) {
+                menuItems.add(
+                    MenuItemData(
+                        text = "Chỉnh sửa",
+                        icon = Icons.Default.Edit,
+                        onClick = {
+                            onEditClicked(post.id)
+                            menuExpanded = false
+                        }
+                    )
+                )
+            }
+            
             // Hiện tùy chọn xóa nếu là admin và chủ bài viết
             if (post.userId == currentUserId || isCurrentUserAdmin) {
                 menuItems.add(

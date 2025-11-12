@@ -65,18 +65,10 @@ class AuthViewModel(
                     // ✅ Đảm bảo profile tồn tại, có thể là user cũ nhưng bị lỗi tạo doc
                     userRepository.createUserProfileIfNotExists(firebaseUser)
 
-
-                    val userProfile = userRepository.getUser(firebaseUser.uid)
-                    if (userProfile?.isBanned == true) {
-                        // Nếu bị cấm, buộc đăng xuất và báo lỗi
-                        auth.signOut()
-                        SecurityValidator.clearCache()
-                        _state.value = AuthState.Error("Tài khoản của bạn đã bị khóa.")
-                    } else {
-                        // Nếu không, cho phép đăng nhập
-                        _state.value = AuthState.Success("Đăng nhập thành công")
-                        updateUserToken()
-                    }
+                    // ✅ THAY ĐỔI: Cho phép đăng nhập ngay cả khi bị ban
+                    // BanStatusViewModel sẽ quản lý trạng thái ban và UI sẽ hiển thị dialog
+                    _state.value = AuthState.Success("Đăng nhập thành công")
+                    updateUserToken()
 
 
                 } else {
@@ -109,7 +101,7 @@ class AuthViewModel(
         }
     }
 
-    fun loginWithGoogle(activity: Activity, launcher: (Intent) -> Unit) {
+    fun loginWithGoogle(@Suppress("UNUSED_PARAMETER") activity: Activity, launcher: (Intent) -> Unit) {
         googleClient.signOut().addOnCompleteListener {
             launcher(googleClient.signInIntent)
         }
@@ -130,21 +122,12 @@ class AuthViewModel(
                 if (firebaseUser != null) {
                     // ✅ GỌI HÀM TẠO PROFILE NGAY SAU KHI ĐĂNG NHẬP GOOGLE THÀNH CÔNG
                     userRepository.createUserProfileIfNotExists(firebaseUser)
-                    // 2. Lấy hồ sơ người dùng từ Firestore
-                    val userProfile = userRepository.getUser(firebaseUser.uid)
-
-                    // 3. Kiểm tra trường isBanned
-                    if (userProfile?.isBanned == true) {
-                        // Nếu bị cấm, đăng xuất (cả Firebase và Google) và báo lỗi
-                        auth.signOut()
-                        googleClient.signOut() // Đăng xuất khỏi Google
-                        SecurityValidator.clearCache()
-                        _state.value = AuthState.Error("Tài khoản của bạn đã bị khóa.")
-                    } else {
-                        // Nếu không, đăng nhập thành công
-                        _state.value = AuthState.Success("Đăng nhập Google thành công")
-                        updateUserToken()
-                    }                } else {
+                    
+                    // ✅ THAY ĐỔI: Cho phép đăng nhập ngay cả khi bị ban
+                    // BanStatusViewModel sẽ quản lý trạng thái ban và UI sẽ hiển thị dialog
+                    _state.value = AuthState.Success("Đăng nhập Google thành công")
+                    updateUserToken()
+                } else {
                     _state.value = AuthState.Error("Không lấy được thông tin người dùng.")
                 }
             } catch (e: Exception) {

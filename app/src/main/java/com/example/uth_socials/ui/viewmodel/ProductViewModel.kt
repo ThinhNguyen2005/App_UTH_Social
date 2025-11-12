@@ -42,9 +42,18 @@ class ProductViewModel : ViewModel() {
     var isLoading by mutableStateOf(false)
     var success by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
+    var showBanDialog by mutableStateOf(false)
 
     fun postArticle(userId: String) {
         viewModelScope.launch {
+            // Check ban status trước khi đăng
+            val userRepository = com.example.uth_socials.data.repository.UserRepository()
+            val user = userRepository.getUser(userId)
+            if (user?.isBanned == true) {
+                showBanDialog = true
+                return@launch
+            }
+            
             isLoading = true
             val result = uploadPost(name, description, type, price, imageUri, userId)
             isLoading = false
@@ -66,7 +75,7 @@ class ProductViewModel : ViewModel() {
             // Nếu có ảnh → upload lên Storage
             if (imageUri != null) {
                 val ref = storage.reference.child("posts/${UUID.randomUUID()}.jpg")
-                ref.putFile(imageUri as Uri).await()
+                ref.putFile(imageUri).await()
                 imageUrl = ref.downloadUrl.await().toString()
             }
 
