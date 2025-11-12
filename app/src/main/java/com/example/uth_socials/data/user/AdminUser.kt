@@ -2,7 +2,6 @@ package com.example.uth_socials.data.user
 
 import com.example.uth_socials.data.post.AdminReport
 import com.example.uth_socials.data.post.Category
-import com.example.uth_socials.data.post.User
 import com.google.firebase.Timestamp
 
 data class AdminUser(

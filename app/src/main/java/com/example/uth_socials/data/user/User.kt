@@ -7,7 +7,7 @@ import com.google.firebase.firestore.IgnoreExtraProperties
 @IgnoreExtraProperties
 data class User(
     var username: String = "",
-    var avatarUrl: String = "",
+    var avatarUrl: String? = null,
     var followers: List<String> = emptyList(),
     var following: List<String> = emptyList(),
     var hiddenPosts: List<String> = emptyList(),

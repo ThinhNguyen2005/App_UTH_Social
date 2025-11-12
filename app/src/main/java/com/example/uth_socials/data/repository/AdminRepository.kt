@@ -1,8 +1,12 @@
 package com.example.uth_socials.data.repository
 
 import android.util.Log
-import com.example.uth_socials.data.post.*
+import com.example.uth_socials.data.post.AdminAction
+import com.example.uth_socials.data.post.AdminReport
+import com.example.uth_socials.data.post.Report
+import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.user.AdminUser
+import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.user.User as UserEntity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -25,9 +29,12 @@ class AdminRepository(
      */
     suspend fun isAdmin(userId: String): Boolean {
         return try {
-            adminCollection.document(userId).get().await().exists()
+            val adminDoc = adminCollection.document(userId).get().await()
+            val exists = adminDoc.exists()
+            Log.d("AdminRepository", "isAdmin check: userId=$userId, adminDocExists=$exists")
+            exists
         } catch (e: Exception) {
-            Log.e("AdminRepository", "Error checking admin status", e)
+            Log.e("AdminRepository", "Error checking admin status for $userId", e)
             false
         }
     }
@@ -166,12 +173,18 @@ class AdminRepository(
                 
                 // ✅ FIX: Lấy reporter user data, fallback với ID nếu user không tồn tại
                 val reporter = userRepository.getUser(report.reportedBy)?.toPostUser()
-                    ?: User(id = report.reportedBy, username = "[Deleted User]")
-                
+                    ?: User().apply {
+                        username = "[Deleted User]"
+                        id = report.reportedBy
+                    }
+
                 // ✅ FIX: Lấy reported user data, fallback nếu post bị xóa hoặc user không tồn tại
-                val reportedUser = post?.let { 
+                val reportedUser = post?.let {
                     userRepository.getUser(it.userId)?.toPostUser()
-                        ?: User(id = it.userId, username = "[Deleted User]")
+                        ?: User().apply {
+                            username = "[Deleted User]"
+                            id = it.userId
+                        }
                 }
 
                 AdminReport(
@@ -266,9 +279,18 @@ class AdminRepository(
      * Ban a user (delegates to UserRepository for consistency)
      */
     suspend fun banUser(userId: String, adminId: String, reason: String): Result<Unit> = runCatching {
-        // Use UserRepository's ban logic for consistency
-        // Note: This assumes UserRepository has banUser method, if not we'll implement it here
+        Log.d("AdminRepository", "🔄 Starting ban process: userId=$userId, adminId=$adminId, reason=$reason")
+
+        // Check if admin has permission
+        val isAdminUser = isAdmin(adminId)
+        Log.d("AdminRepository", "Admin permission check: adminId=$adminId, isAdmin=$isAdminUser")
+
+        if (!isAdminUser) {
+            throw SecurityException("User $adminId does not have admin privileges to ban users")
+        }
+
         val userRef = db.collection("users").document(userId)
+        Log.d("AdminRepository", "Updating user document: $userId")
 
         val banData = mapOf(
             "isBanned" to true,
@@ -277,8 +299,20 @@ class AdminRepository(
             "banReason" to reason
         )
 
+        Log.d("AdminRepository", "Ban data: $banData")
         userRef.update(banData).await()
-        Log.d("AdminRepository", "User $userId banned by admin $adminId for: $reason")
+
+        // ✅ Verify the update was successful
+        val updatedUser = userRepository.getUser(userId)
+        val isActuallyBanned = updatedUser?.isBanned == true
+        Log.d("AdminRepository", "✅ Ban completed. Verification: userId=$userId, isBanned=$isActuallyBanned")
+
+        if (!isActuallyBanned) {
+            Log.e("AdminRepository", "❌ BAN VERIFICATION FAILED: User $userId should be banned but isBanned=$isActuallyBanned")
+            throw Exception("Ban verification failed - user state not updated correctly")
+        }
+
+        Log.d("AdminRepository", "🎉 User $userId banned successfully by admin $adminId for: $reason")
     }
 
     /**
@@ -350,7 +384,6 @@ class AdminRepository(
                 User(
                     id = doc.id,
                     username = doc.getString("username") ?: "",
-                    email = doc.getString("email") ?: "",
                     avatarUrl = doc.getString("avatarUrl"),
                     isBanned = true,
                     bannedAt = doc.getTimestamp("bannedAt"),
@@ -378,7 +411,7 @@ class AdminRepository(
             // If not, we'll need to add it or keep this implementation
             val postDoc = db.collection("posts").document(postId).get().await()
             if (postDoc.exists()) {
-                postDoc.toObject(Post::class.java)?.copy(id = postDoc.id)
+                postDoc.toObject(Post::class.java)?.copy(id = postDoc.id ?: postId)
             } else null
         } catch (e: Exception) {
             Log.e("AdminRepository", "Error getting post $postId", e)
@@ -405,18 +438,17 @@ class AdminRepository(
      * Convert UserEntity to User (for AdminReport compatibility)
      */
     private fun UserEntity.toPostUser(): User {
-        return User(
-            id = this.id,
-            username = this.username,
-            email = "", // UserEntity doesn't have email field
-            avatarUrl = this.avatarUrl.takeIf { it.isNotEmpty() },
-            isBanned = this.isBanned,
-            bannedAt = this.bannedAt,
-            bannedBy = this.bannedBy,
-            banReason = this.banReason,
-            violationCount = this.violationCount,
-            warningCount = this.warningCount
-        )
+        return User().apply {
+            username = this@toPostUser.username
+            avatarUrl = this@toPostUser.avatarUrl
+            id = this@toPostUser.id
+            isBanned = this@toPostUser.isBanned
+            bannedAt = this@toPostUser.bannedAt
+            bannedBy = this@toPostUser.bannedBy
+            banReason = this@toPostUser.banReason
+            violationCount = this@toPostUser.violationCount
+            warningCount = this@toPostUser.warningCount
+        }
     }
 
     // ============ ADMIN STATUS MANAGEMENT ============

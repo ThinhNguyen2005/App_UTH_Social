@@ -70,6 +70,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.core.*
+import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun PostCard(
@@ -643,10 +644,10 @@ fun PostCardSkeleton(
 }
 
 // Preview for PostCardSkeleton
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Preview(showBackground = true)
 @Composable
 fun PostCardSkeletonPreview() {
-    androidx.compose.material3.MaterialTheme {
+    MaterialTheme {
         Column {
             repeat(3) {
                 PostCardSkeleton()

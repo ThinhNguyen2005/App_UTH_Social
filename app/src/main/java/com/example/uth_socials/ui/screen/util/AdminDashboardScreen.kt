@@ -24,7 +24,7 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.data.post.AdminAction
 import com.example.uth_socials.data.post.AdminReport
 import com.example.uth_socials.data.post.Category
-import com.example.uth_socials.data.post.User
+import com.example.uth_socials.data.user.User  // ✅ Import từ data.user thay vì data.post
 import com.example.uth_socials.data.repository.AdminRepository
 import com.example.uth_socials.data.user.AdminUser
 import com.example.uth_socials.ui.component.logo.OnlyLogo
@@ -477,7 +477,6 @@ private fun BannedUserCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(user.username, style = MaterialTheme.typography.titleMedium)
-                    Text(user.email, style = MaterialTheme.typography.bodyMedium)
 
                     Spacer(modifier = Modifier.height(8.dp))
 

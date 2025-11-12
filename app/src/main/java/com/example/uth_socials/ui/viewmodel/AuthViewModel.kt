@@ -93,12 +93,10 @@ class AuthViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = AuthState.Loading
             try {
-                // ✅ Dùng .await()
                 val result = auth.createUserWithEmailAndPassword(email, password).await()
                 val firebaseUser = result.user
 
                 if (firebaseUser != null) {
-                    // ✅ GỌI HÀM TẠO PROFILE NGAY SAU KHI ĐĂNG KÝ THÀNH CÔNG
                     userRepository.createUserProfileIfNotExists(firebaseUser)
                     _state.value = AuthState.Success("Đăng ký thành công")
                     updateUserToken()

@@ -9,6 +9,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.firestore.Source
 
 /**
  * UserRepository - Quản lý tất cả thao tác với dữ liệu người dùng
@@ -136,7 +137,7 @@ class UserRepository {
      */
     suspend fun getUser(userId: String): User? {
         return try {
-            val snapshot = usersCollection.document(userId).get().await()
+            val snapshot = usersCollection.document(userId).get(Source.SERVER).await()
             snapshot.toObject(User::class.java)?.also { user ->
                 user.userId = user.userId ?: snapshot.id
                 user.id = snapshot.id

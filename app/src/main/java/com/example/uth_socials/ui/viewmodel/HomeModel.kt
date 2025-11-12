@@ -106,7 +106,7 @@ class HomeViewModel(
         // ✅ Delay admin check đến sau 1.5s - không cần lúc khởi động
         viewModelScope.launch(Dispatchers.IO) {
             delay(1500)
-            checkAdminStatus()
+        checkAdminStatus()
         }
     }
 

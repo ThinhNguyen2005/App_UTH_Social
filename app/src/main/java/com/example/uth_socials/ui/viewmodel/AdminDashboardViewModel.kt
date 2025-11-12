@@ -137,17 +137,30 @@ class AdminDashboardViewModel : ViewModel() {
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                     ?: throw IllegalStateException("No admin user logged in")
 
+                // ✅ DEBUG: Check admin status trước khi ban
+                val isCurrentUserAdmin = adminRepository.isCurrentUserAdmin()
+                Log.d("AdminDashboardViewModel", "Admin status check: currentUserId=$currentUserId, isAdmin=$isCurrentUserAdmin")
+
+                if (!isCurrentUserAdmin) {
+                    throw IllegalStateException("Current user is not admin. Cannot ban users.")
+                }
+
+                Log.d("AdminDashboardViewModel", "Attempting to ban user: $userId by admin: $currentUserId, reason: $reason")
+
                 val result = adminRepository.banUser(userId, currentUserId, reason)
                 if (result.isSuccess) {
-                    Log.d("AdminDashboardViewModel", "Chặn user thành công: ${userId}.")
+                    Log.d("AdminDashboardViewModel", "✅ Ban successful: $userId")
                     //Làm mới danh sách người bị chặn
                     loadBannedUsersBackground()
                 } else {
+                    val errorMsg = result.exceptionOrNull()?.message ?: "Unknown error"
+                    Log.e("AdminDashboardViewModel", "❌ Ban failed: $errorMsg")
                     _uiState.update {
-                        it.copy(error = "Chặn thất bại: ${result.exceptionOrNull()?.message}")
+                        it.copy(error = "Chặn thất bại: $errorMsg")
                     }
                 }
             } catch (e: Exception) {
+                Log.e("AdminDashboardViewModel", "❌ Ban error: ${e.message}", e)
                 _uiState.update {
                     it.copy(error = "Chặn thất bại: ${e.message}")
                 }
