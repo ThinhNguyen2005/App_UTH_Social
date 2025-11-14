@@ -87,7 +87,12 @@ class PostRepository {
         // Lắng nghe thay đổi thời gian thực
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    Log.w("CategoryRepository", "Permission denied listening to categories. Emitting empty list.")
+                    trySend(emptyList()) // Gửi list rỗng thay vì crash
+                } else {
+                    close(error) // Chỉ đóng với các lỗi nghiêm trọng khác
+                }
                 return@addSnapshotListener
             }
             if (snapshot != null) {

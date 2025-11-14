@@ -32,13 +32,13 @@ import com.example.uth_socials.ui.component.common.EditPostDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import com.example.uth_socials.data.util.SecurityValidator
-import com.google.firebase.auth.FirebaseAuth
 import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToProfile: (String) -> Unit = {}
+    onNavigateToProfile: (String) -> Unit = {},
+    onLogout: () -> Unit
 ) {
     val homeViewModel: HomeViewModel = viewModel()
     val banStatusViewModel: BanStatusViewModel = viewModel()
@@ -50,10 +50,8 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
 
-    // Update HomeViewModel ban status when BanStatusViewModel changes
     LaunchedEffect(banStatus.isBanned) {
         if (uiState.isUserBanned != banStatus.isBanned) {
-            // Update HomeViewModel ban status khi BanStatusViewModel thay đổi
             homeViewModel.updateBanStatus(banStatus.isBanned)
         }
     }
@@ -73,7 +71,6 @@ fun HomeScreen(
         if (uiState.commentSheetPostId != null) {
             sheetState.show()
         } else {
-            // Đóng sheet nếu nó đang mở
             if (sheetState.isVisible) {
                 sheetState.hide()
             }
@@ -213,22 +210,19 @@ fun HomeScreen(
                         ) {
                             items(filteredPosts, key = { it.id }) { post ->
                                 // check admin cho từng post owner
-                                var isPostOwnerAdmin by remember(post.userId) { mutableStateOf(adminStatusCache[post.userId] ?: false) }
 
                                 LaunchedEffect(post.userId) {
                                     if (adminStatusCache[post.userId] == null) {
                                         try {
                                             val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(post.userId)
                                             adminStatusCache[post.userId] = isAdmin
-                                            isPostOwnerAdmin = isAdmin
                                         } catch (e: CancellationException) {
                                             throw e
                                         } catch (_: Exception) {
                                             adminStatusCache[post.userId] = false
-                                            isPostOwnerAdmin = false
                                         }
                                     } else {
-                                        isPostOwnerAdmin = adminStatusCache[post.userId] ?: false
+                                        adminStatusCache[post.userId] ?: false
                                     }
                                 }
 
@@ -303,8 +297,10 @@ fun HomeScreen(
             banReason = banStatus.banReason,
             onDismiss = { homeViewModel.onDismissBanDialog() },
             onLogout = {
-                FirebaseAuth.getInstance().signOut()
+                homeViewModel.cleanupOnLogout()
+//                FirebaseAuth.getInstance().signOut()
                 homeViewModel.onDismissBanDialog()
+                onLogout()
             }
         )
 

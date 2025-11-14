@@ -4,15 +4,11 @@ import android.app.Activity
 import android.content.Intent
 import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -44,7 +40,6 @@ import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
-import androidx.navigation.NavGraph.Companion.findStartDestination
 
 @Composable
 fun AppNavGraph(
@@ -130,17 +125,24 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
         startDestination = Screen.Home.route,
         route = Graph.MAIN
     ) {
-        composable(Screen.Home.route) { MainScreen() }
-    }
+        composable(Screen.Home.route) {
+            MainScreen(rootNavController = navController) // <-- THAY ĐỔI Ở ĐÂY
+        }    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(rootNavController: NavHostController) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
+    val onLogout: () -> Unit = {
+        FirebaseAuth.getInstance().signOut()
+        rootNavController.navigate(Graph.AUTH) {
+            popUpTo(Graph.MAIN) { inclusive = true } // Xóa toàn bộ backstack của MAIN
+        }
+        Log.d("AppNavigation", "Logout triggered! Navigating to AUTH graph.")
+    }
     val showBottomBar = when (currentRoute) {
         Screen.Home.route,
         Screen.Market.route,
@@ -198,20 +200,11 @@ fun MainScreen() {
                     isVisible = showBanDialog,
                     banReason = banStatus.banReason,
                     onDismiss = { showBanDialog = false },
-                    onLogout = {
-                        FirebaseAuth.getInstance().signOut()
-                        showBanDialog = false
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                inclusive = true
-                            }
-                        }
-                    }
+                    onLogout = onLogout
                 )
             }
         }
     ) { innerPadding ->
-        // Cần thêm composable cho trang phụ trong đó định nghĩa back các kiểu tùy trang
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
@@ -226,7 +219,8 @@ fun MainScreen() {
                         navController.navigate(Screen.Profile.createRoute(userId)) {
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    onLogout = onLogout
                 )
             }
             //Shop                            - Trang test

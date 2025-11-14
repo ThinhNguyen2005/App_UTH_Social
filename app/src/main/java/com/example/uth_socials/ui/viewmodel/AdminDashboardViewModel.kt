@@ -15,7 +15,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
+// Chặn bỏ chặn user, làm mới khi có thay đổi
+// Cấp, thu quyền admin
+// Category load, add, update, delete
+//xem báo cáo, load admin, load danh mục, load người dùng bị chặn
 class AdminDashboardViewModel : ViewModel() {
     private val categoryRepository = CategoryRepository()
     private val adminRepository = AdminRepository()
@@ -139,7 +142,11 @@ class AdminDashboardViewModel : ViewModel() {
                 }
         }
     }
-
+    fun refreshBannedUsers() {
+        viewModelScope.launch(Dispatchers.IO) {
+            loadBannedUsersBackground()
+        }
+    }
     //chặn user
     fun banUser(userId: String, reason: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -161,6 +168,7 @@ class AdminDashboardViewModel : ViewModel() {
                     _uiState.update { it.copy(error = "Chặn thất bại: ${e.message}") }
                 }
         }
+        refreshBannedUsers()
     }
 
     // Bỏ chặn user
@@ -181,6 +189,7 @@ class AdminDashboardViewModel : ViewModel() {
                     }
                 }
         }
+        refreshBannedUsers()
     }
 
     //Cấp quyền admin
@@ -233,7 +242,7 @@ class AdminDashboardViewModel : ViewModel() {
         }
     }
 
-    // Category
+    // Category load, add, update, delete
     private suspend fun loadCategoriesBackground() {
         _uiState.update { it.copy(isLoadingCategories = true) }
         try {

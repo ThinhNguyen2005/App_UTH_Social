@@ -28,15 +28,7 @@ local.properties
 .kotlin
 .idea/
 /.idea
-# Dưới đây là các quy tắc cụ thể hơn để loại trừ, đề phòng trường hợp .idea/ bị commit nhầm
-.idea/caches/
-.idea/libraries/
-.idea.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-.idea/deployment.xml
-.idea/misc.xml
+
 
 # =================================================================
 # Các file build và đóng gói

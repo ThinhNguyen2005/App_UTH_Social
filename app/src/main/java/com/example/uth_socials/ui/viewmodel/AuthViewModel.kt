@@ -7,9 +7,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.repository.UserRepository
-import com.example.uth_socials.data.util.SecurityValidator
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.firebase.Firebase
@@ -142,7 +140,7 @@ class AuthViewModel(
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
-                println("❌ Lấy token thất bại: ${task.exception}")
+                println("Lấy token thất bại: ${task.exception}")
                 return@addOnCompleteListener
             }
 
@@ -153,10 +151,10 @@ class AuthViewModel(
                 .document(user.uid)
                 .update("token", token)
                 .addOnSuccessListener {
-                    println("✅ Token người dùng đã được cập nhật: $token")
+                    println("Token người dùng đã được cập nhật: $token")
                 }
                 .addOnFailureListener { e ->
-                    println("❌ Lỗi khi lưu token: $e")
+                    println("Lỗi khi lưu token: $e")
                 }
         }
     }

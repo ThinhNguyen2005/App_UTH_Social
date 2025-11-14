@@ -79,24 +79,57 @@ class HomeViewModel(
     private var commentsJob: Job? = null
     private var categoriesJob: Job? = null
     private val savingPosts = mutableSetOf<String>()
-
-    init {
-        loadCurrentUser()
-        loadCategoriesAndInitialPosts()
-        loadHiddenPosts()
-        loadBanStatus()
-
-    }
-
-    private fun loadCurrentUser() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val currentUser = FirebaseAuth.getInstance().currentUser
-            if (currentUser != null) {
-                _uiState.update { it.copy(currentUserId = currentUser.uid) }
-                checkAccout()
-            }
+    private val auth = FirebaseAuth.getInstance()
+    private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+        val user = firebaseAuth.currentUser
+        if (user != null) {
+            Log.d("HomeViewModel", "Auth state changed: User IN (${user.uid}). Loading data.")
+            loadDataForUser(user.uid)
+        } else {
+            Log.d("HomeViewModel", "Auth state changed: User OUT. Clearing data.")
+            clearDataOnLogout()
         }
     }
+    init {
+        auth.addAuthStateListener(authStateListener)
+
+        val currentUser = auth.currentUser
+        if (currentUser != null) {
+            Log.d("HomeViewModel", "Init: User already logged in. Loading data.")
+            loadDataForUser(currentUser.uid)
+        } else {
+            Log.d("HomeViewModel", "Init: No user. Loading public data only.")
+            loadCategoriesAndInitialPosts()
+        }
+    }
+    private fun clearDataOnLogout() {
+        commentsJob?.cancel()
+        postsJob?.cancel()
+
+        _uiState.update {
+            it.copy(
+                currentUserId = null,
+                isCurrentUserAdmin = false,
+                currentUserRole = null,
+                isUserBanned = false,
+                hiddenPostIds = emptySet(),
+                posts = it.posts.map { post ->
+                    post.copy(isLiked = false, isSaved = false)
+                }
+            )
+        }
+        loadCategoriesAndInitialPosts()
+    }
+    private fun loadDataForUser(userId: String) {
+        _uiState.update { it.copy(currentUserId = userId, isLoading = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            loadCategoriesAndInitialPosts()
+            loadHiddenPosts()
+            loadBanStatus()
+            checkAccout() // Kiểm tra admin
+        }
+    }
+
     private fun loadBanStatus() {
         viewModelScope.launch(Dispatchers.IO) {
             val currentUser = FirebaseAuth.getInstance().currentUser ?: return@launch
@@ -751,9 +784,11 @@ class HomeViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        auth.removeAuthStateListener(authStateListener)
         categoriesJob?.cancel()
         commentsJob?.cancel()
         postsJob?.cancel()
+        Log.d("HomeViewModel", "onCleared: Listeners and jobs cancelled.")
     }
 
     fun clearError() {
@@ -766,6 +801,24 @@ class HomeViewModel(
     fun updateBanStatus(isBanned: Boolean) {
         _uiState.update { it.copy(isUserBanned = isBanned) }
         Log.d("HomeViewModel", "Ban status updated: $isBanned")
+    }
+    fun cleanupOnLogout() {
+        Log.d("HomeViewModel", "Cleaning up listeners on logout")
+
+        // Cancel tất cả jobs
+        categoriesJob?.cancel()
+        commentsJob?.cancel()
+        postsJob?.cancel()
+
+        // Reset jobs
+        categoriesJob = null
+        commentsJob = null
+        postsJob = null
+
+        // Reset state
+        _uiState.update { HomeUiState() }
+
+        Log.d("HomeViewModel", "Cleanup completed")
     }
 
 }
