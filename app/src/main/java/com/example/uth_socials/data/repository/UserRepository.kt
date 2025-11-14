@@ -1,12 +1,15 @@
 package com.example.uth_socials.data.repository
 
+import android.net.Uri
 import android.util.Log
 import com.example.uth_socials.data.user.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 
 class UserRepository {
@@ -21,19 +24,20 @@ class UserRepository {
     /**
      * Gọi hàm này ngay sau khi người dùng đăng nhập bằng Google thành công.
      */
-    suspend fun createUserProfileIfNotExists(firebaseUser: FirebaseUser) {
+    suspend fun createUserProfileIfNotExists(firebaseUser: FirebaseUser, username: String? = null) {
         val userRef = usersCollection.document(firebaseUser.uid)
         if (userRef.get().await().exists()) {
-            // Người dùng đã tồn tại, không cần làm gì thêm
+            // Nếu user đã tồn tại -> bỏ qua
             return
         }
 
         val newUser = User(
             id = firebaseUser.uid,
             userId = firebaseUser.uid,
-            username = firebaseUser.displayName ?: "Người dùng mới",
-            avatarUrl = firebaseUser.photoUrl?.toString() ?: "",
-            bio = "Xin chào!", // Bio mặc định
+            username = username ?: firebaseUser.displayName ?: "Người dùng mới",
+            avatarUrl = firebaseUser.photoUrl?.toString()
+                ?: "https://firebasestorage.googleapis.com/v0/b/uthsocial-a2f90.firebasestorage.app/o/avatarDef.jpg?alt=media&token=b6363023-1c54-4370-a2f1-09127c4673da",
+            bio = "",
             followers = emptyList(),
             following = emptyList(),
             hiddenPosts = emptyList(),
@@ -42,11 +46,12 @@ class UserRepository {
 
         try {
             userRef.set(newUser).await()
-            Log.d("UserRepository", "Created new user profile for ${firebaseUser.uid}")
+            Log.d("UserRepository", "✅ Created user profile for ${firebaseUser.uid}")
         } catch (e: Exception) {
-            Log.e("UserRepository", "Error creating user profile", e)
+            Log.e("UserRepository", "❌ Error creating user profile", e)
         }
     }
+
 
     private suspend fun ensureUserDocument(userId: String) {
         val docRef = usersCollection.document(userId)
@@ -85,7 +90,11 @@ class UserRepository {
     /**
      * Xử lý logic theo dõi/bỏ theo dõi.
      */
-    suspend fun toggleFollow(currentUserId: String, targetUserId: String, isCurrentlyFollowing: Boolean): Boolean {
+    suspend fun toggleFollow(
+        currentUserId: String,
+        targetUserId: String,
+        isCurrentlyFollowing: Boolean
+    ): Boolean {
         ensureUserDocument(currentUserId)
         ensureUserDocument(targetUserId)
         val currentUserRef = usersCollection.document(currentUserId)
@@ -125,4 +134,54 @@ class UserRepository {
             false
         }
     }
+    suspend fun uploadProfileImage(imageUri: Uri): String {
+        val user =auth.currentUser?: throw Exception("Chưa đăng nhập")
+        val storageRef = FirebaseStorage.getInstance().reference
+
+        val imageRef = storageRef.child("profile_images/${user.uid}/avatar.jpg")
+        imageRef.putFile(imageUri).await()
+
+        val downloadUrl = imageRef.downloadUrl.await().toString()
+        return downloadUrl
+
+    }
+
+    // (Trong file UserRepository.kt)
+
+    suspend fun updateUserProfile(username: String, campus: String, phone: String, major: String, avatarUrl: String?) {
+        val user = auth.currentUser ?: throw Exception("Chưa đăng nhập")
+        val uid = user.uid // Lấy uid từ 'user'
+
+        val updates = mutableMapOf<String, Any>()
+        updates["username"] = username
+        updates["campus"] = campus
+        updates["phone"] = phone
+        updates["major"] = major
+
+        if (avatarUrl != null) {
+            updates["avatarUrl"] = avatarUrl
+        }
+
+        val profileUpdatesBuilder = UserProfileChangeRequest.Builder()
+            .setDisplayName(username)
+        if (avatarUrl != null) {
+            profileUpdatesBuilder.setPhotoUri(Uri.parse(avatarUrl))
+        }
+
+
+        try {
+            // 3. 🔽 CẬP NHẬT FIRESTORE (CHỈ 1 LẦN)
+            usersCollection.document(uid).update(updates).await()
+
+            // 4. 🔽 CẬP NHẬT AUTH PROFILE (DÙNG BIẾN 'user' BÊN TRÊN)
+            user.updateProfile(profileUpdatesBuilder.build()).await()
+
+            Log.d("UserRepository", "Cập nhật thông tin người dùng thành công cho $uid")
+
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Lỗi khi cập nhật thông tin người dùng", e)
+            throw e
+        }
+    }
+
 }

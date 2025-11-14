@@ -100,7 +100,7 @@ class AuthViewModel(
 //        }
 //    }
 
-    fun register(email: String, password: String) {
+    fun register(email: String, password: String,username: String) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = AuthState.Loading
             try {
@@ -110,7 +110,7 @@ class AuthViewModel(
 
                 if (firebaseUser != null) {
                     // ✅ GỌI HÀM TẠO PROFILE NGAY SAU KHI ĐĂNG KÝ THÀNH CÔNG
-                    userRepository.createUserProfileIfNotExists(firebaseUser)
+                    userRepository.createUserProfileIfNotExists(firebaseUser,username)
                     _state.value = AuthState.Success("Đăng ký thành công")
                     updateUserToken()
                 } else {
