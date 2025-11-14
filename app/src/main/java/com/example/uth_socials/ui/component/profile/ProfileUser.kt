@@ -30,7 +30,7 @@ import coil.compose.AsyncImage
 @Composable
 fun ProfileHeader(
     username: String,
-    avatarUrl: String,
+    avatarUrl: String?,
     bio: String,
     followers: Int,
     following: Int,
@@ -130,7 +130,7 @@ fun ProfileHeader(
 @Composable
 private fun ProfileInfoCard(
     username: String,
-    avatarUrl: String,
+    avatarUrl: String?,
     bio: String,
     followers: Int,
     following: Int,
@@ -196,7 +196,7 @@ private fun ProfileInfoCard(
         }
 
         AsyncImage(
-            model = avatarUrl,
+            model = avatarUrl.takeIf { it?.isNotEmpty() == true },  // ✅ Handle nullable and empty
             contentDescription = "User Avatar",
             contentScale = ContentScale.Crop,
             modifier = Modifier

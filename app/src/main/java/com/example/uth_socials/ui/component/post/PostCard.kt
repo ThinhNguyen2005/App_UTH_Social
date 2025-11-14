@@ -37,6 +37,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HideSource
 import androidx.compose.material.icons.filled.Report
@@ -58,23 +59,19 @@ import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.material.icons.rounded.ImageNotSupported
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.SubcomposeAsyncImage
-//import com.android.volley.toolbox.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlin.math.abs
 import coil.request.ImageRequest
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.core.*
-import androidx.compose.ui.draw.drawWithContent
-
+import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun PostCard(
@@ -87,8 +84,10 @@ fun PostCard(
     onHideClicked: (String) -> Unit,
     onReportClicked: (String) -> Unit,
     onDeleteClicked: (String) -> Unit,
+    onEditClicked: ((String) -> Unit)? = null,
     currentUserId: String? = null,
-    isPostOwnerAdmin: Boolean = false,
+    isCurrentUserAdmin: Boolean = false,
+    isUserBanned: Boolean = false,
     onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Card(
@@ -97,7 +96,17 @@ fun PostCard(
     ) {
         Column {
             Column(modifier = Modifier.padding(12.dp)) {
-                PostHeader(post, onUserProfileClicked, onHideClicked, onReportClicked, onDeleteClicked, currentUserId, isPostOwnerAdmin, onNavigateToUserProfile)
+                PostHeader(
+                    post = post,
+                    onUserProfileClicked = onUserProfileClicked,
+                    onHideClicked = onHideClicked,
+                    onReportClicked = onReportClicked,
+                    onDeleteClicked = onDeleteClicked,
+                    onEditClicked = onEditClicked,
+                    currentUserId = currentUserId,
+                    isCurrentUserAdmin = isCurrentUserAdmin,
+                    onNavigateToUserProfile = onNavigateToUserProfile
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
             }
@@ -109,7 +118,14 @@ fun PostCard(
             // Column này chứa các hành động (actions) và cũng có padding
             Column(modifier = Modifier.padding(vertical = 0.dp, horizontal = 12.dp)) {//Khoảng cách ngang
                 Spacer(modifier = Modifier.height(0.dp))
-                PostActions(post, onLikeClicked, onCommentClicked, onSaveClicked, onShareClicked)
+                PostActions(
+                    post = post,
+                    onLikeClicked = onLikeClicked,
+                    onCommentClicked = onCommentClicked,
+                    onSaveClicked = onSaveClicked,
+                    onShareClicked = onShareClicked,
+                    isEnabled = currentUserId != null && !isUserBanned
+                )
             }
             // Đường kẻ ngang cắt giữa các bài viết
             HorizontalDivider(
@@ -130,8 +146,10 @@ private fun PostHeader(
     onHideClicked: (String) -> Unit,
     onReportClicked: (String) -> Unit,
     onDeleteClicked: (String) -> Unit,
+    onEditClicked: ((String) -> Unit)? = null,
     currentUserId: String? = null,
     isPostOwnerAdmin: Boolean = false,
+    isCurrentUserAdmin: Boolean = false,
     onNavigateToUserProfile: ((String) -> Unit)? = null
 ) {
     Row(
@@ -198,8 +216,22 @@ private fun PostHeader(
                 )
             }
 
-            // Chỉ hiển thị "Xóa" nếu người dùng hiện tại là chủ bài
-            if (post.userId == currentUserId) {
+            // Hiện tùy chọn chỉnh sửa nếu là chủ bài viết
+            if (post.userId == currentUserId && onEditClicked != null) {
+                menuItems.add(
+                    MenuItemData(
+                        text = "Chỉnh sửa",
+                        icon = Icons.Default.Edit,
+                        onClick = {
+                            onEditClicked(post.id)
+                            menuExpanded = false
+                        }
+                    )
+                )
+            }
+            
+            // Hiện tùy chọn xóa nếu là admin và chủ bài viết
+            if (post.userId == currentUserId || isCurrentUserAdmin) {
                 menuItems.add(
                     MenuItemData(
                         text = "Xóa",
@@ -385,7 +417,8 @@ private fun PostActions(
     onLikeClicked: (String) -> Unit,
     onCommentClicked: (String) -> Unit,
     onSaveClicked: (String) -> Unit,
-    onShareClicked: (String) -> Unit
+    onShareClicked: (String) -> Unit,
+    isEnabled: Boolean = true
 ) {
     val defaultColor = MaterialTheme.colorScheme.onSurface
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -408,31 +441,34 @@ private fun PostActions(
         // Nhóm các nút bên trái
         Row(verticalAlignment = Alignment.CenterVertically) {
             PostActionItem(
-                onClick = { onLikeClicked(post.id) },
+                onClick = { if (isEnabled) onLikeClicked(post.id) },
                 icon = likeIcon,
                 count = post.likes,
                 tint = likeColor,
-                contentDescription = "Like"
+                contentDescription = "Like",
+                enabled = isEnabled
             )
             // Thêm khoảng cách giữa các nút
             Spacer(modifier = Modifier.width(16.dp))
             PostActionItem(
-                onClick = { onCommentClicked(post.id) },
+                onClick = { if (isEnabled) onCommentClicked(post.id) },
                 icon = Icons.Outlined.ModeComment,
                 count = post.commentCount,
                 tint = defaultColor,
-                contentDescription = "Comment"
+                contentDescription = "Comment",
+                enabled = isEnabled
             )
         }
 
         // Nhóm các nút bên phải
         Row(verticalAlignment = Alignment.CenterVertically) {
             PostActionItem(
-                onClick = { onSaveClicked(post.id) },
+                onClick = { if (isEnabled) onSaveClicked(post.id) },
                 icon = saveIcon,
                 count = post.saveCount,
                 tint = saveColor,
-                contentDescription = "Save"
+                contentDescription = "Save",
+                enabled = isEnabled
             )
             Spacer(modifier = Modifier.width(16.dp))
             PostActionItem(
@@ -440,7 +476,8 @@ private fun PostActions(
                 icon = Icons.Outlined.Share,
                 count = post.shareCount,
                 tint = defaultColor,
-                contentDescription = "Share"
+                contentDescription = "Share",
+                enabled = true
             )
         }
     }
@@ -452,7 +489,8 @@ private fun PostActionItem(
     icon: ImageVector,
     count: Int,
     tint: Color,
-    contentDescription: String
+    contentDescription: String,
+    enabled: Boolean = true
 ) {
     // Row này để nhóm icon và số đếm, và để tăng vùng nhấn
     Row(
@@ -460,17 +498,18 @@ private fun PostActionItem(
         modifier = Modifier.clickable(
             interactionSource = remember { MutableInteractionSource() },
             indication = null, // Tắt hiệu ứng gợn sóng để dùng hiệu ứng của IconButton
-            onClick = onClick
+            onClick = { if (enabled) onClick() }
         )
     ) {
         IconButton(
             onClick = onClick,
+            enabled = enabled,
             modifier = Modifier.size(40.dp) // Kích thước vùng nhấn
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                tint = tint,
+                tint = if (enabled) tint else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp) // Kích thước của riêng icon
             )
         }
@@ -632,10 +671,10 @@ fun PostCardSkeleton(
 }
 
 // Preview for PostCardSkeleton
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Preview(showBackground = true)
 @Composable
 fun PostCardSkeletonPreview() {
-    androidx.compose.material3.MaterialTheme {
+    MaterialTheme {
         Column {
             repeat(3) {
                 PostCardSkeleton()

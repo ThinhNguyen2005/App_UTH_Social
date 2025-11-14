@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.component.logo
 
+import android.util.Log
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -9,10 +10,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,7 +20,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -30,13 +27,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-
 import com.example.uth_socials.R
-import com.example.uth_socials.ui.screen.UthRed
-import com.example.uth_socials.ui.screen.UthTeal
 import com.example.uth_socials.data.repository.AdminRepository
 import androidx.compose.runtime.produceState
+import com.example.uth_socials.ui.screen.util.UthRed
+import com.example.uth_socials.ui.theme.UthTeal
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,11 +56,17 @@ fun HomeTopAppBar(
             )
         },
         actions = {
-            // Check if user is admin and show admin button (non-blocking)
             val isAdmin by produceState(initialValue = false) {
                 value = try {
-                    AdminRepository().getCurrentUserAdminStatus() != com.example.uth_socials.config.AdminStatus.USER
+                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                    if (currentUserId != null) {
+                        val adminStatus = AdminRepository().getAdminStatus(currentUserId)
+                        adminStatus.isAdmin || adminStatus.isSuperAdmin
+                    } else {
+                        false
+                    }
                 } catch (e: Exception) {
+                    Log.e("HomeTopAppBar", "Gặp lỗi khi kiểm tra admin status", e)
                     false
                 }
             }
@@ -135,16 +137,15 @@ fun LogoTopAppBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBar(
+fun OnlyLogo(
     userName: String,
     onBackClick: () -> Unit
 ) {
-    val darkAppBarColor = Color(0xFF1A2838)
-    val onDarkAppBarColor = Color.White
+    val appBarColor = MaterialTheme.colorScheme.surface
+    val onAppBarColor = MaterialTheme.colorScheme.onSurface
 
     TopAppBar(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -154,7 +155,7 @@ fun TopAppBar(
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = onDarkAppBarColor
+                    color = onAppBarColor
                 )
             }
         },
@@ -163,14 +164,15 @@ fun TopAppBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = onDarkAppBarColor
+                    tint = onAppBarColor
                 )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = darkAppBarColor
+            containerColor = appBarColor,
+            titleContentColor = onAppBarColor,
+            navigationIconContentColor = onAppBarColor
         ),
         windowInsets = WindowInsets(0.dp)
-
     )
 }

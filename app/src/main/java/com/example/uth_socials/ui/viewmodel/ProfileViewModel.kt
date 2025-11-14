@@ -19,7 +19,7 @@ data class ProfileUiState(
     val posts: List<Post> = emptyList(),
     val isOwner: Boolean = false,
     val username: String = "",
-    val userAvatarUrl: String = "",
+    val userAvatarUrl: String? = null,
     val followers: Int = 0,
     val following: Int = 0,
     val bio: String = "",
