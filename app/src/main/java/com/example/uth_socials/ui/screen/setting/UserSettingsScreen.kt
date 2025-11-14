@@ -25,7 +25,6 @@ import com.google.firebase.auth.FirebaseAuth
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserSettingScreen(
-    viewModel: AuthViewModel,
     onBackClicked: () -> Unit,
     onNavigateToUserInfo: () -> Unit,
     onLogout: () -> Unit
