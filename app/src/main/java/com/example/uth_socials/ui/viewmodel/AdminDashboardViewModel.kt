@@ -141,7 +141,11 @@ class AdminDashboardViewModel : ViewModel() {
                     }
                 }
         }
-
+    }
+    fun refreshBannedUsers() {
+        viewModelScope.launch(Dispatchers.IO) {
+            loadBannedUsersBackground()
+        }
     }
     //chặn user
     fun banUser(userId: String, reason: String) {

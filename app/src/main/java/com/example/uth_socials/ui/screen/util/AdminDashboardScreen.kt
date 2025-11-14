@@ -30,6 +30,7 @@ import com.example.uth_socials.ui.component.logo.OnlyLogo
 import com.example.uth_socials.ui.viewmodel.AdminDashboardViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material3.pulltorefresh.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,10 +160,10 @@ fun AdminDashboardScreen(
                         showBanDialog = user
                     },
                     onUnbanUser = { userId ->
-                        scope.launch {
-                            viewModel.unbanUser(userId)
-                        }
-                    }
+                        viewModel.unbanUser(userId)
+                    },
+                    onRefresh = { viewModel.refreshBannedUsers() }
+
                 )
                 AdminTab.ADMINS -> AdminsTab(
                     admins = uiState.admins,
@@ -398,22 +399,52 @@ private fun UsersTab(
     bannedUsers: List<User>,
     isLoading: Boolean,
     onBanUser: (User) -> Unit,
-    onUnbanUser: (String) -> Unit
+    onUnbanUser: (String) -> Unit,
+    onRefresh: () -> Unit
 ) {
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Refresh button ở trên cùng
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onRefresh,
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh banned users"
+                    )
+                }
+            }
         }
-    } else if (bannedUsers.isEmpty()) {
-        EmptyState("No banned users", Icons.Default.Person)
-    } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(bannedUsers) { user ->
-                BannedUserCard(
-                    user,
-                    onBan = { onBanUser(user) },
-                    onUnban = { onUnbanUser(user.id) }
-                )
+
+        // Content
+        if (isLoading && bannedUsers.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (bannedUsers.isEmpty()) {
+            EmptyState("No banned users", Icons.Default.Person)
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(bannedUsers) { user ->
+                    BannedUserCard(
+                        user,
+                        onBan = { onBanUser(user) },
+                        onUnban = { onUnbanUser(user.id) }
+                    )
+                }
             }
         }
     }
@@ -1378,6 +1409,5 @@ val AdminAction.displayName: String
         AdminAction.DISMISS -> "Dismiss Report"
         AdminAction.DELETE_POST -> "Delete Post"
         AdminAction.BAN_USER -> "Ban User"
-        AdminAction.BAN_REPORTER -> "Ban Reporter"
     }
 

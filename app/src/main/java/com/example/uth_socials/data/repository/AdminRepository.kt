@@ -188,11 +188,6 @@ class AdminRepository(
                     }
                 }
             }
-            AdminAction.BAN_REPORTER -> {
-                reporterId?.let {
-                    banUser(it, adminId, "Bị cấm vì báo cáo không hợp lệ: ${adminNotes ?: "Không có lý do"}")
-                }
-            }
             else -> Unit
         }
 
