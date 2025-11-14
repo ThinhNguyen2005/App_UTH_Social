@@ -15,7 +15,7 @@ data class Post(
     val userId: String = "",
     val username: String = "",
     val userAvatarUrl: String = "",
-    val textContent: String = "",
+    var textContent: String = "",
     val imageUrls: List<String> = emptyList(),
 
     // Các trường dùng để lọc và tương tác

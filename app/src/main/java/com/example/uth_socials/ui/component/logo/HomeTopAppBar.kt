@@ -32,6 +32,7 @@ import com.example.uth_socials.data.repository.AdminRepository
 import androidx.compose.runtime.produceState
 import com.example.uth_socials.ui.screen.util.UthRed
 import com.example.uth_socials.ui.theme.UthTeal
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,10 +56,15 @@ fun HomeTopAppBar(
             )
         },
         actions = {
-            // Check if user is admin and show admin button (non-blocking)
             val isAdmin by produceState(initialValue = false) {
                 value = try {
-                    AdminRepository().getCurrentUserAdminStatus() != AdminRepository.AdminStatus.USER
+                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                    if (currentUserId != null) {
+                        val adminStatus = AdminRepository().getAdminStatus(currentUserId)
+                        adminStatus.isAdmin || adminStatus.isSuperAdmin
+                    } else {
+                        false
+                    }
                 } catch (e: Exception) {
                     Log.e("HomeTopAppBar", "Gặp lỗi khi kiểm tra admin status", e)
                     false

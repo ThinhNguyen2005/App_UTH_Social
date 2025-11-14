@@ -86,7 +86,6 @@ fun PostCard(
     onDeleteClicked: (String) -> Unit,
     onEditClicked: ((String) -> Unit)? = null,
     currentUserId: String? = null,
-    isPostOwnerAdmin: Boolean = false,
     isCurrentUserAdmin: Boolean = false,
     isUserBanned: Boolean = false,
     onNavigateToUserProfile: ((String) -> Unit)? = null
@@ -105,7 +104,6 @@ fun PostCard(
                     onDeleteClicked = onDeleteClicked,
                     onEditClicked = onEditClicked,
                     currentUserId = currentUserId,
-                    isPostOwnerAdmin = isPostOwnerAdmin,
                     isCurrentUserAdmin = isCurrentUserAdmin,
                     onNavigateToUserProfile = onNavigateToUserProfile
                 )

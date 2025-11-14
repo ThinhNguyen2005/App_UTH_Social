@@ -80,7 +80,7 @@ fun ReportDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // TextField cho mô tả chi tiết
                 OutlinedTextField(
@@ -91,10 +91,10 @@ fun ReportDialog(
                         .fillMaxWidth()
                         .heightIn(min = 80.dp),
                     maxLines = 4,
+                    shape = MaterialTheme.shapes.medium,
                     enabled = !isReporting
                 )
 
-                // ✅ Hiển thị error message nếu có
                 if (reportErrorMessage != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(

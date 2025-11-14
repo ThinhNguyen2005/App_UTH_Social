@@ -34,7 +34,7 @@ class CategoryRepository {
 
             // Nếu chưa có categories, tạo categories mặc định
             if (categories.isEmpty()) {
-                initializeDefaultCategories()
+                defaultCategories()
                 return Category.DEFAULT_CATEGORIES.sortedBy { it.order }
             }
 
@@ -79,10 +79,7 @@ class CategoryRepository {
         }
     }.flowOn(Dispatchers.IO)
 
-    /**
-     * Khởi tạo categories mặc định khi lần đầu sử dụng
-     */
-    suspend fun initializeDefaultCategories() {
+    suspend fun defaultCategories() {
         try {
             db.runBatch { batch ->
                 Category.DEFAULT_CATEGORIES.forEach { category ->
@@ -96,10 +93,6 @@ class CategoryRepository {
         }
     }
 
-    /**
-     * Thêm category mới (chỉ admin)
-     * Security: Firebase Rules sẽ reject nếu không phải admin
-     */
     suspend fun addCategory(category: Category, userId: String? = null): Result<Unit> = runCatching {
         if (!SecurityValidator.canModifyCategories(userId)) {
             throw SecurityException("Only admins can add categories")
@@ -109,10 +102,6 @@ class CategoryRepository {
         Log.d("CategoryRepository", "Added category: ${category.name} by user: $userId")
     }
 
-    /**
-     * Cập nhật category (chỉ admin)
-     * Security: Firebase Rules sẽ reject nếu không phải admin
-     */
     suspend fun updateCategory(category: Category, userId: String? = null): Result<Unit> = runCatching {
         // Client-side validation để tối ưu UX
         if (!SecurityValidator.canModifyCategories(userId)) {
@@ -123,28 +112,6 @@ class CategoryRepository {
         Log.d("CategoryRepository", "Updated category: ${category.name} by user: $userId")
     }
 
-    /**
-     * Xóa category (chỉ admin, cẩn thận!)
-     */
-//    suspend fun deleteCategory(categoryId: String, userId: String? = null): Result<Unit> = runCatching {
-//        // Validate admin permission
-//        val isAdmin = AdminConfig.isSuperAdmin(userId) || adminRepository.isAdmin(userId ?: "")
-//        if (!isAdmin) {
-//            throw SecurityException("Only admins can delete categories")
-//        }
-//
-//        // Prevent deleting default categories
-//        if (Category.DEFAULT_CATEGORIES.any { it.id == categoryId }) {
-//            throw IllegalArgumentException("Cannot delete default categories")
-//        }
-//
-//        categoriesCollection.document(categoryId).delete().await()
-//        Log.d("CategoryRepository", "Deleted category: $categoryId by user: $userId")
-//    }
-
-    /**
-     * Lấy category theo ID
-     */
     suspend fun getCategoryById(categoryId: String): Category? {
         return try {
             val snapshot = categoriesCollection.document(categoryId).get().await()

@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.volley)
     implementation(libs.litert.support.api)
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.room.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

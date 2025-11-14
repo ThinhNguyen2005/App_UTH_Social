@@ -25,10 +25,9 @@ data class Report(
 enum class AdminAction {
     NONE,           // No action taken
     DISMISS,        // Dismiss report as invalid
-    WARN_USER,      // Send warning to user
     DELETE_POST,    // Delete the reported post
     BAN_USER,       // Ban the user who posted
-    BAN_REPORTER    // Ban the user who made invalid reports
+    BAN_REPORTER
 }
 
 data class AdminReport(

@@ -8,7 +8,6 @@ import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.CategoryRepository
-import com.example.uth_socials.data.repository.AdminRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -18,7 +17,6 @@ import kotlinx.coroutines.withContext
 import com.google.firebase.auth.FirebaseAuth
 import com.example.uth_socials.data.util.SecurityValidator
 import com.example.uth_socials.data.repository.UserRepository
-import kotlinx.coroutines.flow.combine
 
 
 //Enum để quản lý trạng thái gửi bình luận
@@ -29,6 +27,7 @@ data class HomeUiState(
     val posts: List<Post> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
+    val successMessage: String? = null,
     val categories: List<Category> = emptyList(),
     val selectedCategory: Category? = null,
     val shareContent: String? = null,
@@ -68,27 +67,12 @@ data class HomeUiState(
     val isSavingPost: Boolean = false,
     val editPostErrorMessage: String? = null
 )
-
-/**
- * HomeViewModel - Quản lý toàn bộ logic của màn hình chính (Home Screen)
- *
- * Chức năng chính:
- * - Quản lý danh sách bài viết theo category
- * - Xử lý tương tác bài viết (like, save, share, hide)
- * - Quản lý hệ thống bình luận
- * - Xử lý báo cáo và xóa bài viết
- * - Quản lý quyền admin và moderation
- *
- * Kiến trúc: MVVM với StateFlow cho reactive UI updates
- */
 class HomeViewModel(
     private val postRepository: PostRepository = PostRepository(),
     private val categoryRepository: CategoryRepository = CategoryRepository(),
-    private val adminRepository: AdminRepository = AdminRepository(),
     private val userRepository: UserRepository = UserRepository()
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
-    private val adminStatusCache = mutableMapOf<String, Boolean>()
 
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
@@ -96,54 +80,23 @@ class HomeViewModel(
     private var categoriesJob: Job? = null
     private val savingPosts = mutableSetOf<String>()
 
-    // ==========================================
-    // INITIALIZATION (Khởi tạo ViewModel)
-    // ==========================================
-
-    /**
-     * Block khởi tạo ViewModel - chạy ngay khi ViewModel được tạo
-     *
-     * Thứ tự thực hiện:
-     * 1. loadCurrentUser() - Lấy thông tin user hiện tại
-     * 2. loadCategoriesAndInitialPosts() - Load categories và posts ban đầu
-     * 3. loadHiddenPosts() - Load danh sách bài viết đã ẩn
-     * 4. checkAdminStatus() - Delay để tránh blocking UI (không cần lúc khởi động)
-     *
-     * ✅ OPTIMIZATION: Delay admin check để tránh skipped frames
-     */
     init {
         loadCurrentUser()
         loadCategoriesAndInitialPosts()
         loadHiddenPosts()
         loadBanStatus()
-        // ✅ Delay admin check đến sau 1.5s - không cần lúc khởi động
-        viewModelScope.launch(Dispatchers.IO) {
-            delay(1500)
-        checkAdminStatus()
-        }
+
     }
 
-    /**
-     * Load thông tin user hiện tại từ Firebase Auth
-     *
-     * Logic:
-     * - Lấy currentUser từ FirebaseAuth
-     * - Nếu có user, lưu userId và refresh admin status
-     * - Chạy trên background thread (IO dispatcher)
-     */
     private fun loadCurrentUser() {
         viewModelScope.launch(Dispatchers.IO) {
             val currentUser = FirebaseAuth.getInstance().currentUser
             if (currentUser != null) {
                 _uiState.update { it.copy(currentUserId = currentUser.uid) }
-                refreshAdminStatus()
+                checkAccout()
             }
         }
     }
-
-    /**
-     * Load ban status của user hiện tại
-     */
     private fun loadBanStatus() {
         viewModelScope.launch(Dispatchers.IO) {
             val currentUser = FirebaseAuth.getInstance().currentUser ?: return@launch
@@ -159,29 +112,20 @@ class HomeViewModel(
     }
 
     private fun loadCategoriesAndInitialPosts() {
-        // Khởi tạo loading state
         _uiState.update { it.copy(isLoading = true, error = null) }
 
-        // 🔧 Chạy trên background thread để tránh blocking main thread
         viewModelScope.launch(Dispatchers.IO) {
-            // Lắng nghe categories real-time
             listenToCategoriesChanges()
-
-            // Load posts với category mặc định ban đầu (fallback)
             listenToPostChanges("all") // Sử dụng "all" làm mặc định
         }
     }
-
-    /**
-     * Lắng nghe thay đổi categories theo thời gian thực
-     */
     private fun listenToCategoriesChanges() {
         categoriesJob?.cancel()
         categoriesJob = viewModelScope.launch(Dispatchers.IO) {
             categoryRepository.getCategoriesFlow().collect { categories ->
                 if (categories.isEmpty()) {
                     // Nếu chưa có categories, thử tạo mặc định
-                    initializeDefaultCategoriesIfNeeded()
+                    categoriesIfNeeded()
                 } else {
                     // Cập nhật categories và chọn category đầu tiên nếu chưa có selectedCategory
                     _uiState.update { currentState ->
@@ -206,26 +150,21 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Khởi tạo categories mặc định nếu cần (Chạy trên IO thread)
-     */
-    private suspend fun initializeDefaultCategoriesIfNeeded() {
+
+    private suspend fun categoriesIfNeeded() {
         try {
-            // 🔧 Chạy trên IO thread để tránh blocking main thread
             withContext(Dispatchers.IO) {
                 val existingCategories = categoryRepository.getCategories()
                 if (existingCategories.isNotEmpty()) {
-                    // Nếu đã có categories, emit chúng
                     _uiState.update {
                         it.copy(
                             categories = existingCategories,
                             selectedCategory = existingCategories.firstOrNull(),
-                            isLoading = false
+                            isLoading = false,
                         )
                     }
                 } else {
-                    // Nếu thực sự chưa có, tạo mặc định
-                    categoryRepository.initializeDefaultCategories()
+                    categoryRepository.defaultCategories()
                     // Sau khi tạo, Flow sẽ tự động emit lại
                 }
             }
@@ -252,37 +191,7 @@ class HomeViewModel(
     }
 
 
-    /**
-     * Check and update current user's admin status
-     */
-     private fun checkAdminStatus() {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                // ✅ OPTIMIZATION: Chỉ check admin status, không gọi init (đã gọi ở loadCurrentUser)
-                val isAdmin = adminRepository.isCurrentUserAdmin()
-                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-                val role = if (isAdmin) {
-                    adminRepository.getAdminRole(currentUserId ?: "")
-                } else null
-
-                _uiState.update {
-                    it.copy(
-                        isCurrentUserAdmin = isAdmin,
-                        currentUserRole = role
-                    )
-                }
-                Log.d("HomeViewModel", "Admin status checked: isAdmin=$isAdmin, role=$role")
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error checking admin status", e)
-                _uiState.update { it.copy(
-                    isCurrentUserAdmin = false,
-                    currentUserRole = null
-                )}
-            }
-        }
-    }
-
-    private fun refreshAdminStatus() {
+    private fun checkAccout() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
@@ -314,26 +223,6 @@ class HomeViewModel(
             }
         }
     }
-    /**
-     * Khởi tạo quản trị viên cấp cao trong Firebase nếu chưa thực hiện
-     * Thao tác này sẽ di chuyển quản trị viên cấp cao được mã hóa cứng sang Firebase
-     */
-    // ✅ REMOVED: initializeSuperAdminIfNeeded() - gọi ở lần đầu login, không cần lúc khởi động ViewModel
-    // Super admin initialization nên được xử lý ở AuthViewModel lúc login, không phải lúc mở Home
-    // Điều này sẽ giảm tác vụ nặng lúc khởi động app
-
-
-    suspend fun getAdminStatus(userId: String): Boolean {
-        return adminStatusCache.getOrPut(userId) {
-            try {
-                adminRepository.isAdmin(userId) || adminRepository.isSuperAdmin(userId)
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "Lỗi khi kiểm tra trạng thái quản trị viên", e)
-                false
-            }
-        }
-    }
-
 
     private var postsJob: Job? = null
 
@@ -363,11 +252,9 @@ class HomeViewModel(
         }
         
         viewModelScope.launch(Dispatchers.IO) {
-            // Bước 1: Cập nhật UI ngay lập tức (Optimistic Update)
             val originalPosts = _uiState.value.posts
             val postToUpdate = originalPosts.find { it.id == postId } ?: return@launch
             val isCurrentlyLiked = postToUpdate.isLiked
-
             val updatedPost = postToUpdate.copy(
                 isLiked = !isCurrentlyLiked,
                 likes = if (isCurrentlyLiked) postToUpdate.likes - 1 else postToUpdate.likes + 1
@@ -375,18 +262,25 @@ class HomeViewModel(
             val updatedPosts = originalPosts.map { if (it.id == postId) updatedPost else it }
             _uiState.update { it.copy(posts = updatedPosts) }
 
-            // Bước 2: Gọi Repository để cập nhật dữ liệu trên server
             try {
+                Log.d("HomeViewModel", "Đã nhấn like bài viết: $postId")
                 postRepository.toggleLikeStatus(postId, isCurrentlyLiked)
             } catch (e: Exception) {
                 // Nếu có lỗi, khôi phục lại trạng thái UI ban đầu
-                _uiState.update { it.copy(posts = originalPosts) }
+                _uiState.update { it.copy(
+                    posts = originalPosts,
+                    error = "Lỗi không thể like bài viết. Vui lòng thử lại sau."
+                    )
+                }
                 Log.e("HomeViewModel", "Error updating like status", e)
             }
         }
     }
 
     fun onCommentClicked(postId: String) {
+        // Clear error trước khi thực hiện action mới
+        clearError()
+
         // Check ban status trước khi mở comment sheet
         if (_uiState.value.isUserBanned) {
             _uiState.update { it.copy(showBanDialog = true) }
@@ -400,7 +294,8 @@ class HomeViewModel(
             it.copy(
                 commentSheetPostId = postId,
                 isSheetLoading = true,
-                commentsForSheet = emptyList()
+                commentsForSheet = emptyList(),
+
             )
         }
 
@@ -433,11 +328,10 @@ class HomeViewModel(
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            // 1. Cập nhật UI sang trạng thái "Đang gửi"
             _uiState.update {
                 it.copy(
                     commentPostState = CommentPostState.POSTING,
-                    commentErrorMessage = null // Clear previous error
+                    commentErrorMessage = null // update đang gửi
                 )
             }
 
@@ -472,6 +366,9 @@ class HomeViewModel(
     }
 
     fun onCommentLikeClicked(postId: String, commentId: String) {
+        // Clear error trước khi thực hiện action mới
+        clearError()
+
         viewModelScope.launch(Dispatchers.IO) {
             val state = _uiState.value
             val originalComments = state.commentsForSheet
@@ -502,6 +399,9 @@ class HomeViewModel(
     }
 
     fun onSaveClicked(postId: String) {
+        // Clear error trước khi thực hiện action mới
+        clearError()
+
         // Check ban status trước khi save
         if (_uiState.value.isUserBanned) {
             _uiState.update { it.copy(showBanDialog = true) }
@@ -530,8 +430,11 @@ class HomeViewModel(
             try {
                 postRepository.toggleSaveStatus(postId, postToUpdate.isSaved)
             } catch (e: Exception) {
-                // 3. Nếu lỗi, khôi phục lại trạng thái cũ
-                _uiState.update { it.copy(posts = originalPosts) }
+                _uiState.update { it.copy(
+                    posts = originalPosts,
+                    isLoading = false,
+                    error = "Lỗi không thể lưu bài viết. Vui lòng thử lại."
+                ) }
                 Log.e("HomeViewModel", "Error toggling save status", e)
             } finally {
                 // 4. Xóa khỏi set sau khi hoàn thành
@@ -541,7 +444,7 @@ class HomeViewModel(
     }
 
     fun onShareClicked(postId: String) {
-        val shareableContent = "Xem bài viết này trên UTH Socials: uthsocials://post/$postId"
+        val shareableContent = "Xem bài viết này trên UTH Socials: htpps:://uthsocials://post/$postId"
         _uiState.update { it.copy(shareContent = shareableContent) }
     }
 
@@ -551,7 +454,6 @@ class HomeViewModel(
 
     // --- 🔸 HÀM XỬ LÝ ẨN BÀI VIẾT ---
     fun onHideClicked(postId: String) {
-        // Check ban status trước khi ẩn
         if (_uiState.value.isUserBanned) {
             _uiState.update { it.copy(showBanDialog = true) }
             return
@@ -589,7 +491,8 @@ class HomeViewModel(
                 showReportDialog = true,
                 reportingPostId = postId,
                 reportReason = "",
-                reportDescription = ""
+                reportDescription = "",
+                successMessage = "Báo cáo người dùng thành công.}"
             )
         }
     }
@@ -602,7 +505,7 @@ class HomeViewModel(
         _uiState.update { it.copy(reportDescription = description) }
     }
 
-    // --- 🔸 HÀM GỬI BÁO CÁO ---
+    // Báo cáo bài viết
     fun onSubmitReport() {
         val reportingPostId = _uiState.value.reportingPostId ?: return
         val reason = _uiState.value.reportReason.ifEmpty { return }
@@ -610,7 +513,15 @@ class HomeViewModel(
 
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isReporting = true, reportErrorMessage = null) }
+
             try {
+                val post = _uiState.value.posts.find { it.id == reportingPostId }
+                if (post != null) {
+                    val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(post.userId)
+                    if (isAdmin) {
+                        throw IllegalArgumentException("Không thể báo cáo admin")
+                    }
+                }
                 val success = postRepository.reportPost(reportingPostId, reason, description)
                 if (success) {
                     _uiState.update {
@@ -623,9 +534,8 @@ class HomeViewModel(
                             reportErrorMessage = null
                         )
                     }
-                    Log.d("HomeViewModel", "Report submitted successfully")
+                    Log.d("HomeModel", "Report submitted successfully")
                 } else {
-                    // ✅ FIX: Xử lý khi báo cáo thất bại
                     val errorMsg = "Gửi báo cáo thất bại. Vui lòng thử lại."
                     _uiState.update {
                         it.copy(
@@ -633,10 +543,18 @@ class HomeViewModel(
                             reportErrorMessage = errorMsg
                         )
                     }
-                    Log.w("HomeViewModel", "Report submission failed: $errorMsg")
+                    Log.w("HomeModel", "Report submission failed: $errorMsg")
                 }
+            } catch (e: IllegalArgumentException) {
+                val errorMsg = e.message ?: "Lỗi không xác định"
+                _uiState.update {
+                    it.copy(
+                        isReporting = false,
+                        reportErrorMessage = errorMsg
+                    )
+                }
+                Log.w("HomeModel", "Report blocked: $errorMsg")
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error submitting report", e)
                 val errorMsg = "Lỗi khi gửi báo cáo: ${e.message ?: "Vui lòng thử lại"}"
                 _uiState.update {
                     it.copy(
@@ -661,11 +579,15 @@ class HomeViewModel(
         }
     }
 
-    // --- 🔸 HÀM MỞ DIALOG XÓA BÀI VIẾT ---
+    // DIALOG xóa bài viết
+
+    private fun canDeletePost(postUserId: String, currentUserId: String?, isCurrentUserAdmin: Boolean): Boolean {
+        return postUserId == currentUserId || isCurrentUserAdmin
+    }
     fun onDeleteClicked(postId: String) {
         // Kiểm tra xem người dùng hiện tại có phải chủ bài không
         val post = _uiState.value.posts.find { it.id == postId }
-        if (post?.userId == _uiState.value.currentUserId) {
+        if (post != null && canDeletePost(post.userId, _uiState.value.currentUserId, _uiState.value.isCurrentUserAdmin)) {
             _uiState.update {
                 it.copy(
                     showDeleteConfirmDialog = true,
@@ -674,9 +596,8 @@ class HomeViewModel(
             }
         }
     }
-
-    // --- 🔸 HÀM XÓA BÀI VIẾT ---
     fun onConfirmDelete() {
+        clearError()
         val postIdToDelete = _uiState.value.deletingPostId ?: return
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -691,23 +612,31 @@ class HomeViewModel(
                             posts = updatedPosts,
                             showDeleteConfirmDialog = false,
                             isDeleting = false,
-                            deletingPostId = null
+                            deletingPostId = null,
+                            successMessage = "Bài viết đã được xóa thành công."
                         )
                     }
                     Log.d("HomeViewModel", "Post deleted successfully: $postIdToDelete")
                 }
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Error deleting post", e)
-                _uiState.update { it.copy(isDeleting = false) }
+                _uiState.update { it.copy(
+                    isDeleting = false,
+                    error = "Lỗi không thể xóa bài viết. Vui lòng thử lại."
+                )
+
+                }
             }
         }
     }
 
     fun onDismissDeleteDialog() {
         _uiState.update {
+            Log.d("HomeViewModel", "onDismissDeleteDialog: $it")
             it.copy(
                 showDeleteConfirmDialog = false,
-                deletingPostId = null
+                deletingPostId = null,
+                successMessage = "Đã xóa thành công "
             )
         }
     }
@@ -723,10 +652,11 @@ class HomeViewModel(
         _uiState.update { it.copy(showBanDialog = false) }
     }
 
-    // --- 🔸 HÀM XỬ LÝ CHỈNH SỬA POST ---
+    // Chỉnh sửa bài viết
     fun onEditPostClicked(postId: String) {
         val post = _uiState.value.posts.find { it.id == postId }
         if (post != null) {
+            Log.d("HomeViewModel", "onEditPostClicked: $postId")
             _uiState.update {
                 it.copy(
                     showEditPostDialog = true,
@@ -747,20 +677,16 @@ class HomeViewModel(
         val newContent = _uiState.value.editingPostContent.trim()
         
         if (newContent.isEmpty()) {
+            Log.w("HomeViewModel", "Empty post content")
             _uiState.update { 
                 it.copy(editPostErrorMessage = "Nội dung không được để trống") 
             }
             return
         }
-        
-        if (newContent.length > 2000) {
-            _uiState.update { 
-                it.copy(editPostErrorMessage = "Nội dung không được vượt quá 2000 ký tự") 
-            }
-            return
-        }
 
         viewModelScope.launch(Dispatchers.IO) {
+            Log.d("HomeViewModel", "onSaveEditedPost: $postId, $newContent")
+
             _uiState.update { 
                 it.copy(isSavingPost = true, editPostErrorMessage = null) 
             }
@@ -768,29 +694,35 @@ class HomeViewModel(
             try {
                 val result = postRepository.updatePostContent(postId, newContent)
                 result.onSuccess {
+                    Log.d("HomeViewModel", "Post updated successfully: $postId")
                     // Update local state
                     val updatedPosts = _uiState.value.posts.map { post ->
                         if (post.id == postId) {
+                            Log.d("HomeViewModel", "Updating post content: $postId")
                             post.copy(textContent = newContent)
                         } else {
+                            Log.d("HomeViewModel", "Keeping post unchanged: ${post.id}")
                             post
                         }
                     }
                     _uiState.update {
+                        Log.d("HomeViewModel", "Updated posts: $updatedPosts")
                         it.copy(
                             posts = updatedPosts,
                             showEditPostDialog = false,
                             editingPostId = null,
                             editingPostContent = "",
                             isSavingPost = false,
-                            editPostErrorMessage = null
+                            editPostErrorMessage = null,
+                            successMessage = "Bài viết đã được cập nhật."
                         )
                     }
                 }.onFailure { e ->
                     _uiState.update {
                         it.copy(
                             isSavingPost = false,
-                            editPostErrorMessage = "Lỗi khi lưu: ${e.message ?: "Vui lòng thử lại"}"
+                            editPostErrorMessage = "Lỗi khi lưu: ${e.message ?: "Vui lòng thử lại"}",
+                            error = "Không thể cập nhật được bài viết! Vui lòng thử lại"
                         )
                     }
                 }
@@ -823,4 +755,17 @@ class HomeViewModel(
         commentsJob?.cancel()
         postsJob?.cancel()
     }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearSuccessMessage() {
+        _uiState.update { it.copy(successMessage = null) }
+    }
+    fun updateBanStatus(isBanned: Boolean) {
+        _uiState.update { it.copy(isUserBanned = isBanned) }
+        Log.d("HomeViewModel", "Ban status updated: $isBanned")
+    }
+
 }

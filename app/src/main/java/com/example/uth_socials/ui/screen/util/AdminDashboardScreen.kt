@@ -24,8 +24,7 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.data.post.AdminAction
 import com.example.uth_socials.data.post.AdminReport
 import com.example.uth_socials.data.post.Category
-import com.example.uth_socials.data.user.User  // ✅ Import từ data.user thay vì data.post
-import com.example.uth_socials.data.repository.AdminRepository
+import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.user.AdminUser
 import com.example.uth_socials.ui.component.logo.OnlyLogo
 import com.example.uth_socials.ui.viewmodel.AdminDashboardViewModel
@@ -43,7 +42,6 @@ fun AdminDashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // Parse initial tab from navigation argument or route
     val initialTab = remember(backStackEntry) {
         val tabArg = backStackEntry?.arguments?.getString("tab")
         val route = backStackEntry?.destination?.route
@@ -56,7 +54,7 @@ fun AdminDashboardScreen(
             else -> AdminTab.REPORTS
         }
     }
-
+    val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by remember { mutableStateOf(initialTab) }
     var showActionDialog by remember { mutableStateOf<AdminReport?>(null) }
     var showGrantAdminDialog by remember { mutableStateOf(false) }
@@ -69,14 +67,30 @@ fun AdminDashboardScreen(
     // 🔸 Delete category dialog state
     var showDeleteCategoryDialog by remember { mutableStateOf<Category?>(null) }
 
-    // Check if current user is super admin
-    val adminRepo = remember { AdminRepository() }
-    var isSuperAdmin by remember { mutableStateOf(false) }
+    //load phân loại admin/superAdmin
     LaunchedEffect(Unit) {
-        isSuperAdmin = adminRepo.isCurrentUserSuperAdmin()
+        viewModel.refreshAdminStatus()
     }
 
+    LaunchedEffect(uiState.isCurrentUserAdmin) {
+        if(uiState.isCurrentUserAdmin) {
+            viewModel.loadData()
+        }
+    }
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {message ->
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
+            viewModel.clearError()
+        }
+    }
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {message ->
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+            viewModel.clearSuccessMessage()
+        }
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             OnlyLogo(
                 userName = selectedTab.title,
@@ -84,7 +98,6 @@ fun AdminDashboardScreen(
             )
         },
         floatingActionButton = {
-            // Chỉ hiển thị FAB khi đang ở tab Categories
             if (selectedTab == AdminTab.CATEGORIES) {
                 FloatingActionButton(
                     onClick = { showAddCategoryDialog = true },
@@ -106,7 +119,7 @@ fun AdminDashboardScreen(
                 .padding(padding)
         ) {
             // Tab selector - filter tabs based on permissions
-            val availableTabs = if (isSuperAdmin) {
+            val availableTabs = if (uiState.isCurrentUserAdmin) {
                 AdminTab.entries
             } else {
                 AdminTab.entries.filter { it != AdminTab.ADMINS }
@@ -125,8 +138,8 @@ fun AdminDashboardScreen(
             }
 
             // If user is not super admin and somehow on ADMINS tab, switch to REPORTS
-            LaunchedEffect(isSuperAdmin, selectedTab) {
-                if (!isSuperAdmin && selectedTab == AdminTab.ADMINS) {
+            LaunchedEffect(uiState.isCurrentUserAdmin, selectedTab) {
+                if (!uiState.isCurrentUserAdmin && selectedTab == AdminTab.ADMINS) {
                     selectedTab = AdminTab.REPORTS
                 }
             }
@@ -154,7 +167,7 @@ fun AdminDashboardScreen(
                 AdminTab.ADMINS -> AdminsTab(
                     admins = uiState.admins,
                     isLoading = uiState.isLoadingAdmins,
-                    isSuperAdmin = isSuperAdmin,
+                    isSuperAdmin = uiState.isCurrentUserAdmin,
                     onGrantAdmin = { showGrantAdminDialog = true },
                     onRevokeAdmin = { adminUser ->
                         scope.launch {
@@ -1162,19 +1175,6 @@ private fun PostDetailModal(
                                 Text("Ban User")
                             }
 
-                            // Warn User Button
-                            Button(
-                                onClick = { onAction(AdminAction.WARN_USER, "Warning issued by admin") },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFFBC02D)
-                                )
-                            ) {
-                                Icon(Icons.Default.Warning, "Warn User")
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Warn User")
-                            }
-
                             // Dismiss Report Button
                             OutlinedButton(
                                 onClick = { onAction(AdminAction.DISMISS, "Report dismissed") },
@@ -1376,7 +1376,6 @@ val AdminAction.displayName: String
     get() = when (this) {
         AdminAction.NONE -> "No Action"
         AdminAction.DISMISS -> "Dismiss Report"
-        AdminAction.WARN_USER -> "Warn User"
         AdminAction.DELETE_POST -> "Delete Post"
         AdminAction.BAN_USER -> "Ban User"
         AdminAction.BAN_REPORTER -> "Ban Reporter"

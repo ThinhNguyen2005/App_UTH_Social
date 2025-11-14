@@ -19,6 +19,7 @@ animation = "1.9.4"
 volley = "1.2.1"
 litertSupportApi = "1.4.1"
 runtime = "1.9.4"
+roomKtx = "2.8.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -46,6 +47,7 @@ androidx-compose-animation = { group = "androidx.compose.animation", name = "ani
 volley = { group = "com.android.volley", name = "volley", version.ref = "volley" }
 litert-support-api = { group = "com.google.ai.edge.litert", name = "litert-support-api", version.ref = "litertSupportApi" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

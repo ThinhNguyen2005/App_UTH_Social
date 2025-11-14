@@ -47,16 +47,28 @@ fun HomeScreen(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
-    
+    val snackbarHostState = remember { SnackbarHostState() }
+
+
     // Update HomeViewModel ban status when BanStatusViewModel changes
     LaunchedEffect(banStatus.isBanned) {
         if (uiState.isUserBanned != banStatus.isBanned) {
-            // Ban status changed, but we can't directly update HomeViewModel state
-            // The ban status will be checked before each action anyway
+            // Update HomeViewModel ban status khi BanStatusViewModel thay đổi
+            homeViewModel.updateBanStatus(banStatus.isBanned)
         }
     }
-
-
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {message ->
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
+            homeViewModel.clearError()
+        }
+    }
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {message ->
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+            homeViewModel.clearSuccessMessage()
+        }
+    }
     LaunchedEffect(uiState.commentSheetPostId) {
         if (uiState.commentSheetPostId != null) {
             sheetState.show()
@@ -67,8 +79,6 @@ fun HomeScreen(
             }
         }
     }
-
-    // ✅ Xử lý chia sẻ bài viết
     LaunchedEffect(uiState.shareContent) {
         uiState.shareContent?.let { content ->
             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -236,7 +246,7 @@ fun HomeScreen(
                                     onHideClicked = { homeViewModel.onHideClicked(post.id) },
                                     onEditClicked = { homeViewModel.onEditPostClicked(post.id) },
                                     currentUserId = uiState.currentUserId,
-                                    isPostOwnerAdmin = isPostOwnerAdmin,
+                                    isCurrentUserAdmin = uiState.isCurrentUserAdmin,
                                     isUserBanned = uiState.isUserBanned
                                 )
                             }
@@ -267,7 +277,6 @@ fun HomeScreen(
             }
         }
 
-        // --- 🔸 REPORT DIALOG ---
         ReportDialog(
             isVisible = uiState.showReportDialog,
             onDismiss = { homeViewModel.onDismissReportDialog() },
@@ -280,15 +289,15 @@ fun HomeScreen(
             reportErrorMessage = uiState.reportErrorMessage
         )
 
-        // --- 🔸 DELETE CONFIRM DIALOG ---
         DeleteConfirmDialog(
             isVisible = uiState.showDeleteConfirmDialog,
             onDismiss = { homeViewModel.onDismissDeleteDialog() },
             onConfirm = { homeViewModel.onConfirmDelete() },
-            isDeleting = uiState.isDeleting
+            isDeleting = uiState.isDeleting,
+            isCurrentUserAdmin = uiState.isCurrentUserAdmin
         )
 
-        // --- 🔸 BANNED USER DIALOG ---
+        // Ban
         BannedUserDialog(
             isVisible = uiState.showBanDialog,
             banReason = banStatus.banReason,
@@ -296,18 +305,17 @@ fun HomeScreen(
             onLogout = {
                 FirebaseAuth.getInstance().signOut()
                 homeViewModel.onDismissBanDialog()
-                // Navigation will be handled by AppNavGraph when auth state changes
             }
         )
 
-        // --- 🔸 EDIT POST DIALOG ---
         EditPostDialog(
             isVisible = uiState.showEditPostDialog,
             currentContent = uiState.editingPostContent,
             isLoading = uiState.isSavingPost,
             errorMessage = uiState.editPostErrorMessage,
             onDismiss = { homeViewModel.onDismissEditDialog() },
-            onSave = { homeViewModel.onSaveEditedPost() }
+            onSave = { homeViewModel.onSaveEditedPost() },
+            onContentChange = { homeViewModel.onUpdatePostContent(it) }
         )
 
     }

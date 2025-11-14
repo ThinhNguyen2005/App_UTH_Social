@@ -236,17 +236,6 @@ fun MainScreen() {
             //Notifications                 - Trang test
             composable(Screen.Notifications.route) { NotificationsScreen() }
 
-            //Trang này ban đầu test, cứ để đó xóa sau
-//            composable(Screen.Categories.route) {
-//                AdminDashboardScreen(
-//                    onNavigateBack = { navController.popBackStack() },
-//                    onNavigateToUser = { userId ->
-//                        navController.navigate(Screen.Profile.createRoute(userId)) {
-//                            launchSingleTop = true
-//                        }
-//                    }
-//                )
-//            }
             //Profile
             composable(
                 route = Screen.Profile.route,

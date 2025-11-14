@@ -27,7 +27,8 @@ fun EditPostDialog(
     isLoading: Boolean = false,
     errorMessage: String? = null,
     onDismiss: () -> Unit,
-    onSave: (String) -> Unit
+    onSave: (String) -> Unit,
+    onContentChange: (String) -> Unit = {} // ✅ Thêm callback để sync với ViewModel
 ) {
     if (!isVisible) return
     
@@ -52,9 +53,10 @@ fun EditPostDialog(
             ) {
                 OutlinedTextField(
                     value = editedContent,
-                    onValueChange = { 
+                    onValueChange = {
                         if (it.length <= maxLength) {
                             editedContent = it
+                            onContentChange(it) // ✅ Sync với ViewModel
                         }
                     },
                     label = { Text("Nội dung bài viết") },

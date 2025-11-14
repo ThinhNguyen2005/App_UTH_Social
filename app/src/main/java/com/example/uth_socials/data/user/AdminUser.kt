@@ -20,5 +20,12 @@ data class AdminDashboardUiState(
     val isLoadingUsers: Boolean = false,
     val isLoadingAdmins: Boolean = false,
     val isLoadingCategories: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val successMessage: String? = null,
+    val isCurrentUserAdmin: Boolean = false,
+    val currentUserRole: String? = null
+)
+data class AdminStatus(
+    val isAdmin: Boolean,
+    val isSuperAdmin: Boolean
 )
