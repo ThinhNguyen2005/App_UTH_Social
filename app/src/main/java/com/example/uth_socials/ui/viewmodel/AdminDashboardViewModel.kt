@@ -141,11 +141,7 @@ class AdminDashboardViewModel : ViewModel() {
                     }
                 }
         }
-    }
-    fun refreshBannedUsers() {
-        viewModelScope.launch(Dispatchers.IO) {
-            loadBannedUsersBackground()
-        }
+
     }
     //chặn user
     fun banUser(userId: String, reason: String) {
@@ -168,7 +164,6 @@ class AdminDashboardViewModel : ViewModel() {
                     _uiState.update { it.copy(error = "Chặn thất bại: ${e.message}") }
                 }
         }
-        refreshBannedUsers()
     }
 
     // Bỏ chặn user
@@ -189,7 +184,6 @@ class AdminDashboardViewModel : ViewModel() {
                     }
                 }
         }
-        refreshBannedUsers()
     }
 
     //Cấp quyền admin
