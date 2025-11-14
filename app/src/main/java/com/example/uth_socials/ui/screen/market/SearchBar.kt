@@ -111,14 +111,14 @@ fun SearchBar(
     )
 }
 
-@Preview(showBackground = true)
-@Composable
-fun SearchBarPreview() {
-    var query by remember { mutableStateOf("") }
-    SearchBar(
-        query = query,
-        onQueryChange = { query = it },
-        onSearch = { /* Handle search */ },
-        onClear = { query = "" }
-    )
-}
+//@Preview(showBackground = true)
+//@Composable
+//fun SearchBarPreview() {
+//    var query by remember { mutableStateOf("") }
+//    SearchBar(
+//        query = query,
+//        onQueryChange = { query = it },
+//        onSearch = { /* Handle search */ },
+//        onClear = { query = "" }
+//    )
+//}

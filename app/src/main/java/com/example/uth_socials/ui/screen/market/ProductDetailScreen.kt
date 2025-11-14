@@ -1,6 +1,5 @@
 package com.example.uth_socials.ui.screen.market
 
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

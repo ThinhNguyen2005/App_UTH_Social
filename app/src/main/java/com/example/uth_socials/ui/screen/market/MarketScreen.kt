@@ -76,8 +76,8 @@ fun MarketScreen(
                 Text(
                     text = "Mua thì hời, bán thì lời",
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.DarkGray
+                    fontWeight = FontWeight.W400,
+                    color = Color.DarkGray.copy(alpha = 0.6f)
                 )
             }
         }
