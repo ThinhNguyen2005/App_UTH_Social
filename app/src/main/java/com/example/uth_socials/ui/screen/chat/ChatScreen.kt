@@ -72,7 +72,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
         },
         // 👇 KHÔNG cho Scaffold tự cộng thêm bất kỳ inset nào
         contentWindowInsets = WindowInsets(0),
-        containerColor = Color(0xFF0F1B2A)
+        containerColor = MaterialTheme.colorScheme.background
     )  { innerPadding ->
         // Danh sách tin nhắn: chỉ nhận padding từ Scaffold (để chừa TopAppBar)
         val listState = rememberLazyListState()

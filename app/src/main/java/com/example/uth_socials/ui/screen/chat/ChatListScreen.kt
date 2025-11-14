@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.uth_socials.data.util.DateUtils
+import com.example.uth_socials.ui.component.logo.ChatListTopBar
 import com.example.uth_socials.ui.viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -51,7 +52,12 @@ fun ChatListScreen(
     }
 
     Scaffold(
-
+        topBar ={
+            ChatListTopBar(
+                onBackClick = onBack
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

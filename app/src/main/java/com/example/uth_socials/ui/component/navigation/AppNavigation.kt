@@ -40,6 +40,8 @@ import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import com.example.uth_socials.ui.screen.UserInfoScreen
+import com.example.uth_socials.ui.screen.setting.UserSettingScreen
 
 @Composable
 fun AppNavGraph(
@@ -101,6 +103,11 @@ fun NavGraphBuilder.authNavGraph(
                 onGoogleClick = {
                     viewModel.loginWithGoogle(activity = navController.context as Activity) {
                         launcher.launch(it)
+                    }
+                },
+                onRegisterSuccess = {
+                    navController.navigate(Graph.MAIN){
+                        popUpTo(Graph.AUTH) { inclusive = true }
                     }
                 }
             )
@@ -249,6 +256,9 @@ fun MainScreen(rootNavController: NavHostController) {
                             profileViewModel.openChatWithUser(targetUserId) { chatId ->
                                 navController.navigate(Screen.ChatDetail.createRoute(chatId))
                             }
+                        },
+                        onEditProfileClicked = {
+                            navController.navigate(Screen.Setting.route)
                         }
                     )
                 } else {
@@ -281,6 +291,21 @@ fun MainScreen(rootNavController: NavHostController) {
             composable(Screen.ChatDetail.route) { backStackEntry ->
                 val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
                 ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
+            }
+            composable(Screen.Setting.route) {
+                // ✅ SỬA LỖI: Truyền viewModel và hàm onLogout đã nhận được
+                UserSettingScreen(
+                    onBackClicked = { navController.popBackStack() },
+                    onNavigateToUserInfo = {
+                        navController.navigate(Screen.UserInfoScreen.route)
+                    },
+                    onLogout = onLogout
+                )
+            }
+            composable(Screen.UserInfoScreen.route) {
+                UserInfoScreen(
+                    onSaveSuccess = { navController.popBackStack() } // Quay lại sau khi lưu
+                )
             }
         }
     }

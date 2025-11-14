@@ -9,18 +9,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -33,18 +26,10 @@ fun ChatTopAppBar(
     avatarUrl: String,
     onBackClick: () -> Unit
 ) {
-    val darkAppBarColor = Color(0xFF1A2838)
-    val onDarkAppBarColor = Color.White
-
     TopAppBar(
-        modifier = Modifier
-            .fillMaxWidth(),
-
-
+        modifier = Modifier.fillMaxWidth(),
         title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = avatarUrl.ifEmpty {
                         "https://cdn-icons-png.flaticon.com/512/149/149071.png"
@@ -61,7 +46,7 @@ fun ChatTopAppBar(
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = onDarkAppBarColor
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         },
@@ -69,15 +54,50 @@ fun ChatTopAppBar(
             IconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = onDarkAppBarColor
+                    contentDescription = "Quay lại",
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = darkAppBarColor
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            navigationIconContentColor = MaterialTheme.colorScheme.onSurface
         ),
         windowInsets = WindowInsets(0.dp)
+    )
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatListTopBar(
+    onBackClick: () -> Unit
+) {
+    TopAppBar(
+        modifier = Modifier.fillMaxWidth(),
+        title = {
+            Text(
+                text = "Danh sách tin nhắn",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        windowInsets = WindowInsets(0.dp)
     )
 }
