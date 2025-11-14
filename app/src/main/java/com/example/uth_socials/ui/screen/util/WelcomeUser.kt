@@ -1,4 +1,4 @@
-package com.example.uth_socials.ui.screen
+package com.example.uth_socials.ui.screen.util
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image

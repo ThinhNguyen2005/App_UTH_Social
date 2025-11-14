@@ -10,8 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.uth_socials.ui.screen.InactiveDotColor
-import com.example.uth_socials.ui.screen.UthTeal
+import com.example.uth_socials.ui.screen.util.InactiveDotColor
+import com.example.uth_socials.ui.theme.UthTeal
 
 @Composable
 fun PageIndicator(

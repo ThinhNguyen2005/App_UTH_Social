@@ -37,7 +37,7 @@ fun FilterTabs(
                         onClick = {},
                         enabled = false,
                         label = {
-                            Text("Đang tải...")
+                            Text("")
                         }
                     )
                 }

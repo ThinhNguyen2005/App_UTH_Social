@@ -1,4 +1,4 @@
-package com.example.uth_socials.ui.screen
+package com.example.uth_socials.ui.screen.util
 
 import android.widget.Toast
 import androidx.compose.foundation.background

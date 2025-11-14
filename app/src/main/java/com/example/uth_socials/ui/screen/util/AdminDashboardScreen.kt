@@ -1,4 +1,4 @@
-package com.example.uth_socials.ui.screen
+package com.example.uth_socials.ui.screen.util
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -6,16 +6,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -25,14 +21,16 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import coil.compose.AsyncImage
-import com.example.uth_socials.config.AdminConfig
 import com.example.uth_socials.data.post.AdminAction
 import com.example.uth_socials.data.post.AdminReport
-import com.example.uth_socials.data.post.User
+import com.example.uth_socials.data.post.Category
+import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.user.AdminUser
+import com.example.uth_socials.ui.component.logo.OnlyLogo
 import com.example.uth_socials.ui.viewmodel.AdminDashboardViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material3.pulltorefresh.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +43,6 @@ fun AdminDashboardScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // Parse initial tab from navigation argument or route
     val initialTab = remember(backStackEntry) {
         val tabArg = backStackEntry?.arguments?.getString("tab")
         val route = backStackEntry?.destination?.route
@@ -58,39 +55,50 @@ fun AdminDashboardScreen(
             else -> AdminTab.REPORTS
         }
     }
-
+    val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by remember { mutableStateOf(initialTab) }
     var showActionDialog by remember { mutableStateOf<AdminReport?>(null) }
     var showGrantAdminDialog by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
-    var showEditCategoryDialog by remember { mutableStateOf<com.example.uth_socials.data.post.Category?>(null) }
+    var showEditCategoryDialog by remember { mutableStateOf<Category?>(null) }
     // 🔸 Ban dialog state
     var showBanDialog by remember { mutableStateOf<User?>(null) }
     // 🔸 Post detail modal state
     var showPostDetail by remember { mutableStateOf<AdminReport?>(null) }
     // 🔸 Delete category dialog state
-    var showDeleteCategoryDialog by remember { mutableStateOf<com.example.uth_socials.data.post.Category?>(null) }
+    var showDeleteCategoryDialog by remember { mutableStateOf<Category?>(null) }
 
-    // Check if current user is super admin
-    var isSuperAdmin by remember { mutableStateOf(false) }
+    //load phân loại admin/superAdmin
     LaunchedEffect(Unit) {
-        val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-        isSuperAdmin = currentUserId?.let { AdminConfig.isSuperAdmin(it) } ?: false
+        viewModel.refreshAdminStatus()
     }
 
+    LaunchedEffect(uiState.isCurrentUserAdmin) {
+        if(uiState.isCurrentUserAdmin) {
+            viewModel.loadData()
+        }
+    }
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {message ->
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
+            viewModel.clearError()
+        }
+    }
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {message ->
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+            viewModel.clearSuccessMessage()
+        }
+    }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(selectedTab.title) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Default.ArrowBack, "Back")
-                    }
-                }
+            OnlyLogo(
+                userName = selectedTab.title,
+                onBackClick = onNavigateBack
             )
         },
         floatingActionButton = {
-            // Chỉ hiển thị FAB khi đang ở tab Categories
             if (selectedTab == AdminTab.CATEGORIES) {
                 FloatingActionButton(
                     onClick = { showAddCategoryDialog = true },
@@ -110,10 +118,9 @@ fun AdminDashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .windowInsetsPadding(WindowInsets.statusBars)
         ) {
             // Tab selector - filter tabs based on permissions
-            val availableTabs = if (isSuperAdmin) {
+            val availableTabs = if (uiState.isCurrentUserAdmin) {
                 AdminTab.entries
             } else {
                 AdminTab.entries.filter { it != AdminTab.ADMINS }
@@ -132,8 +139,8 @@ fun AdminDashboardScreen(
             }
 
             // If user is not super admin and somehow on ADMINS tab, switch to REPORTS
-            LaunchedEffect(isSuperAdmin, selectedTab) {
-                if (!isSuperAdmin && selectedTab == AdminTab.ADMINS) {
+            LaunchedEffect(uiState.isCurrentUserAdmin, selectedTab) {
+                if (!uiState.isCurrentUserAdmin && selectedTab == AdminTab.ADMINS) {
                     selectedTab = AdminTab.REPORTS
                 }
             }
@@ -153,15 +160,15 @@ fun AdminDashboardScreen(
                         showBanDialog = user
                     },
                     onUnbanUser = { userId ->
-                        scope.launch {
-                            viewModel.unbanUser(userId)
-                        }
-                    }
+                        viewModel.unbanUser(userId)
+                    },
+                    onRefresh = { viewModel.refreshBannedUsers() }
+
                 )
                 AdminTab.ADMINS -> AdminsTab(
                     admins = uiState.admins,
                     isLoading = uiState.isLoadingAdmins,
-                    isSuperAdmin = isSuperAdmin,
+                    isSuperAdmin = uiState.isCurrentUserAdmin,
                     onGrantAdmin = { showGrantAdminDialog = true },
                     onRevokeAdmin = { adminUser ->
                         scope.launch {
@@ -392,22 +399,52 @@ private fun UsersTab(
     bannedUsers: List<User>,
     isLoading: Boolean,
     onBanUser: (User) -> Unit,
-    onUnbanUser: (String) -> Unit
+    onUnbanUser: (String) -> Unit,
+    onRefresh: () -> Unit
 ) {
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Refresh button ở trên cùng
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onRefresh,
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh banned users"
+                    )
+                }
+            }
         }
-    } else if (bannedUsers.isEmpty()) {
-        EmptyState("No banned users", Icons.Default.Person)
-    } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(bannedUsers) { user ->
-                BannedUserCard(
-                    user,
-                    onBan = { onBanUser(user) },
-                    onUnban = { onUnbanUser(user.id) }
-                )
+
+        // Content
+        if (isLoading && bannedUsers.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (bannedUsers.isEmpty()) {
+            EmptyState("No banned users", Icons.Default.Person)
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(bannedUsers) { user ->
+                    BannedUserCard(
+                        user,
+                        onBan = { onBanUser(user) },
+                        onUnban = { onUnbanUser(user.id) }
+                    )
+                }
             }
         }
     }
@@ -443,13 +480,22 @@ private fun ReportCard(
 
             report.post?.let { post ->
                 Text("Post: ${post.textContent.take(50)}...")
-                Text("By: ${report.reportedUser?.username ?: "Unknown"}")
+                Text(
+                    "By: ${report.reportedUser?.username ?: "Unknown User"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (report.reportedUser?.username == "[Deleted User]") 
+                        MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified
+                )
+            } ?: run {
+                Text("Post: [Post deleted or not found]", style = MaterialTheme.typography.bodySmall)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Reported by: ${report.reporter?.username ?: "Unknown"}",
-                style = MaterialTheme.typography.bodySmall
+                "Reported by: ${report.reporter?.username ?: "Unknown User"}",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (report.reporter?.username == "[Deleted User]")
+                    MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified
             )
             Text(
                 "Reason: ${report.report.description}",
@@ -475,7 +521,6 @@ private fun BannedUserCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(user.username, style = MaterialTheme.typography.titleMedium)
-                    Text(user.email, style = MaterialTheme.typography.bodyMedium)
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -582,7 +627,7 @@ private fun AdminsTab(
 
 @Composable
 private fun CategoriesTab(
-    categories: List<com.example.uth_socials.data.post.Category>,
+    categories: List<Category>,
     isLoading: Boolean,
     onEditCategory: (com.example.uth_socials.data.post.Category) -> Unit,
     onDeleteCategory: (com.example.uth_socials.data.post.Category) -> Unit
@@ -780,7 +825,7 @@ private fun ReportActionDialog(
 
 @Composable
 private fun CategoryCard(
-    category: com.example.uth_socials.data.post.Category,
+    category: Category,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -808,7 +853,7 @@ private fun CategoryCard(
                     Text("Edit")
                 }
 
-                if (!com.example.uth_socials.data.post.Category.DEFAULT_CATEGORIES.any { it.id == category.id }) {
+                if (!Category.DEFAULT_CATEGORIES.any { it.id == category.id }) {
                     TextButton(
                         onClick = onDelete,
                         colors = ButtonDefaults.textButtonColors(
@@ -851,14 +896,6 @@ private fun AddCategoryDialog(
                     isError = showError != null,
                     supportingText = showError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } }
                 )
-
-                if (categoryName.isNotBlank()) {
-                    Text(
-                        "Generated ID: ${categoryName.lowercase().replace(Regex("[^a-z0-9\\s]"), "").replace(Regex("\\s+"), "_").take(20)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
             }
         },
         confirmButton = {
@@ -1169,19 +1206,6 @@ private fun PostDetailModal(
                                 Text("Ban User")
                             }
 
-                            // Warn User Button
-                            Button(
-                                onClick = { onAction(AdminAction.WARN_USER, "Warning issued by admin") },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFFBC02D)
-                                )
-                            ) {
-                                Icon(Icons.Default.Warning, "Warn User")
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Warn User")
-                            }
-
                             // Dismiss Report Button
                             OutlinedButton(
                                 onClick = { onAction(AdminAction.DISMISS, "Report dismissed") },
@@ -1383,8 +1407,7 @@ val AdminAction.displayName: String
     get() = when (this) {
         AdminAction.NONE -> "No Action"
         AdminAction.DISMISS -> "Dismiss Report"
-        AdminAction.WARN_USER -> "Warn User"
         AdminAction.DELETE_POST -> "Delete Post"
         AdminAction.BAN_USER -> "Ban User"
-        AdminAction.BAN_REPORTER -> "Ban Reporter"
     }
+

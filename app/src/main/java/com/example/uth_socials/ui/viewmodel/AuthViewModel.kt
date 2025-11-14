@@ -7,7 +7,6 @@ import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.repository.UserRepository
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -64,17 +63,10 @@ class AuthViewModel(
                     // ✅ Đảm bảo profile tồn tại, có thể là user cũ nhưng bị lỗi tạo doc
                     userRepository.createUserProfileIfNotExists(firebaseUser)
 
-
-                    val userProfile = userRepository.getUser(firebaseUser.uid)
-                    if (userProfile?.isBanned == true) {
-                        // Nếu bị cấm, buộc đăng xuất và báo lỗi
-                        auth.signOut()
-                        _state.value = AuthState.Error("Tài khoản của bạn đã bị khóa.")
-                    } else {
-                        // Nếu không, cho phép đăng nhập
-                        _state.value = AuthState.Success("Đăng nhập thành công")
-                        updateUserToken()
-                    }
+                    // ✅ THAY ĐỔI: Cho phép đăng nhập ngay cả khi bị ban
+                    // BanStatusViewModel sẽ quản lý trạng thái ban và UI sẽ hiển thị dialog
+                    _state.value = AuthState.Success("Đăng nhập thành công")
+                    updateUserToken()
 
 
                 } else {
@@ -87,30 +79,15 @@ class AuthViewModel(
         }
     }
 
-//    fun register(email: String, password: String) {
-//        viewModelScope.launch {
-//            _state.value = AuthState.Loading
-//            auth.createUserWithEmailAndPassword(email, password)
-//                .addOnCompleteListener { task ->
-//                    _state.value = if (task.isSuccessful)
-//                        AuthState.Success("Đăng ký thành công")
-//                    else
-//                        AuthState.Error(task.exception?.message ?: "Lỗi đăng ký")
-//                }
-//        }
-//    }
-
-    fun register(email: String, password: String,username: String) {
+    fun register(email: String, password: String) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = AuthState.Loading
             try {
-                // ✅ Dùng .await()
                 val result = auth.createUserWithEmailAndPassword(email, password).await()
                 val firebaseUser = result.user
 
                 if (firebaseUser != null) {
-                    // ✅ GỌI HÀM TẠO PROFILE NGAY SAU KHI ĐĂNG KÝ THÀNH CÔNG
-                    userRepository.createUserProfileIfNotExists(firebaseUser,username)
+                    userRepository.createUserProfileIfNotExists(firebaseUser)
                     _state.value = AuthState.Success("Đăng ký thành công")
                     updateUserToken()
                 } else {
@@ -122,7 +99,7 @@ class AuthViewModel(
         }
     }
 
-    fun loginWithGoogle(activity: Activity, launcher: (Intent) -> Unit) {
+    fun loginWithGoogle(@Suppress("UNUSED_PARAMETER") activity: Activity, launcher: (Intent) -> Unit) {
         googleClient.signOut().addOnCompleteListener {
             launcher(googleClient.signInIntent)
         }
@@ -143,20 +120,12 @@ class AuthViewModel(
                 if (firebaseUser != null) {
                     // ✅ GỌI HÀM TẠO PROFILE NGAY SAU KHI ĐĂNG NHẬP GOOGLE THÀNH CÔNG
                     userRepository.createUserProfileIfNotExists(firebaseUser)
-                    // 2. Lấy hồ sơ người dùng từ Firestore
-                    val userProfile = userRepository.getUser(firebaseUser.uid)
-
-                    // 3. Kiểm tra trường isBanned
-                    if (userProfile?.isBanned == true) {
-                        // Nếu bị cấm, đăng xuất (cả Firebase và Google) và báo lỗi
-                        auth.signOut()
-                        googleClient.signOut() // Đăng xuất khỏi Google
-                        _state.value = AuthState.Error("Tài khoản của bạn đã bị khóa.")
-                    } else {
-                        // Nếu không, đăng nhập thành công
-                        _state.value = AuthState.Success("Đăng nhập Google thành công")
-                        updateUserToken()
-                    }                } else {
+                    
+                    // ✅ THAY ĐỔI: Cho phép đăng nhập ngay cả khi bị ban
+                    // BanStatusViewModel sẽ quản lý trạng thái ban và UI sẽ hiển thị dialog
+                    _state.value = AuthState.Success("Đăng nhập Google thành công")
+                    updateUserToken()
+                } else {
                     _state.value = AuthState.Error("Không lấy được thông tin người dùng.")
                 }
             } catch (e: Exception) {
@@ -171,7 +140,7 @@ class AuthViewModel(
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
-                println("❌ Lấy token thất bại: ${task.exception}")
+                println("Lấy token thất bại: ${task.exception}")
                 return@addOnCompleteListener
             }
 
@@ -182,10 +151,10 @@ class AuthViewModel(
                 .document(user.uid)
                 .update("token", token)
                 .addOnSuccessListener {
-                    println("✅ Token người dùng đã được cập nhật: $token")
+                    println("Token người dùng đã được cập nhật: $token")
                 }
                 .addOnFailureListener { e ->
-                    println("❌ Lỗi khi lưu token: $e")
+                    println("Lỗi khi lưu token: $e")
                 }
         }
     }
