@@ -57,11 +57,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // gửi thông báo
-//    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
     implementation("com.google.firebase:firebase-messaging")
-
-
-// Coil (để tải ảnh từ URL)
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.foundation:foundation:1.9.3")
     implementation(libs.androidx.core.ktx)
@@ -71,6 +67,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.ui.text)
@@ -92,5 +89,4 @@ dependencies {
 
 
     implementation("com.google.android.gms:play-services-auth:21.2.0")//Auth API GG
-    implementation("androidx.navigation:navigation-compose:2.8.3")//điều hướng
 }

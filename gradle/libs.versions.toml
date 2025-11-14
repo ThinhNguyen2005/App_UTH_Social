@@ -48,6 +48,8 @@ volley = { group = "com.android.volley", name = "volley", version.ref = "volley"
 litert-support-api = { group = "com.google.ai.edge.litert", name = "litert-support-api", version.ref = "litertSupportApi" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
+androidx-material = { group = "androidx.compose.material", name = "material" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -168,7 +168,6 @@ class AdminDashboardViewModel : ViewModel() {
                     _uiState.update { it.copy(error = "Chặn thất bại: ${e.message}") }
                 }
         }
-        refreshBannedUsers()
     }
 
     // Bỏ chặn user
@@ -189,7 +188,6 @@ class AdminDashboardViewModel : ViewModel() {
                     }
                 }
         }
-        refreshBannedUsers()
     }
 
     //Cấp quyền admin

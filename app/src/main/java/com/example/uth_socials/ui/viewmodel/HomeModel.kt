@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import com.google.firebase.auth.FirebaseAuth
 import com.example.uth_socials.data.util.SecurityValidator
 import com.example.uth_socials.data.repository.UserRepository
+import com.example.uth_socials.data.util.SecurityValidator.clearCache
 
 
 //Enum để quản lý trạng thái gửi bình luận
@@ -814,7 +815,7 @@ class HomeViewModel(
         categoriesJob = null
         commentsJob = null
         postsJob = null
-
+        clearCache()
         // Reset state
         _uiState.update { HomeUiState() }
 
