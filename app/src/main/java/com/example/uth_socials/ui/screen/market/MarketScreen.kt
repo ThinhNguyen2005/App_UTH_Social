@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -86,7 +87,7 @@ fun MarketScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(y = (-30).dp)
+                .offset(y = (-24).dp)
         ) {
             SearchBar(
                 modifier = Modifier.align(Alignment.TopCenter),
@@ -112,7 +113,7 @@ fun MarketScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .offset(y = -25.dp)
+                    .offset(y = (-25).dp)
                     .padding(horizontal = 20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -142,7 +143,6 @@ fun MarketScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset(y = (-30).dp)
         ) {
             // Loading state
             if (listUiState.isLoading) {
@@ -255,7 +255,7 @@ fun MarketScreen(
                                 )
                             )
                             .padding(horizontal = 16.dp)
-                            .padding(top = 18.dp),
+                            .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         items(listUiState.filteredProducts.size) { index ->

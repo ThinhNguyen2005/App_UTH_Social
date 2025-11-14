@@ -20,9 +20,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.uth_socials.R
 import com.example.uth_socials.data.shop.Product
-import java.text.SimpleDateFormat
+import java.text.NumberFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 @Composable
 fun ProductItem(
@@ -37,7 +38,7 @@ fun ProductItem(
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             AsyncImage(
-                model = product.imageUrl ?: R.drawable.truong,  //TOI UU
+                model = product.imageUrl ?: R.drawable.default_image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -78,14 +79,63 @@ fun ProductItem(
         }
     }
 }
-fun formatVND(amount: Double): String {
-    val formatter = java.text.NumberFormat.getCurrencyInstance(Locale("vi", "VN"))
-    return formatter.format(amount)
+fun formatVND(price: Double): String {
+    val locale = Locale("vi", "VN")
+    val formatter = NumberFormat.getCurrencyInstance(locale)
+    return formatter.format(price)
 }
-fun formatTime(date: Date?): String {
-    if (date == null) {
-        return "N/A"
+fun getRelativeTimeString(date: Date?): String {
+    // Nếu date null, trả về mặc định
+    if (date == null) return "Thời gian không xác định"
+
+    // Lấy thời gian hiện tại (milliseconds)
+    val now = System.currentTimeMillis()
+
+    // Lấy thời gian của sản phẩm (milliseconds)
+    val productTime = date.time
+
+    // Tính khoảng cách thời gian (milliseconds)
+    val diffInMillis = now - productTime
+
+    // Nếu thời gian âm (lỗi dữ liệu), trả về mặc định
+    if (diffInMillis < 0) return "Vừa xong"
+
+    // Chuyển đổi sang các đơn vị thời gian
+    val seconds = TimeUnit.MILLISECONDS.toSeconds(diffInMillis)
+    val minutes = TimeUnit.MILLISECONDS.toMinutes(diffInMillis)
+    val hours = TimeUnit.MILLISECONDS.toHours(diffInMillis)
+    val days = TimeUnit.MILLISECONDS.toDays(diffInMillis)
+
+    // Logic hiển thị theo mức độ ưu tiên
+    return when {
+        // Dưới 1 phút: "Vừa xong"
+        seconds < 60 -> "Vừa xong"
+
+        // Dưới 1 giờ: hiển thị phút
+        minutes < 60 -> "$minutes phút trước"
+
+        // Dưới 1 ngày: hiển thị giờ
+        hours < 24 -> "$hours giờ trước"
+
+        // Dưới 7 ngày: hiển thị ngày
+        days < 7 -> "$days ngày trước"
+
+        // Dưới 30 ngày: hiển thị tuần
+        days < 30 -> {
+            val weeks = days / 7
+            "$weeks tuần trước"
+        }
+
+        // Dưới 365 ngày: hiển thị tháng
+        days < 365 -> {
+            val months = days / 30
+            "$months tháng trước"
+        }
+
+        // Trên 1 năm: hiển thị năm
+        else -> {
+            val years = days / 365
+            "$years năm trước"
+        }
     }
-    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-    return formatter.format(date)
 }

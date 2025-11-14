@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
  * - add/update/delete: chạy trong viewModelScope (coroutines)
  */
 
-// Trạng thái cho màn hình danh sách chính (List)
+//State cho màn hình danh sách chính
 data class ListUiState(
     val isLoading: Boolean = false,
     val products: List<Product> = emptyList(),
@@ -29,32 +29,23 @@ data class ListUiState(
     val error: String? = null
 )
 
-// Trạng thái cho màn hình chi tiết (Detail)
+//State cho màn hình chi tiết
 data class DetailUiState(
     val isLoading: Boolean = false,
     val product: Product? = null,
     val error: String? = null
 )
 
-// Trạng thái cho các tác vụ (Create, Update, Delete)
-sealed class OperationUiState {
-    object Idle : OperationUiState()
-    object Loading : OperationUiState()
-    data class Success(val message: String) : OperationUiState()
-    data class Error(val message: String) : OperationUiState()
-}
+private const val TAG = "ProductViewModel"
 
-private const val TAG = "ProductViewModel"  //Phân biệt log của lớp này với các lớp khác trong Logcat khi debug ứng dụng.
-
-class ProductViewModel2(
-) : ViewModel() {
+class ProductViewModel2: ViewModel() {
     private val repository = ProductRepository()
 
-    // MutableStateFlow để lưu query tìm kiếm
+    //MutableStateFlow để lưu query tìm kiếm
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
-    // --- 1. STATE CHO DANH SÁCH REALTIME với SEARCH ---
+    //STATE CHO DANH SÁCH REALTIME với SEARCH ---
     val listUiState: StateFlow<ListUiState> = combine(
         repository.getProductsStream(),
         _searchQuery
@@ -101,11 +92,7 @@ class ProductViewModel2(
             initialValue = ListUiState(isLoading = true)
         )
 
-    // --- 2. STATE CHO CÁC TÁC VỤ (C, U, D) ---
-    private val _operationState = MutableStateFlow<OperationUiState>(OperationUiState.Idle)
-    val operationState = _operationState.asStateFlow()
-
-    // --- 3. STATE CHO MÀN HÌNH CHI TIẾT (Get by ID) ---
+    //STATE CHO MÀN HÌNH CHI TIẾT (Get by ID) ---
     private val _detailState = MutableStateFlow(DetailUiState())
     val detailState = _detailState.asStateFlow()
 
@@ -144,62 +131,5 @@ class ProductViewModel2(
                 _detailState.value = DetailUiState(error = e.message)
             }
         }
-    }
-
-
-    /**
-     * Thêm sản phẩm mới
-     */
-    fun addProduct(product: Product) {
-        viewModelScope.launch {
-            _operationState.value = OperationUiState.Loading
-            try {
-                val newId = repository.createProduct(product)
-                _operationState.value = OperationUiState.Success("Tạo sản phẩm $newId thành công!")
-            } catch (e: Exception) {
-                _operationState.value = OperationUiState.Error(e.message ?: "Lỗi không xác định")
-            }
-        }
-    }
-
-    /**
-     * Cập nhật sản phẩm
-     */
-    fun updateProduct(product: Product) {
-        viewModelScope.launch {
-            _operationState.value = OperationUiState.Loading
-            try {
-                repository.updateProduct(product)
-                _operationState.value = OperationUiState.Success("Cập nhật ${product.id} thành công!")
-            } catch (e: Exception) {
-                _operationState.value = OperationUiState.Error(e.message ?: "Lỗi không xác định")
-            }
-        }
-    }
-
-    /**
-     * Xóa sản phẩm
-     */
-    fun deleteProduct(productId: String?) {
-        if (productId.isNullOrBlank()) {
-            _operationState.value = OperationUiState.Error("Product ID không hợp lệ")
-            return
-        }
-        viewModelScope.launch {
-            _operationState.value = OperationUiState.Loading
-            try {
-                repository.deleteProduct(productId)
-                _operationState.value = OperationUiState.Success("Xóa sản phẩm $productId thành công!")
-            } catch (e: Exception) {
-                _operationState.value = OperationUiState.Error(e.message ?: "Lỗi khi xóa sản phẩm")
-            }
-        }
-    }
-
-    /**
-     * Reset trạng thái tác vụ (gọi sau khi UI đã hiển thị Success/Error)
-     */
-    fun resetOperationState() {
-        _operationState.value = OperationUiState.Idle
     }
 }
