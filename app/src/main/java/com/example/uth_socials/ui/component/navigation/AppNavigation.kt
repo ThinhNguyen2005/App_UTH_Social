@@ -120,6 +120,12 @@ fun NavGraphBuilder.authNavGraph(
                     viewModel.loginWithGoogle(activity = navController.context as Activity) {
                         launcher.launch(it)
                     }
+                },
+                onLoginSuccess = {
+                    // Chuyển sang đồ thị chính và xóa đồ thị auth khỏi back stack
+                    navController.navigate(Graph.MAIN) {
+                        popUpTo(Graph.AUTH) { inclusive = true }
+                    }
                 }
             )
         }

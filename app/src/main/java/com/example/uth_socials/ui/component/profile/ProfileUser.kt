@@ -56,6 +56,7 @@ fun ProfileHeader(
                 postCount = postCount,
                 isOwner = isOwner,
                 isFollowing = isFollowing,
+
                 onFollowClicked = onFollowClicked,
                 onMessageClicked = onMessageClicked,
                 onEditProfileClicked = onEditProfileClicked
@@ -281,47 +282,57 @@ private fun ProfileActions(
             }
         } else {
             // Khi là khách, 2 nút sẽ hiển thị dạng stack theo hình mẫu
-            
-            // Nút nhắn tin
-            OutlinedButton(
-                onClick = onMessageClicked,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(50),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Nhắn tin")
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Nút theo dõi
-            if (isFollowing) {
-                // Nếu đã theo dõi, hiển thị nút outlined
+                // Nút nhắn tin
                 OutlinedButton(
-                    onClick = onFollowClicked,
-                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onMessageClicked,
+                    modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
                 ) {
-                    Text("Đang theo dõi")
+                    Text("Nhắn tin")
                 }
-            } else {
-                // Nếu chưa theo dõi, hiển thị nút filled
-                Button(
-                    onClick = onFollowClicked,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.PersonAdd,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Theo dõi")
+
+
+                // Nút theo dõi
+                if (isFollowing) {
+                    // Nếu đã theo dõi, hiển thị nút outlined
+                    OutlinedButton(
+                        onClick = onFollowClicked,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(50),
+
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Text("Đang theo dõi")
+                    }
+                } else {
+                    // Nếu chưa theo dõi, hiển thị nút filled
+                    Button(
+                        onClick = onFollowClicked,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.PersonAdd,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Theo dõi")
+                    }
                 }
             }
         }

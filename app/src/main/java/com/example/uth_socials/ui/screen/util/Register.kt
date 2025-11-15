@@ -24,6 +24,8 @@ import androidx.navigation.NavHostController
 import com.example.uth_socials.R
 import com.example.uth_socials.ui.component.button.ComfirmAuthButton
 import com.example.uth_socials.ui.component.button.GoogleButton
+import com.example.uth_socials.ui.component.common.InputTextField
+import com.example.uth_socials.ui.component.common.PasswordTextField
 import com.example.uth_socials.ui.component.navigation.Screen
 import com.example.uth_socials.ui.viewmodel.AuthState
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
@@ -84,76 +86,34 @@ fun RegisterScreen(
         )
 
         Spacer(modifier = Modifier.height(24.dp))
-        OutlinedTextField(
+
+        InputTextField(
             value = username,
-            onValueChange = { username = it },
-            label = { Text("Tên hiển thị") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF),
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black
-            )
+            onValueChange = {username=it},
+            label = "Tên người dùng"
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF),
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black
-            )
+        InputTextField(
+            value=email,
+            onValueChange = {email=it},
+            label = "Email"
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        PasswordTextField(
             value = password,
-            onValueChange = { password = it },
-            label = { Text("Mật khẩu") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF),
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black
-            )
+            onValueChange={password=it},
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("Nhập lại mật khẩu") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF),
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black
-            )
+        PasswordTextField(
+            value= confirmPassword,
+            onValueChange = {confirmPassword=it},
+            label = "Nhập lại mật khẩu"
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -186,7 +146,11 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         when (state) {
-            is AuthState.Loading -> CircularProgressIndicator()
+            is AuthState.Loading ->{
+                CircularProgressIndicator(
+                    modifier = Modifier.padding(bottom=50.dp),
+                )
+            }
             is AuthState.Success -> {
                 Toast.makeText(context, (state as AuthState.Success).message, Toast.LENGTH_SHORT).show()
                 viewModel.resetState()

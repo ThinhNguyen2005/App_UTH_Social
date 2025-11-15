@@ -26,6 +26,8 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.OutlinedTextField
 import com.example.uth_socials.ui.component.button.ComfirmAuthButton
 import com.example.uth_socials.ui.component.button.GoogleButton
+import com.example.uth_socials.ui.component.common.InputTextField
+import com.example.uth_socials.ui.component.common.PasswordTextField
 import com.example.uth_socials.ui.screen.util.RequestNotificationPermission
 
 
@@ -44,7 +46,6 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
 
     RequestNotificationPermission()
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -89,44 +90,19 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Email TextField
-        OutlinedTextField(
+        InputTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF) ,
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black
-            )
+            label = "Email"
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-
-        OutlinedTextField(
+        PasswordTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF),
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black
-            )
+            label = "Mật khẩu"
         )
-
-
 
         TextButton(
             onClick = onResetPasswordClick,
@@ -167,7 +143,11 @@ fun LoginScreen(
 
         // ViewModel State Handling
         when (state) {
-            is AuthState.Loading -> CircularProgressIndicator()
+            is AuthState.Loading ->{
+                CircularProgressIndicator(
+                    modifier = Modifier.padding(bottom=50.dp),
+                )
+            }
             is AuthState.Success -> {
                 Toast.makeText(context, (state as AuthState.Success).message, Toast.LENGTH_SHORT).show()
                 viewModel.resetState()
