@@ -11,7 +11,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
-import com.example.uth_socials.ui.screen.UthTeal
+import com.example.uth_socials.ui.theme.UthTeal
 import androidx.core.net.toUri
 
 @Composable

@@ -1,4 +1,4 @@
-package com.example.uth_socials.ui.screen
+package com.example.uth_socials.ui.screen.util
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -124,13 +124,14 @@ fun ResetPasswordScreen(
             Text("Quay trở lại", color = Color.Gray, fontWeight = FontWeight.Medium)
         }
 
-        Spacer(Modifier.weight(1f))
+        Spacer(modifier = Modifier.weight(1f))
+
 
         GoogleButton (
             onClick = onGoogleClick
         )
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(100.dp))
         when (state) {
             is AuthState.Success -> {
                 Toast.makeText(context, (state as AuthState.Success).message, Toast.LENGTH_SHORT).show()

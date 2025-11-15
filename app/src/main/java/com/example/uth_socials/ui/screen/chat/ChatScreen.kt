@@ -23,6 +23,7 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.data.util.DateUtils
 import com.example.uth_socials.ui.component.logo.ChatBottomBar
 import com.example.uth_socials.ui.component.logo.ChatTopAppBar
+import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.example.uth_socials.ui.viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -71,7 +72,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
         },
         // 👇 KHÔNG cho Scaffold tự cộng thêm bất kỳ inset nào
         contentWindowInsets = WindowInsets(0),
-        containerColor = Color(0xFF0F1B2A)
+        containerColor = MaterialTheme.colorScheme.background
     )  { innerPadding ->
         // Danh sách tin nhắn: chỉ nhận padding từ Scaffold (để chừa TopAppBar)
         val listState = rememberLazyListState()
@@ -100,5 +101,18 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
                 )
             }
         }
+        
+        // Ban dialog
+        val showBanDialog by vm.showBanDialog.collectAsState()
+        BannedUserDialog(
+            isVisible = showBanDialog,
+            banReason = null,
+            onDismiss = { vm.onDismissBanDialog() },
+            onLogout = {
+                FirebaseAuth.getInstance().signOut()
+                vm.onDismissBanDialog()
+                onBack()
+            }
+        )
     }
 }

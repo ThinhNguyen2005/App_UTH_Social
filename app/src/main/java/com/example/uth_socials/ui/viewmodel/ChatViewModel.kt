@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.chat.Message
 import com.example.uth_socials.data.repository.ChatRepository
+import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.ui.screen.chat.ChatSummary
 import kotlinx.coroutines.launch
 
@@ -32,6 +33,9 @@ class ChatViewModel : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
+    
+    private val _showBanDialog = MutableStateFlow(false)
+    val showBanDialog = _showBanDialog.asStateFlow()
 
     fun listenToMessages(chatId: String) {
         listenerRegistration?.remove() // tránh leak listener cũ
@@ -101,6 +105,14 @@ class ChatViewModel : ViewModel() {
         if (trimmed.isBlank()) return
 
         viewModelScope.launch {
+            // Check ban status trước khi gửi tin nhắn
+            val userRepository = UserRepository()
+            val user = userRepository.getUser(senderId)
+            if (user?.isBanned == true) {
+                _showBanDialog.value = true
+                return@launch
+            }
+            
             try {
                 val parts = chatId.split("_")
                 val targetUserId = parts.firstOrNull { it != senderId } ?: return@launch
@@ -161,6 +173,10 @@ class ChatViewModel : ViewModel() {
         } else {
             "${userId2}_${userId1}"
         }
+    }
+    
+    fun onDismissBanDialog() {
+        _showBanDialog.value = false
     }
 
 

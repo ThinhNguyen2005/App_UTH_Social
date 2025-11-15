@@ -21,6 +21,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.uth_socials.ui.viewmodel.PostViewModel
 import com.example.uth_socials.ui.viewmodel.ProductViewModel
+import com.example.uth_socials.ui.component.common.BannedUserDialog
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,5 +56,28 @@ fun PostScreen(navController: NavController) {
             }
 
         }
+        
+        // Ban dialogs
+        BannedUserDialog(
+            isVisible = postViewModel.showBanDialog,
+            banReason = null,
+            onDismiss = { postViewModel.showBanDialog = false },
+            onLogout = {
+                FirebaseAuth.getInstance().signOut()
+                postViewModel.showBanDialog = false
+                navController.navigate("home")
+            }
+        )
+        
+        BannedUserDialog(
+            isVisible = productViewModel.showBanDialog,
+            banReason = null,
+            onDismiss = { productViewModel.showBanDialog = false },
+            onLogout = {
+                FirebaseAuth.getInstance().signOut()
+                productViewModel.showBanDialog = false
+                navController.navigate("home")
+            }
+        )
     }
 }

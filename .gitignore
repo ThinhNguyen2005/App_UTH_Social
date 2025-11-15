@@ -27,17 +27,8 @@ local.properties
 .idea
 .kotlin
 .idea/
-.idea
-.kotlin
-# Dưới đây là các quy tắc cụ thể hơn để loại trừ, đề phòng trường hợp .idea/ bị commit nhầm
-.idea/caches/
-.idea/libraries/
-.idea.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-.idea/deployment.xml
-.idea/misc.xml
+/.idea
+
 
 # =================================================================
 # Các file build và đóng gói
@@ -72,3 +63,7 @@ app/google-services.json
 
 # Các file log và báo cáo
 /lint-results-debug.xml
+
+/firestore.indexes.json
+/firestore.rules
+/firebase.json

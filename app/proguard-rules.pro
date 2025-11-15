@@ -4,6 +4,12 @@
 #
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
+##Đang test lỗi, nếu chưa được bỏ comment thì hãy xóa(thinh)
+## THÊM CÁC RULES CHO FIREBASE/GMS:
+#-keep class com.google.android.gms.** { *; }
+#-keep class com.google.firebase.** { *; }
+#-dontwarn com.google.android.gms.**
+#-dontwarn com.google.firebase.**
 
 # If your project uses WebView with JS, uncomment the following
 # and specify the fully qualified class name to the JavaScript interface

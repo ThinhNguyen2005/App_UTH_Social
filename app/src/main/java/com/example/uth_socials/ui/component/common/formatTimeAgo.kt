@@ -7,10 +7,8 @@ fun formatTimeAgo(timestamp: Timestamp?): String {
     if (timestamp == null) {
         return "Vừa xong" // hoặc "Không rõ"
     }
-    // 2. Chuyển đổi Timestamp thành mili giây (Long)
     val millis = timestamp.toDate().time
     val now = System.currentTimeMillis()
-    // 3. Tính toán khoảng thời gian (phần còn lại giữ nguyên)
     val seconds = (now - millis) / 1000
     return when {
         seconds < 60 -> "Vừa xong"

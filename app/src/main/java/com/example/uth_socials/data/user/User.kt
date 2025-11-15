@@ -7,7 +7,7 @@ import com.google.firebase.firestore.IgnoreExtraProperties
 @IgnoreExtraProperties
 data class User(
     var username: String = "",
-    var avatarUrl: String = "",
+    var avatarUrl: String? = null,
     var followers: List<String> = emptyList(),
     var following: List<String> = emptyList(),
     var hiddenPosts: List<String> = emptyList(),
@@ -15,6 +15,10 @@ data class User(
     var bio: String = "",
     var userId: String? = null,
     var id: String = "",
+    var campus: String? = null,
+    var phone: String? = null,
+    var major: String? = null,
+
     var isBanned: Boolean = false,
     var bannedAt: com.google.firebase.Timestamp? = null,
     var bannedBy: String? = null,

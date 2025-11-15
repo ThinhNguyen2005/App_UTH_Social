@@ -11,60 +11,71 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
-import kotlinx.coroutines.launch
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.uth_socials.data.repository.PostRepository
-import com.example.uth_socials.config.AdminConfig
-import com.example.uth_socials.ui.viewmodel.ViewModelFactory
 import com.example.uth_socials.ui.component.navigation.FilterTabs
 import com.example.uth_socials.ui.component.post.CommentSheetContent
 import com.example.uth_socials.ui.component.post.PostCard
 import com.example.uth_socials.ui.component.post.PostCardSkeleton
 import com.example.uth_socials.ui.component.common.ReportDialog
 import com.example.uth_socials.ui.component.common.DeleteConfirmDialog
+import com.example.uth_socials.ui.component.common.BannedUserDialog
+import com.example.uth_socials.ui.component.common.EditPostDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
+import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
+import com.example.uth_socials.data.util.SecurityValidator
+import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToProfile: (String) -> Unit = {}
+    onNavigateToProfile: (String) -> Unit = {},
+    onLogout: () -> Unit
 ) {
-    val postRepository =
-        remember { PostRepository() } // Dùng remember để không tạo lại mỗi lần recomposition
-    val viewModelFactory = remember { ViewModelFactory(postRepository) }
-    val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
-
-    // ✅ BƯỚC 2: BÂY GIỜ bạn có thể sử dụng ViewModel một cách an toàn
+    val homeViewModel: HomeViewModel = viewModel()
+    val banStatusViewModel: BanStatusViewModel = viewModel()
     val uiState by homeViewModel.uiState.collectAsState()
+    val banStatus by banStatusViewModel.banStatus.collectAsState()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    // ✅ CHECK ADMIN STATUS của từng user để disable report button
     val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
+    val snackbarHostState = remember { SnackbarHostState() }
 
 
-    // 2. Tạo một instance của Factory, truyền Repository vào.
+    LaunchedEffect(banStatus.isBanned) {
+        if (uiState.isUserBanned != banStatus.isBanned) {
+            homeViewModel.updateBanStatus(banStatus.isBanned)
+        }
+    }
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {message ->
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
+            homeViewModel.clearError()
+        }
+    }
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {message ->
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+            homeViewModel.clearSuccessMessage()
+        }
+    }
     LaunchedEffect(uiState.commentSheetPostId) {
         if (uiState.commentSheetPostId != null) {
             sheetState.show()
         } else {
-            // Đóng sheet nếu nó đang mở
             if (sheetState.isVisible) {
                 sheetState.hide()
             }
         }
     }
-
-    // ✅ Xử lý chia sẻ bài viết
     LaunchedEffect(uiState.shareContent) {
         uiState.shareContent?.let { content ->
             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -168,7 +179,7 @@ fun HomeScreen(
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Article,
+                                    imageVector = Icons.AutoMirrored.Filled.Article,
                                     contentDescription = "No posts",
                                     modifier = Modifier.size(64.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -198,17 +209,20 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp)
                         ) {
                             items(filteredPosts, key = { it.id }) { post ->
-                                // ✅ CHECK ADMIN STATUS cho từng post owner
-                                var isPostOwnerAdmin by remember(post.userId) { mutableStateOf(adminStatusCache[post.userId] ?: false) }
+                                // check admin cho từng post owner
 
                                 LaunchedEffect(post.userId) {
                                     if (adminStatusCache[post.userId] == null) {
-                                        // Check admin status nếu chưa có trong cache
-                                        val isAdmin = AdminConfig.isAnyAdmin(post.userId)
-                                        adminStatusCache[post.userId] = isAdmin
-                                        isPostOwnerAdmin = isAdmin
+                                        try {
+                                            val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(post.userId)
+                                            adminStatusCache[post.userId] = isAdmin
+                                        } catch (e: CancellationException) {
+                                            throw e
+                                        } catch (_: Exception) {
+                                            adminStatusCache[post.userId] = false
+                                        }
                                     } else {
-                                        isPostOwnerAdmin = adminStatusCache[post.userId] ?: false
+                                        adminStatusCache[post.userId] ?: false
                                     }
                                 }
 
@@ -224,8 +238,10 @@ fun HomeScreen(
                                     onReportClicked = { homeViewModel.onReportClicked(post.id) },
                                     onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
                                     onHideClicked = { homeViewModel.onHideClicked(post.id) },
+                                    onEditClicked = { homeViewModel.onEditPostClicked(post.id) },
                                     currentUserId = uiState.currentUserId,
-                                    isPostOwnerAdmin = isPostOwnerAdmin
+                                    isCurrentUserAdmin = uiState.isCurrentUserAdmin,
+                                    isUserBanned = uiState.isUserBanned
                                 )
                             }
                         }
@@ -250,12 +266,11 @@ fun HomeScreen(
                     onLikeComment = homeViewModel::onCommentLikeClicked,
                     onUserProfileClick = onNavigateToProfile,
                     commentPostState = uiState.commentPostState,
-                    currentUserAvatarUrl = uiState.currentUserAvatarUrl
+                    commentErrorMessage = uiState.commentErrorMessage,
                 )
             }
         }
 
-        // --- 🔸 REPORT DIALOG ---
         ReportDialog(
             isVisible = uiState.showReportDialog,
             onDismiss = { homeViewModel.onDismissReportDialog() },
@@ -264,18 +279,40 @@ fun HomeScreen(
             onSubmit = { homeViewModel.onSubmitReport() },
             reportReason = uiState.reportReason,
             reportDescription = uiState.reportDescription,
-            isReporting = uiState.isReporting
+            isReporting = uiState.isReporting,
+            reportErrorMessage = uiState.reportErrorMessage
         )
 
-        // --- 🔸 DELETE CONFIRM DIALOG ---
         DeleteConfirmDialog(
             isVisible = uiState.showDeleteConfirmDialog,
             onDismiss = { homeViewModel.onDismissDeleteDialog() },
             onConfirm = { homeViewModel.onConfirmDelete() },
-            isDeleting = uiState.isDeleting
+            isDeleting = uiState.isDeleting,
+            isCurrentUserAdmin = uiState.isCurrentUserAdmin
+        )
+
+        // Ban
+        BannedUserDialog(
+            isVisible = uiState.showBanDialog,
+            banReason = banStatus.banReason,
+            onDismiss = { homeViewModel.onDismissBanDialog() },
+            onLogout = {
+                homeViewModel.cleanupOnLogout()
+//                FirebaseAuth.getInstance().signOut()
+                homeViewModel.onDismissBanDialog()
+                onLogout()
+            }
+        )
+
+        EditPostDialog(
+            isVisible = uiState.showEditPostDialog,
+            currentContent = uiState.editingPostContent,
+            isLoading = uiState.isSavingPost,
+            errorMessage = uiState.editPostErrorMessage,
+            onDismiss = { homeViewModel.onDismissEditDialog() },
+            onSave = { homeViewModel.onSaveEditedPost() },
+            onContentChange = { homeViewModel.onUpdatePostContent(it) }
         )
 
     }
 }
-
-
