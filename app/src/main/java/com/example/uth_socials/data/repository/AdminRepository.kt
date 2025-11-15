@@ -147,7 +147,6 @@ class AdminRepository(
         val reportSnapshot = reportRef.get().await()
 
         val postId = reportSnapshot.getString("postId")
-        val reporterId = reportSnapshot.getString("reportedBy")
 
         val post = getPostById(postId ?: "")
         val targetUserId = post?.userId
