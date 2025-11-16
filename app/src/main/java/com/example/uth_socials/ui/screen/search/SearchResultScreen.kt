@@ -96,15 +96,9 @@ fun SearchResultScreen(
     val resultsUser by searchViewModel.searchUserResults.collectAsState()
     var visibleUsers by remember { mutableStateOf<List<User>>(emptyList()) }
 
-    val postRepository = remember { PostRepository() }
-
     val homeViewModel: HomeViewModel = viewModel()
 
     val uiState by homeViewModel.uiState.collectAsState()
-
-    val filteredPosts = remember(uiState.posts, uiState.hiddenPostIds) {
-        uiState.posts.filter { it.id !in uiState.hiddenPostIds }
-    }
 
     val context = LocalContext.current
 
