@@ -1,5 +1,6 @@
 package com.example.uth_socials.data.repository
 
+import android.net.Uri
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.post.Report
@@ -17,6 +18,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
+import com.example.uth_socials.data.user.User
+import com.google.firebase.Firebase
+import com.google.firebase.storage.storage
+import java.util.UUID
+import kotlin.collections.mutableListOf
 
 /**
  * PostRepository - Quản lý tất cả thao tác với dữ liệu bài viết (Posts)
@@ -33,11 +39,37 @@ import android.util.Log
  */
 class PostRepository {
     private val db = FirebaseFirestore.getInstance()
+
+    private val storage = Firebase.storage
     private val auth = FirebaseAuth.getInstance()
     private val postsCollection = db.collection("posts")
     private val reportsCollection = db.collection("reports")
     private val usersCollection = db.collection("users")
 
+    suspend fun uploadPost(
+        user : User?, content: String, category: String?, imageUrl : List<String>
+    ): Boolean {
+        return try {
+            // Tạo bài viết
+            val post = Post(
+                id = UUID.randomUUID().toString(),
+                username = user?.username ?: "",
+                userAvatarUrl = user?.avatarUrl ?: "",
+                userId = user?.id ?: "",
+                textContent = content.trim(),
+                textContentFormat = content.trim().lowercase(),
+                imageUrls = imageUrl,
+                category  = category
+            )
+
+            // Lưu lên Firestore
+            postsCollection.document(post.id).set(post).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
     // ==========================================
     // POST DATA FUNCTIONS (Lấy dữ liệu bài viết)
@@ -139,7 +171,6 @@ class PostRepository {
      */
     suspend fun toggleLikeStatus(postId: String, isCurrentlyLiked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
-        // Client-side permission guard
         if (!SecurityValidator.checkCurrentUserId(currentUserId)) {
             Log.w("PostRepository", "toggleLikeStatus denied for $currentUserId")
             return
@@ -485,14 +516,14 @@ class PostRepository {
             val snapshot = postRef.get().await()
             val ownerId = snapshot.getString("userId") ?: return false
 
-            // Client-side validation để tối ưu UX
             if (SecurityValidator.canDeletePost(currentUserId, ownerId)) {
                 postRef.delete().await()
                 true
             } else {
                 false
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error deleting post", e)
             false
         }
     }

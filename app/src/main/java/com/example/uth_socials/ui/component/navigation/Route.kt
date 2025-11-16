@@ -16,15 +16,11 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile/{userId}") {
         fun createRoute(userId: String) = "profile/$userId"
     }
+    object SearchResult : Screen("search_results/{query}")
    //Thêm route màn hình phụ ở đây, ví dụ: Search, messenger
     object AdminDashboard : Screen("admin_dashboard/{tab}") {
         fun createRoute(tab: String = "reports") = "admin_dashboard/$tab"
     }
-    //Mẫu ví dụ, lí do mà không
-    object Search : Screen("search")
-    object Messenger : Screen("messenger")
-    object Categories : Screen("categories")
-
     sealed class AuthScreen(val route: String) {
         object Login : AuthScreen("login")
         object Register : AuthScreen("register")
@@ -39,4 +35,5 @@ sealed class Screen(val route: String) {
     }
     object Setting : Screen("setting")
     object UserInfoScreen : Screen("user_info")
+    object BlockedUsers : Screen("blocked_users")
 }

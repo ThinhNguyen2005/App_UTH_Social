@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.component.navigation
 
+import SearchResultScreen
 import android.app.Activity
 import android.content.Intent
 import android.util.Log
@@ -32,7 +33,10 @@ import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.home.ProfileScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
+//import com.example.uth_socials.ui.screen.search.SearchScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
+import com.example.uth_socials.ui.viewmodel.PostViewModel
+import com.example.uth_socials.ui.viewmodel.ProductViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModelFactory
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
@@ -42,6 +46,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import com.example.uth_socials.ui.screen.UserInfoScreen
 import com.example.uth_socials.ui.screen.setting.UserSettingScreen
+import com.example.uth_socials.ui.viewmodel.SearchViewModel
+import com.example.uth_socials.ui.viewmodel.NotificationViewModel
+import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
+import com.example.uth_socials.ui.viewmodel.BlockedUsersViewModel
+import com.example.uth_socials.ui.viewmodel.HomeViewModel
 
 @Composable
 fun AppNavGraph(
@@ -139,7 +148,7 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
         route = Graph.MAIN
     ) {
         composable(Screen.Home.route) {
-            MainScreen(rootNavController = navController) // <-- THAY ĐỔI Ở ĐÂY
+            MainScreen(rootNavController = navController)
         }    }
 }
 
@@ -156,6 +165,9 @@ fun MainScreen(rootNavController: NavHostController) {
         }
         Log.d("AppNavigation", "Logout triggered! Navigating to AUTH graph.")
     }
+
+   // val notificationViewModel : NotificationViewModel = viewModel()
+
     val showBottomBar = when (currentRoute) {
         Screen.Home.route,
         Screen.Market.route,
@@ -173,7 +185,9 @@ fun MainScreen(rootNavController: NavHostController) {
             //Biết sao không back được không, vì chưa composable cụ thể navback làm gì đó
             when (currentRoute) {
                 Screen.Home.route -> HomeTopAppBar(
-                    onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ }, // gắn on Search trong trang đó có gì gắn nav back chẳng hạn chưa đủ, xuống dưới định nghĩa composable nữa
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
                     onMessagesClick = { navController.navigate(Screen.ChatList.route) },
                     onAdminClick = {
                         navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
@@ -185,7 +199,19 @@ fun MainScreen(rootNavController: NavHostController) {
                 Screen.Market.route -> LogoTopAppBar() // chỉ logo
                 Screen.Add.route -> LogoTopAppBar()
                 Screen.Notifications.route -> LogoTopAppBar()
-                else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
+                Screen.SearchResult.route -> HomeTopAppBar(
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
+                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+                else -> { /* no app bar */
+                }
             }
 
         },
@@ -195,19 +221,22 @@ fun MainScreen(rootNavController: NavHostController) {
                 var showBanDialog by remember { mutableStateOf(false) }
                 val banStatusViewModel: BanStatusViewModel = viewModel()
                 val banStatus by banStatusViewModel.banStatus.collectAsState()
-                
+
                 // Show ban dialog when ban status changes
                 LaunchedEffect(banStatus.isBanned) {
                     if (banStatus.isBanned && currentRoute != Screen.Home.route) {
                         showBanDialog = true
                     }
                 }
-                
+
+                val notificationViewModel : NotificationViewModel = viewModel()
+
                 HomeBottomNavigation(
                     navController = navController,
-                    onBanDialogRequest = { showBanDialog = true }
+                    onBanDialogRequest = { showBanDialog = true },
+                    notificationViewModel = notificationViewModel
                 )
-                
+
                 // Ban dialog for navigation
                 BannedUserDialog(
                     isVisible = showBanDialog,
@@ -238,10 +267,50 @@ fun MainScreen(rootNavController: NavHostController) {
             }
             //Shop                            - Trang test
             composable(Screen.Market.route) { MarketScreen() }
+            composable(Screen.Add.route) {
+                val postViewModel : PostViewModel = viewModel()
+                val productViewModel : ProductViewModel = viewModel()
+                PostScreen(postViewModel,productViewModel,navController = navController)
+            }
+            composable(Screen.Notifications.route) {
+                val notificationViewModel : NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel,navController)
+            }
+//            composable(Screen.Categories.route) {
+//                AdminDashboardScreen(
+//                    onNavigateBack = { navController.popBackStack() },
+//                    onNavigateToUser = { userId ->
+//                        navController.navigate(Screen.Profile.createRoute(userId)) {
+//                            launchSingleTop = true
+//                        }
+//                    }
+//                )
+//            }
+            composable(
+                route = Screen.AdminDashboard.route,
+                arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
+            ) { backStackEntry ->
+                AdminDashboardScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUser = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    backStackEntry = backStackEntry
+                )
+            }
             //Create post - product
-            composable(Screen.Add.route) { PostScreen(navController = navController) }
+            composable(Screen.Add.route) {
+                val postViewModel : PostViewModel = viewModel()
+                val productViewModel : ProductViewModel = viewModel()
+                PostScreen(postViewModel,productViewModel,navController = navController)
+            }
             //Notifications                 - Trang test
-            composable(Screen.Notifications.route) { NotificationsScreen() }
+            composable(Screen.Notifications.route) {
+                val notificationViewModel : NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel,navController)
+            }
 
             //Profile
             composable(
@@ -263,15 +332,24 @@ fun MainScreen(rootNavController: NavHostController) {
                                 navController.navigate(Screen.ChatDetail.createRoute(chatId))
                             }
                         },
-                        onEditProfileClicked = {
+                        onSettingClicked = {
                             navController.navigate(Screen.Setting.route)
                         }
                     )
                 } else {
-                    // Xử lý trường hợp không có userId (ví dụ: hiển thị lỗi hoặc quay lại)
                     Text("Lỗi: Không tìm thấy ID người dùng.")
                 }
             }
+
+            composable(Screen.SearchResult.route) { backStackEntry ->
+                val query = backStackEntry.arguments?.getString("query") ?: ""
+                val searchViewModel : SearchViewModel = viewModel()
+                searchViewModel.searchPosts(query)
+                searchViewModel.searchUsers(query)
+                val blockedUsersViewModel: BlockedUsersViewModel = viewModel()
+                SearchResultScreen(searchViewModel,blockedUsersViewModel,navController)
+            }
+
             composable(
                 route = Screen.AdminDashboard.route,
                 arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
@@ -299,18 +377,36 @@ fun MainScreen(rootNavController: NavHostController) {
                 ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
             }
             composable(Screen.Setting.route) {
-                // ✅ SỬA LỖI: Truyền viewModel và hàm onLogout đã nhận được
                 UserSettingScreen(
                     onBackClicked = { navController.popBackStack() },
                     onNavigateToUserInfo = {
                         navController.navigate(Screen.UserInfoScreen.route)
+                    },
+                    onNavigateToBlockedUsers = {
+                        Log.d("AppNavigation", "Navigating to BlockedUsers: ${Screen.BlockedUsers.route}")
+                        try {
+                            navController.navigate(Screen.BlockedUsers.route) {
+                                launchSingleTop = true
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error navigating to BlockedUsers", e)
+                        }
                     },
                     onLogout = onLogout
                 )
             }
             composable(Screen.UserInfoScreen.route) {
                 UserInfoScreen(
-                    onSaveSuccess = { navController.popBackStack() } // Quay lại sau khi lưu
+                    onSaveSuccess = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.BlockedUsers.route) {
+                val homeViewModel: HomeViewModel = viewModel()
+                BlockedUsersScreen(
+                    onBackClicked = { navController.popBackStack() },
+                    onUserUnblocked = {
+                        homeViewModel.refreshBlockedUsers()
+                    }
                 )
             }
         }
