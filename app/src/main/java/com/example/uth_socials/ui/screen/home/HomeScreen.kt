@@ -26,11 +26,12 @@ import com.example.uth_socials.ui.component.post.CommentSheetContent
 import com.example.uth_socials.ui.component.post.PostCard
 import com.example.uth_socials.ui.component.post.PostCardSkeleton
 import com.example.uth_socials.ui.component.common.ReportDialog
-import com.example.uth_socials.ui.component.common.DeleteConfirmDialog
+import com.example.uth_socials.ui.component.common.ConfirmDialog
 import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.example.uth_socials.ui.component.common.EditPostDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
+import com.example.uth_socials.ui.viewmodel.DialogType
 import com.example.uth_socials.data.util.SecurityValidator
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -49,6 +50,11 @@ fun HomeScreen(
     val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // ✅ Refresh blocked users khi HomeScreen được focus lại
+    // Refresh mỗi khi screen được recompose (khi quay lại từ ProfileScreen)
+    LaunchedEffect(Unit) {
+        homeViewModel.refreshBlockedUsers()
+    }
 
     LaunchedEffect(banStatus.isBanned) {
         if (uiState.isUserBanned != banStatus.isBanned) {
@@ -163,9 +169,14 @@ fun HomeScreen(
                 }
 
                 else -> {
-                    // 🔸 Filter hidden posts trước khi hiển thị
-                    val filteredPosts = remember(uiState.posts, uiState.hiddenPostIds) {
-                        uiState.posts.filter { it.id !in uiState.hiddenPostIds }
+                    // 🔸 Filter hidden posts và posts của blocked users
+                    val filteredPosts = remember(uiState.posts, uiState.hiddenPostIds, uiState.blockedUserIds) {
+                        uiState.posts.filter { post ->
+                            // ✅ Loại bỏ hidden posts
+                            post.id !in uiState.hiddenPostIds &&
+                            // ✅ Loại bỏ posts của blocked users
+                            post.userId !in uiState.blockedUserIds
+                        }
                     }
 
                     if (filteredPosts.isEmpty()) {
@@ -283,22 +294,34 @@ fun HomeScreen(
             reportErrorMessage = uiState.reportErrorMessage
         )
 
-        DeleteConfirmDialog(
-            isVisible = uiState.showDeleteConfirmDialog,
-            onDismiss = { homeViewModel.onDismissDeleteDialog() },
-            onConfirm = { homeViewModel.onConfirmDelete() },
-            isDeleting = uiState.isDeleting,
-            isCurrentUserAdmin = uiState.isCurrentUserAdmin
-        )
+        when (uiState.dialogType) {
+            is DialogType.DeletePost -> {
+                ConfirmDialog(
+                    isVisible = true,
+                    onDismiss = { homeViewModel.onDismissDialog() },
+                    onConfirm = { homeViewModel.onConfirmDialog() },
+                    isLoading = uiState.isProcessing,
+                    title = if (uiState.isCurrentUserAdmin) "Xóa bài viết (Admin)" else "Xóa bài viết",
+                    message = if (uiState.isCurrentUserAdmin) 
+                        "Bạn đang xóa bài viết này với quyền Admin. Người đăng bài sẽ bị cấm tự động. Hành động này không thể hoàn tác." 
+                    else 
+                        "Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.",
+                    confirmButtonText = "Xóa",
+                    confirmButtonColor = MaterialTheme.colorScheme.error,
+                    isCurrentUserAdmin = uiState.isCurrentUserAdmin
+                )
+            }
+            is DialogType.None -> { }
+            is DialogType.BlockUser -> {}
+            is DialogType.UnblockUser -> {}
+        }
 
-        // Ban
         BannedUserDialog(
             isVisible = uiState.showBanDialog,
             banReason = banStatus.banReason,
             onDismiss = { homeViewModel.onDismissBanDialog() },
             onLogout = {
                 homeViewModel.cleanupOnLogout()
-//                FirebaseAuth.getInstance().signOut()
                 homeViewModel.onDismissBanDialog()
                 onLogout()
             }

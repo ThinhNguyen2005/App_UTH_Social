@@ -8,12 +8,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.*
 
 @Composable
-fun DeleteConfirmDialog(
-
+fun ConfirmDialog(
     isVisible: Boolean,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
-    isDeleting: Boolean,
+    isLoading: Boolean = false,
+    title: String = "Xác nhận",
+    message: String = "Bạn có chắc chắn muốn thực hiện hành động này?",
+    confirmButtonText: String = "Xác nhận",
+    dismissButtonText: String = "Hủy",
+    confirmButtonColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.error,
     isCurrentUserAdmin: Boolean = false
 ) {
     if (!isVisible) return
@@ -22,28 +26,27 @@ fun DeleteConfirmDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Xóa bài viết",
+                text = title,
                 fontWeight = FontWeight.Bold
             )
         },
         text = {
-            if(isCurrentUserAdmin){
-                Text("Bạn đang xóa bài viết này với quyền Admin? Hành động này không thể hoàn tác.")
-
-            }
-            else {
-                Text("Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.")
+            // Nếu có isCurrentUserAdmin và message mặc định, hiển thị message đặc biệt
+            if (isCurrentUserAdmin && message == "Bạn có chắc chắn muốn thực hiện hành động này?") {
+                Text("Bạn đang thực hiện hành động này với quyền Admin? Hành động này không thể hoàn tác.")
+            } else {
+                Text(message)
             }
         },
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                enabled = !isDeleting,
+                enabled = !isLoading,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
+                    containerColor = confirmButtonColor
                 )
             ) {
-                if (isDeleting) {
+                if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier
                             .size(20.dp)
@@ -52,12 +55,12 @@ fun DeleteConfirmDialog(
                         color = MaterialTheme.colorScheme.onError
                     )
                 }
-                Text("Xóa")
+                Text(confirmButtonText)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isDeleting) {
-                Text("Hủy")
+            TextButton(onClick = onDismiss, enabled = !isLoading) {
+                Text(dismissButtonText)
             }
         }
     )

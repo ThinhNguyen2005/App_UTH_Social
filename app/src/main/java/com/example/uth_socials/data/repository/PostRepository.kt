@@ -139,7 +139,6 @@ class PostRepository {
      */
     suspend fun toggleLikeStatus(postId: String, isCurrentlyLiked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
-        // Client-side permission guard
         if (!SecurityValidator.checkCurrentUserId(currentUserId)) {
             Log.w("PostRepository", "toggleLikeStatus denied for $currentUserId")
             return
@@ -485,14 +484,14 @@ class PostRepository {
             val snapshot = postRef.get().await()
             val ownerId = snapshot.getString("userId") ?: return false
 
-            // Client-side validation để tối ưu UX
             if (SecurityValidator.canDeletePost(currentUserId, ownerId)) {
                 postRef.delete().await()
                 true
             } else {
                 false
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error deleting post", e)
             false
         }
     }

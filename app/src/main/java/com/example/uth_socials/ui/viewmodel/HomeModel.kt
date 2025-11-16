@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
+import com.example.uth_socials.data.repository.AdminRepository
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.CategoryRepository
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.example.uth_socials.data.util.SecurityValidator
 import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.data.util.SecurityValidator.clearCache
+import com.example.uth_socials.ui.viewmodel.DialogType
 
 
 //Enum để quản lý trạng thái gửi bình luận
@@ -46,12 +48,13 @@ data class HomeUiState(
     val reportDescription: String = "",
     val isReporting: Boolean = false,
     val reportErrorMessage: String? = null,  // 🔸 Thêm error message cho report
-    // 🔸 Thêm state cho delete confirmation dialog
-    val showDeleteConfirmDialog: Boolean = false,
-    val deletingPostId: String? = null,
-    val isDeleting: Boolean = false,
+    // ✅ Sử dụng DialogType thay vì các boolean flags riêng lẻ
+    val dialogType: DialogType = DialogType.None,
+    val isProcessing: Boolean = false,
     val currentUserId: String? = null,
     val hiddenPostIds: Set<String> = emptySet(),
+    // 🔸 Blocked users - để filter posts
+    val blockedUserIds: Set<String> = emptySet(),
     // 🔸 Admin state
     val isCurrentUserAdmin: Boolean = false,
     val currentUserRole: String? = null,
@@ -71,7 +74,8 @@ data class HomeUiState(
 class HomeViewModel(
     private val postRepository: PostRepository = PostRepository(),
     private val categoryRepository: CategoryRepository = CategoryRepository(),
-    private val userRepository: UserRepository = UserRepository()
+    private val userRepository: UserRepository = UserRepository(),
+    private val adminRepository: AdminRepository = AdminRepository()
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
 
@@ -114,6 +118,7 @@ class HomeViewModel(
                 currentUserRole = null,
                 isUserBanned = false,
                 hiddenPostIds = emptySet(),
+                blockedUserIds = emptySet(), // ✅ Clear blocked users on logout
                 posts = it.posts.map { post ->
                     post.copy(isLiked = false, isSaved = false)
                 }
@@ -126,6 +131,7 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             loadCategoriesAndInitialPosts()
             loadHiddenPosts()
+            loadBlockedUsers() // ✅ Load blocked users
             loadBanStatus()
             checkAccout() // Kiểm tra admin
         }
@@ -199,7 +205,6 @@ class HomeViewModel(
                     }
                 } else {
                     categoryRepository.defaultCategories()
-                    // Sau khi tạo, Flow sẽ tự động emit lại
                 }
             }
         } catch (e: Exception) {
@@ -222,6 +227,23 @@ class HomeViewModel(
                 Log.e("HomeViewModel", "Error loading hidden posts", e)
             }
         }
+    }
+
+    private fun loadBlockedUsers() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+                val blockedIds = userRepository.getBlockedUsers(currentUserId)
+                _uiState.update { it.copy(blockedUserIds = blockedIds.toSet()) }
+                Log.d("HomeViewModel", "Loaded ${blockedIds.size} blocked users")
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading blocked users", e)
+            }
+        }
+    }
+
+    fun refreshBlockedUsers() {
+        loadBlockedUsers()
     }
 
 
@@ -247,7 +269,6 @@ class HomeViewModel(
                 Log.d("HomeViewModel", "Admin status refreshed: isAdmin=${isAdmin || isSuperAdmin}, role=$role")
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Error refreshing admin status", e)
-                // Fallback to non-admin status
                 _uiState.update {
                     it.copy(
                         isCurrentUserAdmin = false,
@@ -512,9 +533,7 @@ class HomeViewModel(
         }
     }
 
-    // --- 🔸 HÀM MỞ DIALOG BÁO CÁO ---
     fun onReportClicked(postId: String) {
-        // Check ban status trước khi báo cáo
         if (_uiState.value.isUserBanned) {
             _uiState.update { it.copy(showBanDialog = true) }
             return
@@ -526,7 +545,7 @@ class HomeViewModel(
                 reportingPostId = postId,
                 reportReason = "",
                 reportDescription = "",
-                successMessage = "Báo cáo người dùng thành công.}"
+                successMessage = null
             )
         }
     }
@@ -565,7 +584,8 @@ class HomeViewModel(
                             reportingPostId = null,
                             reportReason = "",
                             reportDescription = "",
-                            reportErrorMessage = null
+                            reportErrorMessage = null,
+                            successMessage = "Báo cáo bài viết thành công."
                         )
                     }
                     Log.d("HomeModel", "Report submitted successfully")
@@ -615,78 +635,113 @@ class HomeViewModel(
 
     // DIALOG xóa bài viết
 
-    private fun canDeletePost(postUserId: String, currentUserId: String?, isCurrentUserAdmin: Boolean): Boolean {
-        return postUserId == currentUserId || isCurrentUserAdmin
+    private suspend fun canDeletePost(postUserId: String, currentUserId: String?): Boolean {
+        return SecurityValidator.canDeletePost(currentUserId, postUserId)
     }
     fun onDeleteClicked(postId: String) {
-        // Kiểm tra xem người dùng hiện tại có phải chủ bài không
-        val post = _uiState.value.posts.find { it.id == postId }
-        if (post != null && canDeletePost(post.userId, _uiState.value.currentUserId, _uiState.value.isCurrentUserAdmin)) {
-            _uiState.update {
-                it.copy(
-                    showDeleteConfirmDialog = true,
-                    deletingPostId = postId
-                )
+        val post = _uiState.value.posts.find { it.id == postId } ?: return
+        viewModelScope.launch (Dispatchers.IO){
+            if (canDeletePost(post.userId, _uiState.value.currentUserId)) {
+                _uiState.update {
+                    it.copy(
+                        dialogType = DialogType.DeletePost(postId)
+                    )
+                }
             }
         }
-    }
-    fun onConfirmDelete() {
-        clearError()
-        val postIdToDelete = _uiState.value.deletingPostId ?: return
 
+    }
+    fun onConfirmDialog() {
+        when (val dialog = _uiState.value.dialogType) {
+            is DialogType.DeletePost -> onConfirmDelete(dialog.postId)
+            is DialogType.BlockUser -> {
+                //Không dùng
+            }
+            is DialogType.UnblockUser -> {
+                //Không dùng
+            }
+            is DialogType.None -> return
+        }
+    }
+    
+    private fun onConfirmDelete(postIdToDelete: String) {
+        clearError()
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { it.copy(isDeleting = true) }
+            _uiState.update { it.copy(isProcessing = true) }
             try {
+                val post = _uiState.value.posts.find { it.id == postIdToDelete }
+                var postOwnerId = post?.userId
+                
+                if (postOwnerId.isNullOrBlank()) {
+                    val postFromDb = adminRepository.getPostById(postIdToDelete)
+                    postOwnerId = postFromDb?.userId
+                }
+                val isAdmin = _uiState.value.isCurrentUserAdmin
+                val currentUserId = _uiState.value.currentUserId
+
                 val success = postRepository.deletePost(postIdToDelete)
                 if (success) {
-                    // Xóa bài viết khỏi danh sách
+                    if (isAdmin && !postOwnerId.isNullOrBlank() && postOwnerId != currentUserId) {
+
+                        val result = adminRepository.autoBanUser(postOwnerId)
+                        result.onSuccess {
+                            Log.d("HomeViewModel", "Tự động ban user khi xóa bài viết > 3: $postOwnerId")
+                        }.onFailure { e ->
+                            Log.e("HomeViewModel", "Không thể tự động ban user: $postOwnerId", e)
+                            Log.e("HomeViewModel", "Exception details: ${e.message}", e)
+                        }
+                    }
+                    
                     val updatedPosts = _uiState.value.posts.filter { it.id != postIdToDelete }
                     _uiState.update {
                         it.copy(
                             posts = updatedPosts,
-                            showDeleteConfirmDialog = false,
-                            isDeleting = false,
-                            deletingPostId = null,
+                            dialogType = DialogType.None,
+                            isProcessing = false,
                             successMessage = "Bài viết đã được xóa thành công."
                         )
                     }
-                    Log.d("HomeViewModel", "Post deleted successfully: $postIdToDelete")
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            dialogType = DialogType.None,
+                            isProcessing = false,
+                            error = "Lỗi không thể xóa bài viết. Vui lòng thử lại."
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error deleting post", e)
-                _uiState.update { it.copy(
-                    isDeleting = false,
-                    error = "Lỗi không thể xóa bài viết. Vui lòng thử lại."
-                )
-
+                Log.e("HomeViewModel"," Error deleting post: $postIdToDelete")
+                Log.e("HomeViewModel", "Exception details: ${e.message}", e)
+                _uiState.update {
+                    it.copy(
+                        dialogType = DialogType.None,
+                        isProcessing = false,
+                        error = "Lỗi không thể xóa bài viết. Vui lòng thử lại."
+                    ) 
                 }
             }
         }
     }
 
-    fun onDismissDeleteDialog() {
+    fun onDismissDialog() {
         _uiState.update {
-            Log.d("HomeViewModel", "onDismissDeleteDialog: $it")
             it.copy(
-                showDeleteConfirmDialog = false,
-                deletingPostId = null,
-                successMessage = "Đã xóa thành công "
+                dialogType = DialogType.None,
+                isProcessing = false
             )
         }
     }
 
     fun onRetry() {
         _uiState.update { it.copy(error = null, isLoading = true) }
-        // Restart categories listener
         listenToCategoriesChanges()
     }
 
-    // --- 🔸 HÀM XỬ LÝ BAN DIALOG ---
     fun onDismissBanDialog() {
         _uiState.update { it.copy(showBanDialog = false) }
     }
 
-    // Chỉnh sửa bài viết
     fun onEditPostClicked(postId: String) {
         val post = _uiState.value.posts.find { it.id == postId }
         if (post != null) {

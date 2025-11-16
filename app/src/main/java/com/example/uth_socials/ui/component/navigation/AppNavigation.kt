@@ -42,6 +42,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import com.example.uth_socials.ui.screen.UserInfoScreen
 import com.example.uth_socials.ui.screen.setting.UserSettingScreen
+import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
+import com.example.uth_socials.ui.viewmodel.HomeViewModel
 
 @Composable
 fun AppNavGraph(
@@ -133,7 +135,7 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
         route = Graph.MAIN
     ) {
         composable(Screen.Home.route) {
-            MainScreen(rootNavController = navController) // <-- THAY ĐỔI Ở ĐÂY
+            MainScreen(rootNavController = navController)
         }    }
 }
 
@@ -257,12 +259,11 @@ fun MainScreen(rootNavController: NavHostController) {
                                 navController.navigate(Screen.ChatDetail.createRoute(chatId))
                             }
                         },
-                        onEditProfileClicked = {
+                        onSettingClicked = {
                             navController.navigate(Screen.Setting.route)
                         }
                     )
                 } else {
-                    // Xử lý trường hợp không có userId (ví dụ: hiển thị lỗi hoặc quay lại)
                     Text("Lỗi: Không tìm thấy ID người dùng.")
                 }
             }
@@ -293,18 +294,36 @@ fun MainScreen(rootNavController: NavHostController) {
                 ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
             }
             composable(Screen.Setting.route) {
-                // ✅ SỬA LỖI: Truyền viewModel và hàm onLogout đã nhận được
                 UserSettingScreen(
                     onBackClicked = { navController.popBackStack() },
                     onNavigateToUserInfo = {
                         navController.navigate(Screen.UserInfoScreen.route)
+                    },
+                    onNavigateToBlockedUsers = {
+                        Log.d("AppNavigation", "Navigating to BlockedUsers: ${Screen.BlockedUsers.route}")
+                        try {
+                            navController.navigate(Screen.BlockedUsers.route) {
+                                launchSingleTop = true
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error navigating to BlockedUsers", e)
+                        }
                     },
                     onLogout = onLogout
                 )
             }
             composable(Screen.UserInfoScreen.route) {
                 UserInfoScreen(
-                    onSaveSuccess = { navController.popBackStack() } // Quay lại sau khi lưu
+                    onSaveSuccess = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.BlockedUsers.route) {
+                val homeViewModel: HomeViewModel = viewModel()
+                BlockedUsersScreen(
+                    onBackClicked = { navController.popBackStack() },
+                    onUserUnblocked = {
+                        homeViewModel.refreshBlockedUsers()
+                    }
                 )
             }
         }
