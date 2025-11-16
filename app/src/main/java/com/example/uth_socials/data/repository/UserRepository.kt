@@ -1,6 +1,7 @@
 package com.example.uth_socials.data.repository
 
 import android.util.Log
+
 import com.example.uth_socials.data.user.User
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -32,6 +33,7 @@ class UserRepository {
             id = firebaseUser.uid,
             userId = firebaseUser.uid,
             username = firebaseUser.displayName ?: "Người dùng mới",
+            usernameFormat = firebaseUser.displayName.toString().trim().lowercase() ?: "người dùng mới",
             avatarUrl = firebaseUser.photoUrl?.toString() ?: "",
             bio = "Xin chào!", // Bio mặc định
             followers = emptyList(),

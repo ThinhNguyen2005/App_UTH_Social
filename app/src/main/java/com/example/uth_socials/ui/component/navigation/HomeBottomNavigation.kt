@@ -1,4 +1,5 @@
 package com.example.uth_socials.ui.component.navigation
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -26,10 +27,12 @@ import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.ui.screen.UthTeal
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
+import com.example.uth_socials.data.notification.Notification
+import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeBottomNavigation(navController: NavController) {
+fun HomeBottomNavigation(navController: NavController, notificationViewModel : NotificationViewModel) {
     data class NavItem(
         val route: String,
         val label: String,
@@ -38,11 +41,13 @@ fun HomeBottomNavigation(navController: NavController) {
         val badgeCount: Int
     )
 
+    val isNotReadNotifications by notificationViewModel.isNotReadNotifications.collectAsState()
+
     val items = listOf(
         NavItem(Screen.Home.route, "Home", Icons.Rounded.Home, Icons.Outlined.Home, 0),
         NavItem(Screen.Market.route, "Market", Icons.Filled.ShoppingCart, Icons.Outlined.ShoppingCart, 0),
         NavItem(Screen.Add.route, "Add", Icons.Filled.AddCircle, Icons.Outlined.AddCircle, 0),
-        NavItem(Screen.Notifications.route, "Alerts", Icons.Filled.Notifications, Icons.Outlined.Notifications, 2),
+        NavItem(Screen.Notifications.route, "Alerts", Icons.Filled.Notifications, Icons.Outlined.Notifications, isNotReadNotifications.size),
         NavItem(Screen.Profile.route, "Profile", Icons.Rounded.AccountCircle, Icons.Outlined.AccountCircle, 0)
     )
     val currentUserIdState = remember { mutableStateOf<String?>(null) }

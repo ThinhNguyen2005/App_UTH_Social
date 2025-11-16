@@ -80,6 +80,7 @@ class HomeViewModel(
             val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
             if (currentUser != null) {
                 _uiState.update { it.copy(currentUserId = currentUser.uid) }
+                _uiState.update { it.copy(currentUserAvatarUrl = currentUser.photoUrl?.toString()) }
             }
         }
     }

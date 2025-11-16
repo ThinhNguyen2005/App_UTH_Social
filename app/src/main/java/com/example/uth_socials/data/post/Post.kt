@@ -14,6 +14,7 @@ data class Post(
     val username: String = "",
     val userAvatarUrl: String = "",
     val textContent: String = "",
+    val textContentFormat : String = "",
     val imageUrls: List<String> = emptyList(),
 
     // Các trường dùng để lọc và tương tác
@@ -30,5 +31,5 @@ data class Post(
     val isLiked: Boolean = false,
     val isSaved: Boolean = false
 ) {
-    constructor() : this(null, "", "", "", "", "", emptyList(), "", 0, 0, 0,0,emptyList(), emptyList(),false)
+    constructor() : this(null, "", "", "", "", "", "",emptyList(), "", 0, 0, 0,0,emptyList(), emptyList(),false)
 }

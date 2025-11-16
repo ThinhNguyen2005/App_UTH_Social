@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.component.navigation
 
+import SearchResultScreen
 import android.app.Activity
 import android.content.Intent
 import android.util.Log
@@ -34,9 +35,14 @@ import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.home.ProfileScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
+//import com.example.uth_socials.ui.screen.search.SearchScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
+import com.example.uth_socials.ui.viewmodel.PostViewModel
+import com.example.uth_socials.ui.viewmodel.ProductViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModelFactory
+import com.example.uth_socials.ui.viewmodel.SearchViewModel
+import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 
 @Composable
 fun AppNavGraph(
@@ -135,12 +141,15 @@ fun MainScreen() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
+   // val notificationViewModel : NotificationViewModel = viewModel()
+
     val showBottomBar = when (currentRoute) {
         Screen.Home.route,
         Screen.Market.route,
         Screen.Add.route,
         Screen.Notifications.route,
         Screen.Profile.route -> true
+        Screen.SearchResult.route,
 
         Screen.AdminDashboard.route,
         Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
@@ -150,7 +159,9 @@ fun MainScreen() {
         topBar = {
             when (currentRoute) {
                 Screen.Home.route -> HomeTopAppBar(
-                    onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ },
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
                     onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
                     onAdminClick = {
                         navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
@@ -162,6 +173,17 @@ fun MainScreen() {
                 Screen.Market.route -> LogoTopAppBar()
                 Screen.Add.route -> LogoTopAppBar()
                 Screen.Notifications.route -> LogoTopAppBar()
+                Screen.SearchResult.route -> HomeTopAppBar(
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
+                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
                 else -> { /* no app bar */
                 }
             }
@@ -169,7 +191,8 @@ fun MainScreen() {
         },
         bottomBar = {
             if (showBottomBar) {
-                HomeBottomNavigation(navController = navController)
+                val notificationViewModel : NotificationViewModel = viewModel()
+                HomeBottomNavigation(navController = navController, notificationViewModel)
             }
         }
     ) { innerPadding ->
@@ -184,12 +207,19 @@ fun MainScreen() {
                         navController.navigate(Screen.Profile.createRoute(userId)) {
                             launchSingleTop = true
                         }
-                    }
+                    },
                 )
             }
             composable(Screen.Market.route) { MarketScreen() }
-            composable(Screen.Add.route) { PostScreen(navController = navController) }
-            composable(Screen.Notifications.route) { NotificationsScreen() }
+            composable(Screen.Add.route) {
+                val postViewModel : PostViewModel = viewModel()
+                val productViewModel : ProductViewModel = viewModel()
+                PostScreen(postViewModel,productViewModel,navController = navController)
+            }
+            composable(Screen.Notifications.route) {
+                val notificationViewModel : NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel,navController)
+            }
             composable(Screen.Categories.route) {
                 AdminDashboardScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -238,6 +268,19 @@ fun MainScreen() {
                     Text("Lỗi: Không tìm thấy ID người dùng.")
                 }
             }
+
+            composable(Screen.SearchResult.route) { backStackEntry ->
+                val query = backStackEntry.arguments?.getString("query") ?: ""
+                val searchViewModel : SearchViewModel = viewModel()
+                searchViewModel.searchPosts(query)
+                searchViewModel.searchUsers(query)
+                SearchResultScreen(searchViewModel,navController)
+            }
+
+//            composable("SearchScreen" ){ backStackEntry ->
+//                SearchScreen(navController)
+//            }
+
         }
     }
 }

@@ -158,6 +158,7 @@ private fun ProfileInfoCard(
                     .padding(top = 48.dp, bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = username,
                     style = MaterialTheme.typography.headlineSmall,
