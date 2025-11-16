@@ -127,12 +127,9 @@ fun NotificationsScreen(
         visibleNotifications = notifications.take(originItemValue)
     }
 
-    Scaffold(
-
-    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .padding(innerPadding)
+                //.padding(innerPadding)
                 .padding(horizontal = 16.dp)
         ) {
             if (notifications.isNotEmpty()) {
@@ -142,7 +139,6 @@ fun NotificationsScreen(
 
                     LazyColumn(
                         modifier = Modifier
-                            .padding(innerPadding)
                             .fillMaxWidth()
                             .padding(horizontal = 0.dp),
                         verticalArrangement = Arrangement.spacedBy(0.dp)
@@ -228,7 +224,6 @@ fun NotificationsScreen(
             } else {
                 SectionTitle("Bạn chưa có thông báo nào")
             }
-        }
     }
 }
 

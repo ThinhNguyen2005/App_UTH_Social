@@ -75,10 +75,14 @@ import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostScreen(postViewModel: PostViewModel, productViewModel: ProductViewModel,navController: NavController) {
+fun PostScreen(
+    postViewModel: PostViewModel,
+    productViewModel: ProductViewModel,
+    navController: NavController
+) {
     val context = LocalContext.current
 
-    val userRepository: UserRepository = remember {UserRepository()}
+    val userRepository: UserRepository = remember { UserRepository() }
     val userId = userRepository.getCurrentUserId() ?: return
 
     var user by remember { mutableStateOf<User?>(null) }
@@ -109,243 +113,265 @@ fun PostScreen(postViewModel: PostViewModel, productViewModel: ProductViewModel,
         user = userRepository.getUser(userId)
     }
 
-    Scaffold(
 
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
+    ) {
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    AsyncImage(
-                        contentDescription = "Avatar",
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape),
-                        model = user?.avatarUrl,
-                        contentScale = ContentScale.Crop
-                    )
-                    Text(user?.username ?: "", fontWeight = FontWeight.Medium)
-                }
-
-                PrimaryButton(
-                    buttonColor = ButtonDefaults.buttonColors(containerColor = Color(0xFF007E8F)),
-                    text = "Đăng",
-                    textColor = Color.White,
+                AsyncImage(
+                    contentDescription = "Avatar",
                     modifier = Modifier
-                        .width(100.dp)
-                        .height(40.dp),
-                    onClick = {
-                        if (selectedTabIndex == 0) {
-                            if(articleContent.isEmpty()) {
-                                Toast.makeText(context, "Vui lòng nhập nội dung", Toast.LENGTH_SHORT).show()
-                                return@PrimaryButton
-                            }
-                            postViewModel.uploadPost(articleContent, selectedImageUris, articelCategoryId)
-                            navController.navigate("home")
-                        }else{
-                            if(productViewModel.name.isEmpty() || productViewModel.type.isEmpty()){
-                                Toast.makeText(context, "Vui lòng nhập đầy đủ thông tin", Toast.LENGTH_SHORT).show()
-                                return@PrimaryButton
-                            }
-                            productViewModel.postArticle(userId)
-                            navController.navigate("home")
-                        }
-
-                        Toast.makeText(context, "Đăng thành công", Toast.LENGTH_SHORT).show()
-                    }
+                        .size(42.dp)
+                        .clip(CircleShape),
+                    model = user?.avatarUrl,
+                    contentScale = ContentScale.Crop
                 )
+                Text(user?.username ?: "", fontWeight = FontWeight.Medium)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            when (selectedTabIndex) {
-                0 -> { //Mục đăng bài viết
-                    var isFocusedBasicTextField by remember { mutableStateOf(false) }
-
-                    BasicTextField(
-                        value = articleContent,
-                        onValueChange = { articleContent = it },
-                        textStyle = TextStyle(fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant, shape = MaterialTheme.shapes.small)
-                            .padding(12.dp).onFocusChanged { focusState ->
-                                isFocusedBasicTextField = focusState.isFocused
-                            },
-                        decorationBox = { innerTextField ->
-                            if (articleContent.isEmpty() && !isFocusedBasicTextField){
-                                Text("Chia sẻ suy nghĩ của bạn?", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-
-                            innerTextField()
+            PrimaryButton(
+                buttonColor = ButtonDefaults.buttonColors(containerColor = Color(0xFF007E8F)),
+                text = "Đăng",
+                textColor = Color.White,
+                modifier = Modifier
+                    .width(100.dp)
+                    .height(40.dp),
+                onClick = {
+                    if (selectedTabIndex == 0) {
+                        if (articleContent.isEmpty()) {
+                            Toast.makeText(context, "Vui lòng nhập nội dung", Toast.LENGTH_SHORT)
+                                .show()
+                            return@PrimaryButton
                         }
+                        postViewModel.uploadPost(
+                            articleContent,
+                            selectedImageUris,
+                            articelCategoryId
+                        )
+                        navController.navigate("home")
+                    } else {
+                        if (productViewModel.name.isEmpty() || productViewModel.type.isEmpty()) {
+                            Toast.makeText(
+                                context,
+                                "Vui lòng nhập đầy đủ thông tin",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@PrimaryButton
+                        }
+                        productViewModel.postArticle(userId)
+                        navController.navigate("home")
+                    }
+
+                    Toast.makeText(context, "Đăng thành công", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        when (selectedTabIndex) {
+            0 -> { //Mục đăng bài viết
+                var isFocusedBasicTextField by remember { mutableStateOf(false) }
+
+                BasicTextField(
+                    value = articleContent,
+                    onValueChange = { articleContent = it },
+                    textStyle = TextStyle(
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            shape = MaterialTheme.shapes.small
+                        )
+                        .padding(12.dp)
+                        .onFocusChanged { focusState ->
+                            isFocusedBasicTextField = focusState.isFocused
+                        },
+                    decorationBox = { innerTextField ->
+                        if (articleContent.isEmpty() && !isFocusedBasicTextField) {
+                            Text(
+                                "Chia sẻ suy nghĩ của bạn?",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        innerTextField()
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                ) {
+                    TextField(
+                        value = categoryName,
+                        onValueChange = {},
+                        readOnly = true,
+                        textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                        label = {
+                            Text(
+                                "Chọn Category",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = TextFieldDefaults.colors(
+                            //focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            //focusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                            // unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                            //cursorColor = MaterialTheme.colorScheme.surfaceVariant,
+                            //focusedTextColor = MaterialTheme.colorScheme.surfaceVariant,
+                            //unfocusedTextColor = MaterialTheme.colorScheme.surface,
+                        ),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    ExposedDropdownMenuBox(
+                    ExposedDropdownMenu(
                         expanded = expanded,
-                        onExpandedChange = { expanded = !expanded },
+                        onDismissRequest = { expanded = false }
                     ) {
-                        TextField(
-                            value = categoryName,
-                            onValueChange = {},
-                            readOnly = true,
-                            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant),
-                            label = { Text("Chọn Category", color = MaterialTheme.colorScheme.onSurfaceVariant) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            colors = TextFieldDefaults.colors(
-                                //focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                //focusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
-                                // unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
-                                //cursorColor = MaterialTheme.colorScheme.surfaceVariant,
-                                //focusedTextColor = MaterialTheme.colorScheme.surfaceVariant,
-                                //unfocusedTextColor = MaterialTheme.colorScheme.surface,
-                            ),
+                        Column(
                             modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth()
-                        )
-
-                        ExposedDropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false }
+                                .height(200.dp)
+                                .verticalScroll(rememberScrollState())
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .height(200.dp)
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                categories.forEach { category ->
-                                    if (category.name != "Mới nhất" && category.name != "Tất cả") {
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    category.name,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            },
-                                            onClick = {
-                                                articelCategoryId = category.id
-                                                categoryName = category.name
-                                                expanded = false
-                                            }
-                                        )
-                                    }
+                            categories.forEach { category ->
+                                if (category.name != "Mới nhất" && category.name != "Tất cả") {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                category.name,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        },
+                                        onClick = {
+                                            articelCategoryId = category.id
+                                            categoryName = category.name
+                                            expanded = false
+                                        }
+                                    )
                                 }
                             }
                         }
                     }
                 }
-                1 -> ProductPost(productViewModel = productViewModel)
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-
-                // ✅ Hiển thị các ảnh được chọn
-                if (selectedImageUris.isNotEmpty()) {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(selectedImageUris) { uri ->
-                            Image(
-                                painter = rememberAsyncImagePainter(uri),
-                                contentDescription = "Ảnh đã chọn",
-                                modifier = Modifier
-                                    .size(100.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(2.dp, Color.Gray, RoundedCornerShape(12.dp)),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                // Nút chọn nhiều ảnh
-                TextButton(
-                    onClick = {
-                        multiplePhotoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AddCircle,
-                        contentDescription = "Chọn ảnh",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Chọn ảnh", color = MaterialTheme.colorScheme.onSurface)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Các tab
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        120.dp,
-                        alignment = Alignment.CenterHorizontally
-                    )
-                ) {
-                    TabButton(
-                        text = "Bài viết",
-                        isSelected = selectedTabIndex == 0,
-                        onClick = { selectedTabIndex = 0 }
-                    )
-
-                    TabButton(
-                        text = "Sản phẩm",
-                        isSelected = selectedTabIndex == 1,
-                        onClick = { selectedTabIndex = 1 }
-                    )
-                }
-            }
-
+            1 -> ProductPost(productViewModel = productViewModel)
         }
 
-        // Ban dialogs
-        BannedUserDialog(
-            isVisible = postViewModel.showBanDialog,
-            banReason = null,
-            onDismiss = { postViewModel.showBanDialog = false },
-            onLogout = {
-                FirebaseAuth.getInstance().signOut()
-                postViewModel.showBanDialog = false
-                navController.navigate("home")
-            }
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
 
-        BannedUserDialog(
-            isVisible = productViewModel.showBanDialog,
-            banReason = null,
-            onDismiss = { productViewModel.showBanDialog = false },
-            onLogout = {
-                FirebaseAuth.getInstance().signOut()
-                productViewModel.showBanDialog = false
-                navController.navigate("home")
+            // ✅ Hiển thị các ảnh được chọn
+            if (selectedImageUris.isNotEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(selectedImageUris) { uri ->
+                        Image(
+                            painter = rememberAsyncImagePainter(uri),
+                            contentDescription = "Ảnh đã chọn",
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(2.dp, Color.Gray, RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
             }
-        )
+
+            // Nút chọn nhiều ảnh
+            TextButton(
+                onClick = {
+                    multiplePhotoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AddCircle,
+                    contentDescription = "Chọn ảnh",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Chọn ảnh", color = MaterialTheme.colorScheme.onSurface)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Các tab
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(
+                    120.dp,
+                    alignment = Alignment.CenterHorizontally
+                )
+            ) {
+                TabButton(
+                    text = "Bài viết",
+                    isSelected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 }
+                )
+
+                TabButton(
+                    text = "Sản phẩm",
+                    isSelected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 }
+                )
+            }
+        }
+
     }
+
+    // Ban dialogs
+    BannedUserDialog(
+        isVisible = postViewModel.showBanDialog,
+        banReason = null,
+        onDismiss = { postViewModel.showBanDialog = false },
+        onLogout = {
+            FirebaseAuth.getInstance().signOut()
+            postViewModel.showBanDialog = false
+            navController.navigate("home")
+        }
+    )
+
+    BannedUserDialog(
+        isVisible = productViewModel.showBanDialog,
+        banReason = null,
+        onDismiss = { productViewModel.showBanDialog = false },
+        onLogout = {
+            FirebaseAuth.getInstance().signOut()
+            productViewModel.showBanDialog = false
+            navController.navigate("home")
+        }
+    )
+    // }
 }

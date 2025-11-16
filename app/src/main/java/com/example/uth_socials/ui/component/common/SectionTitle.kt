@@ -16,6 +16,6 @@ fun SectionTitle(title: String) {
         fontWeight = FontWeight.Bold,
         fontSize = 15.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(vertical = 8.dp)
+        modifier = Modifier.padding(vertical = 0.dp)
     )
 }
