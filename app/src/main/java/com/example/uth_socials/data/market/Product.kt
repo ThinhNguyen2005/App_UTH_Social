@@ -1,11 +1,11 @@
-package com.example.uth_socials.data.shop
+package com.example.uth_socials.data.market
 
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
 
 data class Product(
-    val id: String? = null,
+    val id: String = "",
     val name: String = "",
     val price: Double = 0.0,
     val imageUrl: String? = null, //Link image in Firebase Storage

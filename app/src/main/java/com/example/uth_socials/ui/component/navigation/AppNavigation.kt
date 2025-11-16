@@ -34,7 +34,7 @@ import com.example.uth_socials.ui.screen.util.AdminDashboardScreen
 import com.example.uth_socials.ui.screen.chat.ChatListScreen
 import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
-import com.example.uth_socials.ui.screen.market.MarketScreen
+import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.home.ProfileScreen
 import com.example.uth_socials.ui.screen.market.ProductDetailScreen
@@ -113,7 +113,7 @@ fun NavGraphBuilder.authNavGraph(
                     }
                 },
                 onRegisterSuccess = {
-                    navController.navigate(Graph.MAIN){
+                    navController.navigate(Graph.MAIN) {
                         popUpTo(Graph.AUTH) { inclusive = true }
                     }
                 }
@@ -141,7 +141,8 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
     ) {
         composable(Screen.Home.route) {
             MainScreen(rootNavController = navController) // <-- THAY ĐỔI Ở ĐÂY
-        }    }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,30 +187,12 @@ fun MainScreen(rootNavController: NavHostController) {
                             }
                         }
                     )
-            //topBar này thì được định nghĩa sẵn trong logo/HomeTopAppBar, logo/LogoTopAppBar
-            //Biết sao không back được không, vì chưa composable cụ thể navback làm gì đó
-            when (currentRoute) {
-                Screen.Home.route -> HomeTopAppBar(
-                    onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ }, // gắn on Search trong trang đó có gì gắn nav back chẳng hạn chưa đủ, xuống dưới định nghĩa composable nữa
-                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                    onAdminClick = {
-                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                            launchSingleTop = true
-                        }
-                    }
-                )
-
                     Screen.Add.route -> LogoTopAppBar()
                     Screen.Notifications.route -> LogoTopAppBar()
-                    // các trường hợp khác nếu cần
-                    else -> {}
+                    else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
                 }
-                Screen.Market.route -> LogoTopAppBar() // chỉ logo
-                Screen.Add.route -> LogoTopAppBar()
-                Screen.Notifications.route -> LogoTopAppBar()
-                else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
+                // else: nothing -> Market không có topBar
             }
-            // else: nothing -> Market không có topBar
         },
         bottomBar = {
             //Cái này coi tao show cái này ở những trang nào, định nghĩa ở trên
@@ -258,9 +241,6 @@ fun MainScreen(rootNavController: NavHostController) {
                     onLogout = onLogout
                 )
             }
-            //Shop                            - Trang test
-            composable(Screen.Market.route) { MarketScreen() }
-            //Create post - product
             composable(
                 Screen.Market.route,
                 exitTransition = {
@@ -312,7 +292,7 @@ fun MainScreen(rootNavController: NavHostController) {
                     onMessage = { /* TODO: Implement message functionality */ }
                 )
             }
-
+            //Create post - product
             composable(Screen.Add.route) { PostScreen(navController = navController) }
             //Notifications                 - Trang test
             composable(Screen.Notifications.route) { NotificationsScreen() }
@@ -348,7 +328,9 @@ fun MainScreen(rootNavController: NavHostController) {
             }
             composable(
                 route = Screen.AdminDashboard.route,
-                arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
+                arguments = listOf(navArgument("tab") {
+                    type = NavType.StringType; defaultValue = "reports"
+                })
             ) { backStackEntry ->
                 AdminDashboardScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -370,7 +352,7 @@ fun MainScreen(rootNavController: NavHostController) {
             }
             composable(Screen.ChatDetail.route) { backStackEntry ->
                 val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
-                ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
+                ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
             }
             composable(Screen.Setting.route) {
                 // ✅ SỬA LỖI: Truyền viewModel và hàm onLogout đã nhận được

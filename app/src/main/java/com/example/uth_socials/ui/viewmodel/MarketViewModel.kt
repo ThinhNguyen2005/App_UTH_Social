@@ -3,7 +3,7 @@ package com.example.uth_socials.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.repository.ProductRepository
-import com.example.uth_socials.data.shop.Product
+import com.example.uth_socials.data.market.Product
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +36,7 @@ data class DetailUiState(
     val error: String? = null
 )
 
-private const val TAG = "ProductViewModel"
+private const val TAG = "MarketViewModel"
 
 class ProductViewModel2: ViewModel() {
     private val repository = ProductRepository()

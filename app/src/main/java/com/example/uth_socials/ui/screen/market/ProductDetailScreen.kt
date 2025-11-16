@@ -37,7 +37,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.uth_socials.R
-import com.example.uth_socials.data.shop.Product
+import com.example.uth_socials.data.market.Product
 import com.example.uth_socials.ui.viewmodel.ProductViewModel2
 import androidx.compose.runtime.setValue
 

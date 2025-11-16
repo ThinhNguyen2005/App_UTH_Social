@@ -1,7 +1,7 @@
 package com.example.uth_socials.data.repository
 
 import android.util.Log
-import com.example.uth_socials.data.shop.Product
+import com.example.uth_socials.data.market.Product
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.snapshots
@@ -12,13 +12,13 @@ import kotlinx.coroutines.tasks.await
 import kotlin.collections.mapNotNull
 import kotlin.jvm.java
 
-private const val TAG = "ProductRepository" //Phan biet cac lop khi debug
+private const val TAG = "MarketRepository"
 
-/***
+/**
  * ProductRepository - chịu trách nhiệm tương tác trực tiếp với Firestore.
  * - getProductsRealtime(): phát ra Flow<List<Product>> và lắng nghe realtime changes.
  * - getProductById(): suspend function lấy 1 product theo id (one-shot).
- ***/
+ */
 
 class ProductRepository {
     //Khởi tạo kết nối đến cơ sở dữ liệu Cloud Firestore mặc định và gán nó vào một biến tên là db.

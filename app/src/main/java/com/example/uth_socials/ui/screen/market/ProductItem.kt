@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.uth_socials.R
-import com.example.uth_socials.data.shop.Product
+import com.example.uth_socials.data.market.Product
 import java.text.NumberFormat
 import java.util.Date
 import java.util.Locale
