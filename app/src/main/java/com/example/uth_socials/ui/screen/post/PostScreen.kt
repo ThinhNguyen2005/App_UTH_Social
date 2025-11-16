@@ -103,6 +103,8 @@ fun PostScreen(postViewModel: PostViewModel, productViewModel: ProductViewModel,
         }
     )
 
+
+
     LaunchedEffect(Unit) {
         user = userRepository.getUser(userId)
     }

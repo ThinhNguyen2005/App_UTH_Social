@@ -29,21 +29,21 @@ data class BlockedUsersUiState(
 class BlockedUsersViewModel(
     private val userRepository: UserRepository = UserRepository()
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(BlockedUsersUiState())
     val uiState: StateFlow<BlockedUsersUiState> = _uiState
-    
+
     init {
         loadBlockedUsers()
     }
-    
+
     private fun loadBlockedUsers() {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentUserId = userRepository.getCurrentUserId() ?: return@launch
                 val blockedUserIds = userRepository.getBlockedUsers(currentUserId)
-                
+
                 // Load thông tin chi tiết của từng blocked user
                 val blockedUsersList = blockedUserIds.mapNotNull { userId ->
                     val user = userRepository.getUser(userId)
@@ -55,7 +55,7 @@ class BlockedUsersViewModel(
                         )
                     }
                 }
-                
+
                 _uiState.update {
                     it.copy(
                         blockedUsers = blockedUsersList,
@@ -73,7 +73,7 @@ class BlockedUsersViewModel(
             }
         }
     }
-    
+
     fun onUnblockClicked(userId: String, username: String) {
         _uiState.update {
             it.copy(
@@ -84,7 +84,7 @@ class BlockedUsersViewModel(
             )
         }
     }
-    
+
     fun onConfirmDialog() {
         when (val dialog = _uiState.value.dialogType) {
             is DialogType.UnblockUser -> onConfirmUnblock(dialog.userId)
@@ -92,7 +92,7 @@ class BlockedUsersViewModel(
             else -> return
         }
     }
-    
+
     fun onDismissDialog() {
         _uiState.update {
             it.copy(
@@ -101,16 +101,16 @@ class BlockedUsersViewModel(
             )
         }
     }
-    
+
     private fun onConfirmUnblock(targetUserId: String) {
         val currentUserId = userRepository.getCurrentUserId() ?: return
-        
+
         _uiState.update { it.copy(isProcessing = true) }
-        
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val success = userRepository.unblockUser(currentUserId, targetUserId)
-                
+
                 if (success) {
                     // Xóa user khỏi danh sách
                     val updatedList = _uiState.value.blockedUsers.filter { it.userId != targetUserId }
@@ -144,17 +144,16 @@ class BlockedUsersViewModel(
             }
         }
     }
-    
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }
-    
+
     fun clearSuccessMessage() {
         _uiState.update { it.copy(successMessage = null) }
     }
-    
+
     fun refresh() {
         loadBlockedUsers()
     }
 }
-

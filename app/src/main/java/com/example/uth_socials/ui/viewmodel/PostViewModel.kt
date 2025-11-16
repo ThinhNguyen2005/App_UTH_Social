@@ -37,6 +37,8 @@ class PostViewModel : ViewModel() {
     private val userRepository: UserRepository = UserRepository()
     private val CategoryRepository : CategoryRepository = CategoryRepository()
 
+    var showBanDialog by mutableStateOf(false)
+
     var isLoading by mutableStateOf(false)
     var success by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)

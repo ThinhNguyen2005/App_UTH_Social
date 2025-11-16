@@ -49,6 +49,7 @@ import com.example.uth_socials.ui.screen.setting.UserSettingScreen
 import com.example.uth_socials.ui.viewmodel.SearchViewModel
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
+import com.example.uth_socials.ui.viewmodel.BlockedUsersViewModel
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 
 @Composable
@@ -187,8 +188,6 @@ fun MainScreen(rootNavController: NavHostController) {
                     onSearchClick = { query ->
                         navController.navigate("search_results/$query")
                     },
-                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
-                    onSearchClick = { /* TODO: Điều hướng đến màn hình tìm kiếm */ }, // gắn on Search trong trang đó có gì gắn nav back chẳng hạn chưa đủ, xuống dưới định nghĩa composable nữa
                     onMessagesClick = { navController.navigate(Screen.ChatList.route) },
                     onAdminClick = {
                         navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
@@ -200,7 +199,6 @@ fun MainScreen(rootNavController: NavHostController) {
                 Screen.Market.route -> LogoTopAppBar() // chỉ logo
                 Screen.Add.route -> LogoTopAppBar()
                 Screen.Notifications.route -> LogoTopAppBar()
-                else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
                 Screen.SearchResult.route -> HomeTopAppBar(
                     onSearchClick = { query ->
                         navController.navigate("search_results/$query")
@@ -231,9 +229,12 @@ fun MainScreen(rootNavController: NavHostController) {
                     }
                 }
 
+                val notificationViewModel : NotificationViewModel = viewModel()
+
                 HomeBottomNavigation(
                     navController = navController,
-                    onBanDialogRequest = { showBanDialog = true }
+                    onBanDialogRequest = { showBanDialog = true },
+                    notificationViewModel = notificationViewModel
                 )
 
                 // Ban dialog for navigation
@@ -243,8 +244,6 @@ fun MainScreen(rootNavController: NavHostController) {
                     onDismiss = { showBanDialog = false },
                     onLogout = onLogout
                 )
-                val notificationViewModel : NotificationViewModel = viewModel()
-                HomeBottomNavigation(navController = navController, notificationViewModel)
             }
         }
     ) { innerPadding ->
@@ -277,16 +276,16 @@ fun MainScreen(rootNavController: NavHostController) {
                 val notificationViewModel : NotificationViewModel = viewModel()
                 NotificationsScreen(notificationViewModel,navController)
             }
-            composable(Screen.Categories.route) {
-                AdminDashboardScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToUser = { userId ->
-                        navController.navigate(Screen.Profile.createRoute(userId)) {
-                            launchSingleTop = true
-                        }
-                    }
-                )
-            }
+//            composable(Screen.Categories.route) {
+//                AdminDashboardScreen(
+//                    onNavigateBack = { navController.popBackStack() },
+//                    onNavigateToUser = { userId ->
+//                        navController.navigate(Screen.Profile.createRoute(userId)) {
+//                            launchSingleTop = true
+//                        }
+//                    }
+//                )
+//            }
             composable(
                 route = Screen.AdminDashboard.route,
                 arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
@@ -302,9 +301,16 @@ fun MainScreen(rootNavController: NavHostController) {
                 )
             }
             //Create post - product
-            composable(Screen.Add.route) { PostScreen(navController = navController) }
+            composable(Screen.Add.route) {
+                val postViewModel : PostViewModel = viewModel()
+                val productViewModel : ProductViewModel = viewModel()
+                PostScreen(postViewModel,productViewModel,navController = navController)
+            }
             //Notifications                 - Trang test
-            composable(Screen.Notifications.route) { NotificationsScreen() }
+            composable(Screen.Notifications.route) {
+                val notificationViewModel : NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel,navController)
+            }
 
             //Profile
             composable(
@@ -340,12 +346,9 @@ fun MainScreen(rootNavController: NavHostController) {
                 val searchViewModel : SearchViewModel = viewModel()
                 searchViewModel.searchPosts(query)
                 searchViewModel.searchUsers(query)
-                SearchResultScreen(searchViewModel,navController)
+                val blockedUsersViewModel: BlockedUsersViewModel = viewModel()
+                SearchResultScreen(searchViewModel,blockedUsersViewModel,navController)
             }
-
-//            composable("SearchScreen" ){ backStackEntry ->
-//                SearchScreen(navController)
-//            }
 
             composable(
                 route = Screen.AdminDashboard.route,

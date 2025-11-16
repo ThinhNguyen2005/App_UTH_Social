@@ -328,50 +328,6 @@ fun OnlyLogo(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = darkAppBarColor
-        ),
-        windowInsets = WindowInsets(0.dp)
-
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OnlyLogo(
-    userName: String,
-    onBackClick: () -> Unit
-) {
-    val appBarColor = MaterialTheme.colorScheme.surface
-    val onAppBarColor = MaterialTheme.colorScheme.onSurface
-
-    TopAppBar(
-        modifier = Modifier.fillMaxWidth(),
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = userName,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = onAppBarColor
-                )
-            }
-        },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = onAppBarColor
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = appBarColor,
-            titleContentColor = onAppBarColor,
-            navigationIconContentColor = onAppBarColor
             containerColor = appBarColor,
             titleContentColor = onAppBarColor,
             navigationIconContentColor = onAppBarColor

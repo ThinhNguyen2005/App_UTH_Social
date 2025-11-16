@@ -37,9 +37,9 @@ import androidx.compose.runtime.collectAsState
 @Composable
 fun HomeBottomNavigation(
     navController: NavController,
-    onBanDialogRequest: (() -> Unit)? = null
+    onBanDialogRequest: (() -> Unit)? = null,
+    notificationViewModel : NotificationViewModel
 ) {
-fun HomeBottomNavigation(navController: NavController, notificationViewModel : NotificationViewModel) {
     data class NavItem(
         val route: String,
         val label: String,

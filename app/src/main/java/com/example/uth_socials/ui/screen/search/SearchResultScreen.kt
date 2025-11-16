@@ -65,11 +65,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.uth_socials.config.AdminConfig
+
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.user.User
 import com.example.uth_socials.ui.component.button.MoreButton
-import com.example.uth_socials.ui.component.common.DeleteConfirmDialog
+import com.example.uth_socials.ui.component.common.ConfirmDialog
+
 import com.example.uth_socials.ui.component.common.ReportDialog
 import com.example.uth_socials.ui.component.post.CommentSheetContent
 import com.example.uth_socials.ui.component.post.PostCard
@@ -77,8 +78,10 @@ import com.example.uth_socials.ui.component.user.UserCard
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.viewmodel.PostViewModel
 import com.example.uth_socials.ui.viewmodel.SearchViewModel
-import com.example.uth_socials.ui.viewmodel.ViewModelFactory
+
 import com.example.uth_socials.ui.component.common.SectionTitle
+import com.example.uth_socials.ui.viewmodel.BlockedUsersViewModel
+import com.example.uth_socials.ui.viewmodel.DialogType
 import kotlinx.coroutines.delay
 
 
@@ -86,6 +89,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun SearchResultScreen(
     searchViewModel: SearchViewModel,
+    blockedUsersViewModel: BlockedUsersViewModel,
     navController: NavController
 ) {
     val resultsPost by searchViewModel.searchPostResults.collectAsState()
@@ -93,8 +97,8 @@ fun SearchResultScreen(
     var visibleUsers by remember { mutableStateOf<List<User>>(emptyList()) }
 
     val postRepository = remember { PostRepository() }
-    val viewModelFactory = remember { ViewModelFactory(postRepository) }
-    val homeViewModel: HomeViewModel = viewModel(factory = viewModelFactory)
+
+    val homeViewModel: HomeViewModel = viewModel()
 
     val uiState by homeViewModel.uiState.collectAsState()
 
@@ -249,7 +253,7 @@ fun SearchResultScreen(
                             onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
                             onHideClicked = { homeViewModel.onHideClicked(post.id) },
                             currentUserId = uiState.currentUserId,
-                            isPostOwnerAdmin = isPostOwnerAdmin
+                            //isPostOwnerAdmin = isPostOwnerAdmin
                         )
 
                         HorizontalDivider(
@@ -290,7 +294,6 @@ fun SearchResultScreen(
                     onLikeComment = homeViewModel::onCommentLikeClicked,
                     onUserProfileClick = { },
                     commentPostState = uiState.commentPostState,
-                    currentUserAvatarUrl = uiState.currentUserAvatarUrl
                 )
             }
         }
@@ -307,16 +310,43 @@ fun SearchResultScreen(
             isReporting = uiState.isReporting
         )
 
-        // --- 🔸 DELETE CONFIRM DIALOG ---
-        DeleteConfirmDialog(
-            isVisible = uiState.showDeleteConfirmDialog,
-            onDismiss = { homeViewModel.onDismissDeleteDialog() },
-            onConfirm = { homeViewModel.onConfirmDelete() },
-            isDeleting = uiState.isDeleting
-        )
+        when (uiState.dialogType) {
+            is DialogType.None -> { /* Nothing to show */ }
+            is DialogType.DeletePost -> {
+                ConfirmDialog(
+                    isVisible = true,
+                    onDismiss = { blockedUsersViewModel.onDismissDialog() },
+                    onConfirm = { blockedUsersViewModel.onConfirmDialog() },
+                    isLoading = uiState.isProcessing,
+                    title = "Xóa bài viết",
+                    message = "Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.",
+                    confirmButtonText = "Xóa",
+                    confirmButtonColor = MaterialTheme.colorScheme.error
+                )
+            }
+            is DialogType.BlockUser -> {
+                ConfirmDialog(
+                    isVisible = true,
+                    onDismiss = { blockedUsersViewModel.onDismissDialog() },
+                    onConfirm = { blockedUsersViewModel.onConfirmDialog() },
+                    isLoading = uiState.isProcessing,
+                    title = "Chặn người dùng",
+                    message = "Bạn có chắc chắn muốn chặn người dùng này? Bạn sẽ không thể xem bài viết hoặc tương tác với họ.",
+                    confirmButtonText = "Chặn",
+                    confirmButtonColor = MaterialTheme.colorScheme.error
+                )
+            }
+
+            is DialogType.UnblockUser -> {
+                // Được xử lý ở BlockedUsersScreen
+            }
+        }
+
     }
 
 }
+
+
 
 @Composable
 private fun EmptyMessage(message: String) {
