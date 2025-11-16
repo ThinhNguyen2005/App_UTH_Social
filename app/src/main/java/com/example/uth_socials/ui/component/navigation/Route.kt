@@ -45,4 +45,11 @@ sealed class Screen(val route: String) {
     }
     object Setting : Screen("setting")
     object UserInfoScreen : Screen("user_info")
+    object SavedPosts : Screen("saved_posts")
+    object PostDetail : Screen("post_detail/{postId}") {
+        fun createRoute(postId: String) = "post_detail/$postId"
+    }
+    object Comments : Screen("comments/{postId}") {
+        fun createRoute(postId: String) = "comments/$postId"
+    }
 }

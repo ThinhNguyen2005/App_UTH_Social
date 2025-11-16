@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -49,6 +48,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import com.example.uth_socials.ui.screen.UserInfoScreen
 import com.example.uth_socials.ui.screen.setting.UserSettingScreen
+import com.example.uth_socials.ui.screen.saved.SavedPostsScreen
+import com.example.uth_socials.ui.screen.saved.SavedPostDetail
 
 @Composable
 fun AppNavGraph(
@@ -361,12 +362,52 @@ fun MainScreen(rootNavController: NavHostController) {
                     onNavigateToUserInfo = {
                         navController.navigate(Screen.UserInfoScreen.route)
                     },
+                    onNavigateToSavedPosts = {
+                        navController.navigate(Screen.SavedPosts.route)
+                    },
                     onLogout = onLogout
                 )
             }
             composable(Screen.UserInfoScreen.route) {
                 UserInfoScreen(
                     onSaveSuccess = { navController.popBackStack() } // Quay lại sau khi lưu
+                )
+            }
+            composable(Screen.SavedPosts.route) {
+                SavedPostsScreen(
+                    onBackClicked = { navController.popBackStack() },
+                    onPostClick = { postId ->
+                        //Navigate to post detail
+                        navController.navigate(Screen.PostDetail.createRoute(postId))
+                    },
+                    onUserClick = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+            composable(
+                route = Screen.PostDetail.route,
+                arguments = listOf(
+                    navArgument("postId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val postId = backStackEntry.arguments?.getString("postId") ?: ""
+                SavedPostDetail(
+                    postId = postId,
+                    onBackClicked = { navController.popBackStack() },
+                    onUserClick = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    //THÊM callback cho comment
+                    onCommentClicked = { postId ->
+                        // TODO: Navigate to comment screen
+                        navController.navigate(Screen.Comments.createRoute(postId))
+                        Log.d("Navigation", "Comments for post: $postId")
+                    }
                 )
             }
         }
