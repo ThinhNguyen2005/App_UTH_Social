@@ -16,15 +16,6 @@ import androidx.compose.ui.unit.sp
 
 // Màu sắc có thể được định nghĩa ở đây hoặc trong file Theme
 
-/**
- * Nút chính có thể tái sử dụng trong toàn bộ ứng dụng.
- * Nút này tự động co giãn theo chiều rộng.
- *
- * @param text Văn bản hiển thị trên nút.
- * @param onClick Hành động khi nút được nhấn.
- * @param modifier Modifier để tùy chỉnh thêm từ bên ngoài.
- * @param enabled Trạng thái bật/tắt của nút.
- */
 @Composable
 fun PrimaryButton(
     buttonColor : ButtonColors,

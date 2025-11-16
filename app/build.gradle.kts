@@ -42,10 +42,11 @@ android {
     }
 }
 
+
 dependencies {
     // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
-    implementation("com.google.firebase:firebase-auth") // Nếu cần xác thực
+    implementation(platform("com.google.firebase:firebase-bom:34.5.0"))
+    implementation("com.google.firebase:firebase-auth:24.0.1") // Nếu cần xác thực
     implementation("com.google.firebase:firebase-firestore") // Database chính
     implementation("com.google.firebase:firebase-storage") // Lưu trữ ảnh
     implementation("com.google.firebase:firebase-analytics")
@@ -53,10 +54,10 @@ dependencies {
 // Jetpack Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
     implementation("androidx.navigation:navigation-compose:2.9.5") // Để điều hướng
-
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // gửi thông báo
+    implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
 
     // material
@@ -67,7 +68,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4") // Kiểm tra phiên bản mới nhất
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.foundation:foundation:1.9.3")
-    implementation("io.coil-kt:coil-compose:2.7.0") // Dùng cho AsyncImage
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -75,6 +75,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.foundation.layout)
     implementation(libs.androidx.compose.ui.text)
@@ -85,6 +86,7 @@ dependencies {
     implementation(libs.volley)
     implementation(libs.litert.support.api)
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.room.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -93,10 +95,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-auth")
 
     implementation("com.google.android.gms:play-services-auth:21.2.0")//Auth API GG
-    implementation("androidx.navigation:navigation-compose:2.8.3")//điều hướng
 }

@@ -30,7 +30,8 @@ import com.google.firebase.Timestamp
 fun ProfileScreen(
     viewModel: ProfileViewModel,
     onBackClicked: () -> Unit = {},
-    onMessageClicked: (String) -> Unit = {}
+    onMessageClicked: (String) -> Unit = {},
+    onEditProfileClicked: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -40,7 +41,8 @@ fun ProfileScreen(
         onFollowClicked = { viewModel.onFollowClicked() },
         onBlockUser = { viewModel.onBlockUser() },
         onDeletePost = { postId -> viewModel.onDeletePost(postId) },
-        onMessageClicked = onMessageClicked
+        onMessageClicked = { onMessageClicked(uiState.profileUserId) },
+        onEditProfileClicked = {onEditProfileClicked()}
     )
 }
 
@@ -52,7 +54,9 @@ fun ProfileScreenContent(
     onFollowClicked: () -> Unit,
     onBlockUser: () -> Unit,
     onDeletePost: (String) -> Unit,
-    onMessageClicked: (String) -> Unit
+    onMessageClicked: (String) -> Unit,
+    onEditProfileClicked: () -> Unit = {}
+
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -72,7 +76,8 @@ fun ProfileScreenContent(
                 showBackButton = !uiState.isOwner,
                 onBackClicked = onBackClicked,
                 onMoreClicked = onBlockUser,
-                onMessageClicked = { onMessageClicked(uiState.profileUserId) }
+                onMessageClicked = { onMessageClicked(uiState.profileUserId) },
+                onEditProfileClicked = {onEditProfileClicked()}
             )
         }
 

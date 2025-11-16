@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.*
 
 @Composable
 fun DeleteConfirmDialog(
+
     isVisible: Boolean,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
-    isDeleting: Boolean
+    isDeleting: Boolean,
+    isCurrentUserAdmin: Boolean = false
 ) {
     if (!isVisible) return
 
@@ -25,7 +27,13 @@ fun DeleteConfirmDialog(
             )
         },
         text = {
-            Text("Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.")
+            if(isCurrentUserAdmin){
+                Text("Bạn đang xóa bài viết này với quyền Admin? Hành động này không thể hoàn tác.")
+
+            }
+            else {
+                Text("Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.")
+            }
         },
         confirmButton = {
             Button(

@@ -1,4 +1,4 @@
-package com.example.uth_socials.ui.screen
+package com.example.uth_socials.ui.screen.util
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.uth_socials.ui.component.button.ComfirmAuthButton
 import com.example.uth_socials.ui.component.button.GoogleButton
+import com.example.uth_socials.ui.component.common.InputTextField
 import com.example.uth_socials.ui.viewmodel.AuthState
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 
@@ -41,7 +43,8 @@ import com.example.uth_socials.ui.viewmodel.AuthViewModel
 fun ResetPasswordScreen(
     viewModel: AuthViewModel,
     onBackToLogin: () -> Unit,
-    onGoogleClick:() -> Unit
+    onGoogleClick:() -> Unit,
+    onLoginSuccess: () -> Unit,
 ) {
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
@@ -89,20 +92,10 @@ fun ResetPasswordScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(
+        InputTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = Color(0xFF06635A),
-                unfocusedIndicatorColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color(0xFFF1F4FF),
-                unfocusedContainerColor = Color(0xFFF1F4FF),
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black
-            )
+            label = "Email"
         )
 
         Spacer(Modifier.height(48.dp))
@@ -118,23 +111,28 @@ fun ResetPasswordScreen(
             },
         )
 
-
-
         TextButton(onClick = onBackToLogin) {
             Text("Quay trở lại", color = Color.Gray, fontWeight = FontWeight.Medium)
         }
 
-        Spacer(Modifier.weight(1f))
+        Spacer(modifier = Modifier.weight(1f))
+
 
         GoogleButton (
             onClick = onGoogleClick
         )
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(100.dp))
         when (state) {
+            is AuthState.Loading ->{
+                CircularProgressIndicator(
+                    modifier = Modifier.padding(bottom=50.dp),
+                )
+            }
             is AuthState.Success -> {
                 Toast.makeText(context, (state as AuthState.Success).message, Toast.LENGTH_SHORT).show()
                 viewModel.resetState()
+                onLoginSuccess()
             }
             is AuthState.Error -> {
                 Toast.makeText(context, (state as AuthState.Error).message, Toast.LENGTH_SHORT).show()

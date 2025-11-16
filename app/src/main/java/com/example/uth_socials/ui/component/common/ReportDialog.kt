@@ -19,7 +19,8 @@ fun ReportDialog(
     onSubmit: () -> Unit,
     reportReason: String,
     reportDescription: String,
-    isReporting: Boolean
+    isReporting: Boolean,
+    reportErrorMessage: String? = null
 ) {
     if (!isVisible) return
 
@@ -79,7 +80,7 @@ fun ReportDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // TextField cho mô tả chi tiết
                 OutlinedTextField(
@@ -90,8 +91,21 @@ fun ReportDialog(
                         .fillMaxWidth()
                         .heightIn(min = 80.dp),
                     maxLines = 4,
+                    shape = MaterialTheme.shapes.medium,
                     enabled = !isReporting
                 )
+
+                if (reportErrorMessage != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = reportErrorMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    )
+                }
             }
         },
         confirmButton = {
