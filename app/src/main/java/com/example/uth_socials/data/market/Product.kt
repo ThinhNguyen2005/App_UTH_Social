@@ -16,5 +16,4 @@ data class Product(
 
     @ServerTimestamp // Báo cho Firestore tự động gán thời gian tạo document vào biến này
     val createdAt: Date? = null,
-    val favorite: Boolean = false
 )

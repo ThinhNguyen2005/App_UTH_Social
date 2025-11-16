@@ -9,9 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -22,8 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +35,6 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.R
 import com.example.uth_socials.data.market.Product
 import com.example.uth_socials.ui.viewmodel.ProductViewModel2
-import androidx.compose.runtime.setValue
 
 @Composable
 fun ProductDetailScreen(
@@ -103,9 +98,6 @@ fun ProductDetailContent(
     onMessage: () -> Unit = {},
     viewModel: ProductViewModel2
 ) {
-    // State để theo dõi trạng thái yêu thích (chỉ local, không lưu database)
-    var isFav by remember { mutableStateOf(product.favorite) }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -250,17 +242,6 @@ fun ProductDetailContent(
                         contentDescription = "Share",
                         tint = Color.Black,
                         modifier = Modifier.size(26.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = {isFav = !isFav},
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (isFav) Color.Red else Color.DarkGray
                     )
                 }
             }
