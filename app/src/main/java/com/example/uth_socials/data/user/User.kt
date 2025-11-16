@@ -1,6 +1,7 @@
 package com.example.uth_socials.data.user
 
 import androidx.annotation.Keep
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.IgnoreExtraProperties
 
 @Keep
@@ -21,7 +22,7 @@ data class User(
     var major: String? = null,
 
     var isBanned: Boolean = false,
-    var bannedAt: com.google.firebase.Timestamp? = null,
+    var bannedAt: Timestamp? = null,
     var bannedBy: String? = null,
     var banReason: String? = null,
     var violationCount: Int = 0,

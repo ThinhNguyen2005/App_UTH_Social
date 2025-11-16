@@ -126,32 +126,6 @@ fun CommentSheetContent(
             }
         }
 
-//        Row(
-//            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//            val isPosting = commentPostState == CommentPostState.POSTING
-//            OutlinedTextField(
-//                value = commentText,
-//                onValueChange = { commentText = it },
-//                modifier = Modifier.weight(1f).focusRequester(focusRequester),
-//                placeholder = { Text("Viết bình luận...") },
-//                enabled = !isPosting
-//            )
-//            IconButton(
-//                onClick = {
-//                    onAddComment(commentText)
-//                    commentText = ""
-//                },
-//                enabled = commentText.isNotBlank() && !isPosting
-//            ) {
-//                if (isPosting) {
-//                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-//                } else {
-//                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi bình luận")
-//                }
-//            }
-//        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -161,7 +135,6 @@ fun CommentSheetContent(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // 2. Vùng nhập liệu tùy chỉnh thay cho OutlinedTextField
             val isPosting = commentPostState == CommentPostState.POSTING
             Box(
                 modifier = Modifier
@@ -169,7 +142,7 @@ fun CommentSheetContent(
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(24.dp) // Bo tròn như viên thuốc
+                        shape = RoundedCornerShape(24.dp)
                     )
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.CenterStart
@@ -181,7 +154,6 @@ fun CommentSheetContent(
                     )
                 }
 
-                // BasicTextField không có trang trí, cho phép chúng ta toàn quyền kiểm soát
                 BasicTextField(
                     value = commentText,
                     onValueChange = { commentText = it },
@@ -189,13 +161,12 @@ fun CommentSheetContent(
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
                     textStyle = LocalTextStyle.current.copy(
-                        color = MaterialTheme.colorScheme.onSurface // Đảm bảo màu chữ đúng với theme
+                        color = MaterialTheme.colorScheme.onSurface
                     ),
                     enabled = !isPosting
                 )
             }
 
-            // 3. Nút gửi
             IconButton(
                 onClick = {
                     Log.d("CommentSheet", "Send button clicked, commentText: '$commentText'")
