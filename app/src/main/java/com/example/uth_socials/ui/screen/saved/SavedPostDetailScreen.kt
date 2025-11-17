@@ -192,15 +192,17 @@ fun SavedPostDetail(
                                     viewModel.toggleLike()
                                     Log.d("SavedPostDetail", "Like toggled for: $postId")
                                 },
-                                // Comment action
-                                onCommentClicked = { postId ->
-                                    onCommentClicked(postId)
-                                    Log.d("SavedPostDetail", "Navigate to comments: $postId")
-                                },
                                 // Save action
                                 onSaveClicked = { postId ->
                                     viewModel.toggleSave()
                                     Log.d("SavedPostDetail", "Save toggled for: $postId")
+                                },
+                                // Comment action
+                                onCommentClicked = { postId ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Tính năng bình luận đang phát triển")
+                                    }
+                                    Log.d("SavedPostDetail", "Navigate to comments: $postId")
                                 },
                                 // Share action
                                 onShareClicked = { postId ->
@@ -217,25 +219,21 @@ fun SavedPostDetail(
                                 // Hide post action
                                 onHideClicked = { postId ->
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Đã ẩn bài viết")
-                                        // Could navigate back after hiding
-                                        // onBackClicked()
+                                        snackbarHostState.showSnackbar("Tính năng ẩn bài viết đang phát triển")
                                     }
                                     Log.d("SavedPostDetail", "Hide clicked: $postId")
                                 },
                                 // Report post action
                                 onReportClicked = { postId ->
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Đã gửi báo cáo")
+                                        snackbarHostState.showSnackbar("Tính năng báo cáo bài viết đang phát triển")
                                     }
                                     Log.d("SavedPostDetail", "Report clicked: $postId")
                                 },
                                 // Delete post action
                                 onDeleteClicked = { postId ->
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Đã xóa bài viết")
-                                        // Navigate back after delete
-                                        onBackClicked()
+                                        snackbarHostState.showSnackbar("Tính năng xóa bài viết đang phát triển")
                                     }
                                     Log.d("SavedPostDetail", "Delete clicked: $postId")
                                 },

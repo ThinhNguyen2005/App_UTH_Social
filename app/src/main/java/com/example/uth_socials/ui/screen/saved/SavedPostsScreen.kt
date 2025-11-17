@@ -24,8 +24,6 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.ui.component.common.formatTimeAgo
 import com.example.uth_socials.ui.viewmodel.SavedPostsViewModel
-import java.text.SimpleDateFormat
-import java.util.*
 
 /**
  * Màn hình hiển thị danh sách bài viết đã lưu
@@ -43,6 +41,7 @@ fun SavedPostsScreen(
     onBackClicked: () -> Unit,
     onPostClick: (String) -> Unit = {},
     onUserClick: (String) -> Unit = {},
+    onCommentClicked: (String) -> Unit = {},
     viewModel: SavedPostsViewModel = viewModel()
 ) {
     val savedPosts by viewModel.savedPosts.collectAsState()

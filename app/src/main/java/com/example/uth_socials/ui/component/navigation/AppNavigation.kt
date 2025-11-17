@@ -384,7 +384,11 @@ fun MainScreen(rootNavController: NavHostController) {
                         navController.navigate(Screen.Profile.createRoute(userId)) {
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    //Navigate to comments from grid
+//                    onCommentClicked = { postId ->
+//                        navController.navigate(Screen.Comments.createRoute(postId))
+//                    }
                 )
             }
             composable(
@@ -402,14 +406,25 @@ fun MainScreen(rootNavController: NavHostController) {
                             launchSingleTop = true
                         }
                     },
-                    //THÊM callback cho comment
-                    onCommentClicked = { postId ->
-                        // TODO: Navigate to comment screen
-                        navController.navigate(Screen.Comments.createRoute(postId))
-                        Log.d("Navigation", "Comments for post: $postId")
-                    }
+                    //Navigate to comments from detail
+//                    onCommentClicked = { postId ->
+//                        navController.navigate(Screen.Comments.createRoute(postId))
+//                    }
                 )
             }
+            //Comment composable
+//            composable(
+//                route = Screen.Comments.route,
+//                arguments = listOf(
+//                    navArgument("postId") { type = NavType.StringType }
+//                )
+//            ) { backStackEntry ->
+//                val postId = backStackEntry.arguments?.getString("postId") ?: ""
+//                CommentsScreen(
+//                    postId = postId,
+//                    onBackClicked = { navController.popBackStack() }
+//                )
+//            }
         }
     }
 }
