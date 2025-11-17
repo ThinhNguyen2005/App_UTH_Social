@@ -3,6 +3,7 @@ package com.example.uth_socials.ui.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.repository.ChatRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,8 +12,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.UserRepository
+import com.example.uth_socials.data.util.SecurityValidator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import com.example.uth_socials.ui.viewmodel.PostReAction
 
 data class ProfileUiState(
     val posts: List<Post> = emptyList(),
@@ -28,16 +32,36 @@ data class ProfileUiState(
     val postCount: Int = 0,
     val currentUserId: String? = null,
     val profileUserId: String = "",
+
+    val commentSheetPostId: String? = null,
+    val commentsForSheet: List<Comment> = emptyList(),
+    val isSheetLoading: Boolean = false,
+    val commentPostState: CommentPostState = CommentPostState.IDLE,
+    val commentErrorMessage: String? = null,
+
     val isUserBanned: Boolean = false,
     val showBanDialog: Boolean = false,
     val successMessage: String? = null,
     // ✅ Single dialog state thay vì nhiều boolean flags
     val dialogType: DialogType = DialogType.None,
     val isProcessing: Boolean = false,
-    // ✅ State để xử lý sau khi block
     val isUserBlocked: Boolean = false,
-    val shouldNavigateBack: Boolean = false
-    )
+    val shouldNavigateBack: Boolean = false,
+
+    //edit
+    val showEditPostDialog: Boolean = false,
+    val editingPostId: String? = null,
+    val editingPostContent: String = "",
+    val isSavingPost: Boolean = false,
+    val editPostErrorMessage: String? = null,
+    //reporrt
+    val showReportDialog: Boolean = false,
+    val reportingPostId: String? = null,
+    val reportReason: String = "",
+    val reportDescription: String = "",
+    val isReporting: Boolean = false,
+    val reportErrorMessage: String? = null,
+)
 
 class ProfileViewModel(
     private val userId: String,
@@ -45,9 +69,12 @@ class ProfileViewModel(
     private val postRepository: PostRepository = PostRepository()
 ) : ViewModel() {
     private val chatRepository = ChatRepository()
+    private var commentsJob: Job? = null
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState
+
+    private val postReAction = PostReAction(postRepository, viewModelScope)
 
     init {
 
@@ -55,29 +82,29 @@ class ProfileViewModel(
     }
 
     private fun loadData() {
-        _uiState.update { it.copy(isLoading = true) }
-        viewModelScope.launch (Dispatchers.IO){
+        _uiState.update { it.copy() }
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentUserId = userRepository.getCurrentUserId()
-                
+
                 // ✅ Kiểm tra xem user đã bị block chưa
                 val isBlocked = if (currentUserId != null) {
                     userRepository.isUserBlocked(currentUserId, userId)
                 } else {
                     false
                 }
-                
+
                 if (isBlocked) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            error = "Bạn đã chặn người dùng này.",
                             isUserBlocked = true,
-                            error = "Bạn đã chặn người dùng này."
                         )
                     }
                     return@launch
                 }
-                
+
                 // Chạy song song để tải nhanh hơn
                 val userDeferred = async { userRepository.getUser(userId) }
                 val postsDeferred = async { postRepository.getPostsForUser(userId) }
@@ -90,23 +117,27 @@ class ProfileViewModel(
                     val isFollowing = currentUserId?.let(user.followers::contains) == true
                     _uiState.update {
                         it.copy(
-                            profileUserId = userId,
+                            posts = posts,
+                            isOwner = isOwner,
                             username = user.username,
                             userAvatarUrl = user.avatarUrl,
                             followers = user.followers.size,
                             following = user.following.size,
                             bio = user.bio,
-                            currentUserId = currentUserId,
-                            isOwner = isOwner,
                             isFollowing = isFollowing,
-                            posts = posts,
-                            postCount = posts.size,
                             isLoading = false,
-                            isUserBlocked = false
+                            postCount = posts.size,
+                            currentUserId = currentUserId,
+                            profileUserId = userId,
                         )
                     }
                 } else {
-                    _uiState.update { it.copy(isLoading = false, error = "Không tìm thấy người dùng.") }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Không tìm thấy người dùng.",
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error loading profile data", e)
@@ -118,50 +149,53 @@ class ProfileViewModel(
     fun onFollowClicked() {
         val state = _uiState.value
         if (state.isOwner) return
-        val resolvedCurrentUserId = state.currentUserId ?: userRepository.getCurrentUserId() ?: return
+        val resolvedCurrentUserId =
+            state.currentUserId ?: userRepository.getCurrentUserId() ?: return
         if (state.currentUserId == null) {
             _uiState.update { it.copy(currentUserId = resolvedCurrentUserId) }
         }
-        viewModelScope.launch (Dispatchers.IO){
+        viewModelScope.launch(Dispatchers.IO) {
             val isCurrentlyFollowing = _uiState.value.isFollowing
-            val success = userRepository.toggleFollow(resolvedCurrentUserId, userId, isCurrentlyFollowing)
+            val success =
+                userRepository.toggleFollow(resolvedCurrentUserId, userId, isCurrentlyFollowing)
             if (success) {
                 _uiState.update {
                     it.copy(
+                        followers = if (isCurrentlyFollowing) it.followers - 1 else it.followers + 1,
                         isFollowing = !isCurrentlyFollowing,
-                        followers = if (isCurrentlyFollowing) it.followers - 1 else it.followers + 1
                     )
                 }
             }
         }
     }
+
     fun onBlockUser() {
         val state = _uiState.value
         if (state.isOwner) return
-        
+
         // ✅ Hiển thị dialog xác nhận
         _uiState.update {
             it.copy(
                 dialogType = DialogType.BlockUser(
                     userId = userId,
                     username = state.username
-                )
+                ),
             )
         }
     }
-    
+
     fun onConfirmDialog() {
         when (val dialog = _uiState.value.dialogType) {
             is DialogType.DeletePost -> onConfirmDelete(dialog.postId)
             is DialogType.BlockUser -> onConfirmBlock(dialog.userId)
             is DialogType.UnblockUser -> {
-                // ✅ UnblockUser không được sử dụng trong ProfileViewModel
                 // Được xử lý ở BlockedUsersViewModel
             }
+
             is DialogType.None -> return
         }
     }
-    
+
     fun onDismissDialog() {
         _uiState.update {
             it.copy(
@@ -170,29 +204,29 @@ class ProfileViewModel(
             )
         }
     }
-    
+
     private fun onConfirmBlock(targetUserId: String) {
         val state = _uiState.value
         val currentUserId = state.currentUserId ?: userRepository.getCurrentUserId() ?: return
-        
+
         if (state.currentUserId == null) {
             _uiState.update { it.copy(currentUserId = currentUserId) }
         }
-        
+
         _uiState.update { it.copy(isProcessing = true) }
-        
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val success = userRepository.blockUser(currentUserId, targetUserId)
-                
+
                 if (success) {
                     _uiState.update {
                         it.copy(
                             dialogType = DialogType.None,
                             isProcessing = false,
+                            successMessage = "Người dùng đã bị chặn.",
                             isUserBlocked = true,
-                            shouldNavigateBack = true, // ✅ Flag để navigate back
-                            successMessage = "Người dùng đã bị chặn."
+                            shouldNavigateBack = true,
                         )
                     }
                     Log.d("ProfileViewModel", "User blocked successfully: $targetUserId")
@@ -201,7 +235,7 @@ class ProfileViewModel(
                         it.copy(
                             dialogType = DialogType.None,
                             isProcessing = false,
-                            error = "Lỗi không thể chặn người dùng."
+                            error = "Lỗi không thể chặn người dùng.",
                         )
                     }
                 }
@@ -211,7 +245,7 @@ class ProfileViewModel(
                     it.copy(
                         dialogType = DialogType.None,
                         isProcessing = false,
-                        error = "Lỗi khi chặn người dùng. Vui lòng thử lại."
+                        error = "Lỗi khi chặn người dùng. Vui lòng thử lại.",
                     )
                 }
             }
@@ -219,78 +253,342 @@ class ProfileViewModel(
     }
 
 
-        fun openChatWithUser(targetUserId: String, onChatReady: (String) -> Unit) {
-            viewModelScope.launch {
-                try {
-                    val currentUserId = userRepository.getCurrentUserId()
+    fun openChatWithUser(targetUserId: String, onChatReady: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val currentUserId = userRepository.getCurrentUserId()
 
-                    if (currentUserId == null) {
-                        Log.w("ProfileViewModel", "Cannot open chat: User not logged in")
-                        return@launch
-                    }                    // 🔹 Kiểm tra chat đã tồn tại chưa
-                    val existingChatId = chatRepository.getExistingChatId(targetUserId)
+                if (currentUserId == null) {
+                    Log.w("ProfileViewModel", "Cannot open chat: User not logged in")
+                    return@launch
+                }                    // 🔹 Kiểm tra chat đã tồn tại chưa
+                val existingChatId = chatRepository.getExistingChatId(targetUserId)
 
-                    // 🔹 Nếu có rồi → mở ngay
-                    if (existingChatId != null) {
-                        onChatReady(existingChatId)
-                    } else {
-                        // 🔹 Nếu chưa có → tạo chatId tạm để vào ChatScreen trống
-                        val newChatId = chatRepository.buildChatId(currentUserId, targetUserId)
-                        onChatReady(newChatId)
-                    }
-                } catch (e: Exception) {
-                    Log.e("ProfileViewModel", "Lỗi mở chat", e)
+                // 🔹 Nếu có rồi → mở ngay
+                if (existingChatId != null) {
+                    onChatReady(existingChatId)
+                } else {
+                    // 🔹 Nếu chưa có → tạo chatId tạm để vào ChatScreen trống
+                    val newChatId = chatRepository.buildChatId(currentUserId, targetUserId)
+                    onChatReady(newChatId)
                 }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Lỗi mở chat", e)
             }
         }
+    }
 
     fun onDeleteClicked(postId: String) {
-        // Kiểm tra xem người dùng hiện tại có phải chủ bài không
-        val post = _uiState.value.posts.find { it.id == postId }
-        if (post != null && post.userId == _uiState.value.currentUserId) {
+        val state = _uiState.value
+        postReAction.mutiOnDeleteClicked(
+            postId = postId,
+            posts = state.posts,
+            currentUserId = state.currentUserId,
+            onShowDeleteDialog = { deletePostId: String ->
+                _uiState.update {
+                    it.copy(
+                        dialogType = DialogType.DeletePost(deletePostId),
+                        isProcessing = false
+                    )
+                }
+            },
+            onError = { error: String ->
+                _uiState.update { it.copy(error = error) }
+            }
+        )
+    }
+
+    private fun onConfirmDelete(postId: String) {
+        val state = _uiState.value
+        postReAction.mutiOnConfirmDelete(
+            postId = postId,
+            posts = state.posts,
+            onDeleting = {
+                _uiState.update { it.copy(isProcessing = true) }
+            },
+            onPostsUpdate = { updatedPosts: List<Post> ->
+                _uiState.update {
+                    it.copy(
+                        posts = updatedPosts,
+                        postCount = updatedPosts.size,
+                        dialogType = DialogType.None,
+                        isProcessing = false,
+                        successMessage = "Bài viết đã được xóa thành công."
+                    )
+                }
+            },
+            onSuccess = { message: String ->
+                // Success đã được xử lý trong onPostsUpdate
+            },
+            onError = { error: String ->
+                _uiState.update {
+                    it.copy(
+                        isProcessing = false,
+                        error = error
+                    )
+                }
+            }
+        )
+    }
+
+    fun onDismissReportDialog() {
+        postReAction.mutiOnDismissReportDialog {
             _uiState.update {
                 it.copy(
-                    dialogType = DialogType.DeletePost(postId)
+                    showReportDialog = false,
+                    reportingPostId = null,
+                    reportReason = "",
+                    reportDescription = "",
+                    reportErrorMessage = null,
+                    isReporting = false
                 )
             }
         }
     }
 
-    private fun onConfirmDelete(postId: String) {
-        _uiState.update { it.copy(isProcessing = true) }
-        
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val success = postRepository.deletePost(postId)
-                if (success) {
-                    val updatedPosts = _uiState.value.posts.filter { it.id != postId }
-                    _uiState.update {
-                        it.copy(
-                            posts = updatedPosts,
-                            postCount = updatedPosts.size,
-                            dialogType = DialogType.None,
-                            isProcessing = false,
-                            successMessage = "Bài viết đã được xóa thành công."
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            dialogType = DialogType.None,
-                            isProcessing = false,
-                            error = "Lỗi không thể xóa bài viết. Vui lòng thử lại."
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Error deleting post", e)
+    fun onReportClicked(postId: String) {
+        val state = _uiState.value
+        postReAction.mutiOnReportClicked(
+            postId = postId,
+            isUserBanned = state.isUserBanned,
+            onBanDialog = { _uiState.update { it.copy(showBanDialog = true) } },
+            onOpenReportDialog = { reportPostId: String ->
                 _uiState.update {
                     it.copy(
-                        dialogType = DialogType.None,
-                        isProcessing = false,
-                        error = "Lỗi không thể xóa bài viết."
+                        showReportDialog = true,
+                        reportingPostId = reportPostId,
+                        reportReason = "",
+                        reportDescription = "",
+                        successMessage = null
                     )
                 }
+            }
+        )
+    }
+
+    fun onReportReasonChanged(reason: String) {
+        _uiState.update { it.copy(reportReason = reason) }
+    }
+
+    fun onReportDescriptionChanged(description: String) {
+        _uiState.update { it.copy(reportDescription = description) }
+    }
+
+    // Báo cáo bài viết
+    fun onSubmitReport() {
+        val state = _uiState.value
+        val reportingPostId = state.reportingPostId ?: return
+        val reason = state.reportReason
+        val description = state.reportDescription
+
+        postReAction.mutiOnSubmitReport(
+            reportingPostId = reportingPostId,
+            reason = reason,
+            description = description,
+            posts = state.posts,
+            onReporting = {
+                _uiState.update { it.copy(isReporting = true, reportErrorMessage = null) }
+            },
+            onSuccess = {
+                _uiState.update {
+                    it.copy(
+                        showReportDialog = false,
+                        isReporting = false,
+                        reportingPostId = null,
+                        reportReason = "",
+                        reportDescription = "",
+                        reportErrorMessage = null,
+                        successMessage = "Báo cáo bài viết thành công."
+                    )
+                }
+            },
+            onError = { errorMsg: String ->
+                _uiState.update {
+                    it.copy(
+                        isReporting = false,
+                        reportErrorMessage = errorMsg
+                    )
+                }
+            }
+        )
+    }
+    fun onCommentClicked(postId: String) {
+        val state = _uiState.value
+        postReAction.mutiOnCommentClicked(
+            postId = postId,
+            isUserBanned = state.isUserBanned,
+            onBanDialog = { _uiState.update { it.copy(showBanDialog = true) } },
+            onOpenSheet = { sheetPostId ->
+                _uiState.update { it.copy(commentSheetPostId = sheetPostId) }
+            },
+            onCommentsUpdate = { comments: List<Comment> ->
+                _uiState.update { it.copy(commentsForSheet = comments) }
+            },
+            onSheetLoading = { isLoading: Boolean ->
+                _uiState.update { it.copy(isSheetLoading = isLoading) }
+            },
+            onJobCreated = { job: Job -> commentsJob = job }
+        )
+    }
+
+    fun onDismissCommentSheet() {
+        postReAction.mutiOnDismissCommentSheet(
+            commentsJob = commentsJob,
+            onCloseSheet = {
+                _uiState.update { it.copy(commentSheetPostId = null) }
+            }
+        )
+    }
+    fun onLikeClicked(postId: String) {
+        val state = _uiState.value
+        postReAction.mutiLikePost(
+            postId = postId,
+            posts = state.posts,
+            isUserBanned = state.isUserBanned,
+            onBanDialog = { _uiState.update { it.copy(showBanDialog = true) } },
+            onPostsUpdate = { updatedPosts: List<Post> ->
+                _uiState.update { it.copy(posts = updatedPosts) }
+            },
+            onError = { error: String ->
+                _uiState.update { it.copy(error = error) }
+            }
+        )
+    }
+    fun onSaveClicked(postId: String) {
+        val state = _uiState.value
+        postReAction.mutiSavePost(
+            postId = postId,
+            posts = state.posts,
+            isUserBanned = state.isUserBanned,
+            onBanDialog = { _uiState.update { it.copy(showBanDialog = true) } },
+            onPostsUpdate = { updatedPosts: List<Post> ->
+                _uiState.update { it.copy(posts = updatedPosts) }
+            },
+            onError = { error: String ->
+                _uiState.update { it.copy(error = error) }
+            }
+        )
+    }
+    fun onCommentLikeClicked(postId: String, commentId: String) {
+        val state = _uiState.value
+        postReAction.mutiLikeComment(
+            postId = postId,
+            commentId = commentId,
+            comments = state.commentsForSheet,
+            onCommentsUpdate = { updatedComments: List<Comment> ->
+                _uiState.update { it.copy(commentsForSheet = updatedComments) }
+            },
+            onError = { error: String ->
+                _uiState.update { it.copy(error = error) }
+            }
+        )
+    }
+
+    fun addComment(postId: String, commentText: String) {
+        val state = _uiState.value
+        postReAction.mutiAddComment(
+            postId = postId,
+            commentText = commentText,
+            isUserBanned = state.isUserBanned,
+            onBanDialog = { _uiState.update { it.copy(showBanDialog = true) } },
+            onPosting = {
+                _uiState.update {
+                    it.copy(
+                        commentPostState = CommentPostState.POSTING,
+                        commentErrorMessage = null
+                    )
+                }
+            },
+            onSuccess = {
+                _uiState.update { it.copy(commentPostState = CommentPostState.SUCCESS) }
+            },
+            onError = { errorMessage ->
+                _uiState.update {
+                    it.copy(
+                        commentPostState = CommentPostState.ERROR,
+                        commentErrorMessage = errorMessage
+                    )
+                }
+            }
+        )
+    }
+    fun onEditPostClicked(postId: String) {
+        val state = _uiState.value
+        postReAction.mutiOnEditPostClicked(
+            postId = postId,
+            posts = state.posts,
+            onShowEditDialog = { editPostId: String, content: String ->
+                _uiState.update {
+                    it.copy(
+                        showEditPostDialog = true,
+                        editingPostId = editPostId,
+                        editingPostContent = content,
+                        editPostErrorMessage = null
+                    )
+                }
+            }
+        )
+    }
+
+    fun onUpdatePostContent(newContent: String) {
+        _uiState.update { it.copy(editingPostContent = newContent) }
+    }
+
+    fun onSaveEditedPost() {
+        val state = _uiState.value
+        val postId = state.editingPostId ?: return
+        val newContent = state.editingPostContent
+
+        postReAction.mutiSaveEditedPost(
+            postId = postId,
+            newContent = newContent,
+            posts = state.posts,
+            onSaving = {
+                _uiState.update {
+                    it.copy(
+                        isSavingPost = true,
+                        editPostErrorMessage = null
+                    )
+                }
+            },
+            onPostsUpdate = { updatedPosts: List<Post> ->
+                _uiState.update {
+                    it.copy(
+                        posts = updatedPosts,
+                        showEditPostDialog = false,
+                        editingPostId = null,
+                        editingPostContent = "",
+                        isSavingPost = false,
+                        editPostErrorMessage = null,
+                        successMessage = "Bài viết đã được cập nhật."
+                    )
+                }
+            },
+            onSuccess = {
+                // Success đã được xử lý trong onPostsUpdate
+            },
+            onError = { errorMessage: String ->
+                _uiState.update {
+                    it.copy(
+                        isSavingPost = false,
+                        editPostErrorMessage = errorMessage,
+                        error = "Không thể cập nhật được bài viết! Vui lòng thử lại"
+                    )
+                }
+            }
+        )
+    }
+
+    fun onDismissEditDialog() {
+        postReAction.mutiOnDismissEditDialog {
+            _uiState.update {
+                it.copy(
+                    showEditPostDialog = false,
+                    editingPostId = null,
+                    editingPostContent = "",
+                    editPostErrorMessage = null,
+                    isSavingPost = false
+                )
             }
         }
     }
