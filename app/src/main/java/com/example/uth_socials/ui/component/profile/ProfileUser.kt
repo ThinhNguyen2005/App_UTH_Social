@@ -34,6 +34,7 @@ fun ProfileHeader(
     bio: String,
     followers: Int,
     following: Int,
+    productCount: Int = 0,
     postCount: Int = 0,
     isOwner: Boolean,
     isFollowing: Boolean,
@@ -42,10 +43,12 @@ fun ProfileHeader(
     onBackClicked: () -> Unit = {},
     onMoreClicked: () -> Unit = {},
     onMessageClicked: () -> Unit = {},
-    onEditProfileClicked: () -> Unit = {}
+    onSettingClicked: () -> Unit = {},
+    selectedTabIndex: Int = 0,
+    onTabSelected: (Int) -> Unit = {}
 ) {
+
     Box(modifier = Modifier.fillMaxWidth()) {
-        // Background content: Info card and tabs
         Column {
             ProfileInfoCard(
                 username = username,
@@ -54,13 +57,18 @@ fun ProfileHeader(
                 followers = followers,
                 following = following,
                 postCount = postCount,
+                productCount = productCount,
                 isOwner = isOwner,
                 isFollowing = isFollowing,
+
                 onFollowClicked = onFollowClicked,
                 onMessageClicked = onMessageClicked,
-                onEditProfileClicked = onEditProfileClicked
+                onSettingClicked = onSettingClicked,
             )
-            ProfileTabs()
+            ProfileTabs(
+                selectedTabIndex = selectedTabIndex,
+                onTabSelected = onTabSelected
+            )
         }
 
         // Overlay content: Header with back button and menu
@@ -105,19 +113,13 @@ fun ProfileHeader(
                                 onMoreClicked()
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text("Báo cáo") },
-                            onClick = {
-                                showMenu = false
-                                // TODO: Implement report flow
-                            }
-                        )
+
                     } else {
                         DropdownMenuItem(
                             text = { Text("Cài đặt") },
                             onClick = {
                                 showMenu = false
-                                onEditProfileClicked()
+                                onSettingClicked()
                             }
                         )
                     }
@@ -134,12 +136,14 @@ private fun ProfileInfoCard(
     bio: String,
     followers: Int,
     following: Int,
+    productCount: Int = 0,
     postCount: Int = 0,
     isOwner: Boolean,
     isFollowing: Boolean,
     onFollowClicked: () -> Unit,
     onMessageClicked: () -> Unit,
-    onEditProfileClicked: () -> Unit
+    onSettingClicked: () -> Unit,
+
 ) {
     Box(
         modifier = Modifier
@@ -158,6 +162,7 @@ private fun ProfileInfoCard(
                     .padding(top = 48.dp, bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = username,
                     style = MaterialTheme.typography.headlineSmall,
@@ -167,6 +172,7 @@ private fun ProfileInfoCard(
 
                 ProfileStats(
                     postCount = postCount,
+                    productCount = productCount,
                     followers = followers,
                     following = following
                 )
@@ -190,7 +196,7 @@ private fun ProfileInfoCard(
                     isFollowing = isFollowing,
                     onFollowClicked = onFollowClicked,
                     onMessageClicked = onMessageClicked,
-                    onEditProfileClicked = onEditProfileClicked
+                    onSettingClicked = onSettingClicked
                 )
             }
         }
@@ -209,7 +215,7 @@ private fun ProfileInfoCard(
 }
 
 @Composable
-private fun ProfileStats(postCount: Int, followers: Int, following: Int) {
+private fun ProfileStats(postCount: Int, productCount: Int,followers: Int, following: Int) {
     // Thẻ hiển thị thông tin số liệu
     Card(
         modifier = Modifier
@@ -231,6 +237,8 @@ private fun ProfileStats(postCount: Int, followers: Int, following: Int) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             StatItem(count = postCount, label = "bài viết")
+            StatItem(count = productCount, label = "sản phẩm")
+
             StatItem(count = followers, label = "người theo dõi")
             StatItem(count = following, label = "đang theo dõi")
         }
@@ -263,7 +271,7 @@ private fun ProfileActions(
     isFollowing: Boolean,
     onFollowClicked: () -> Unit,
     onMessageClicked: () -> Unit,
-    onEditProfileClicked: () -> Unit
+    onSettingClicked: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -273,7 +281,7 @@ private fun ProfileActions(
         if (isOwner) {
             // Khi là chủ nhân, chỉ có 1 nút
             FilledTonalButton(
-                onClick = onEditProfileClicked,
+                onClick = onSettingClicked,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(50)
             ) {
@@ -281,47 +289,57 @@ private fun ProfileActions(
             }
         } else {
             // Khi là khách, 2 nút sẽ hiển thị dạng stack theo hình mẫu
-            
-            // Nút nhắn tin
-            OutlinedButton(
-                onClick = onMessageClicked,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(50),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Nhắn tin")
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Nút theo dõi
-            if (isFollowing) {
-                // Nếu đã theo dõi, hiển thị nút outlined
+                // Nút nhắn tin
                 OutlinedButton(
-                    onClick = onFollowClicked,
-                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onMessageClicked,
+                    modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    )
                 ) {
-                    Text("Đang theo dõi")
+                    Text("Nhắn tin")
                 }
-            } else {
-                // Nếu chưa theo dõi, hiển thị nút filled
-                Button(
-                    onClick = onFollowClicked,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.PersonAdd,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Theo dõi")
+
+
+                // Nút theo dõi
+                if (isFollowing) {
+                    // Nếu đã theo dõi, hiển thị nút outlined
+                    OutlinedButton(
+                        onClick = onFollowClicked,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(50),
+
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Text("Đang theo dõi")
+                    }
+                } else {
+                    // Nếu chưa theo dõi, hiển thị nút filled
+                    Button(
+                        onClick = onFollowClicked,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            Icons.Default.PersonAdd,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Theo dõi")
+                    }
                 }
             }
         }
@@ -329,8 +347,10 @@ private fun ProfileActions(
 }
 
 @Composable
-fun ProfileTabs() {
-    var selectedTabIndex by remember { mutableStateOf(0) }
+fun ProfileTabs(
+    selectedTabIndex: Int,
+    onTabSelected: (Int) -> Unit
+) {
     val tabs = listOf("Bài viết", "Sản phẩm")
 
     val selectedColor = MaterialTheme.colorScheme.primary
@@ -347,7 +367,7 @@ fun ProfileTabs() {
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable { selectedTabIndex = index }
+                        .clickable { onTabSelected (index) }
                         .padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -381,78 +401,81 @@ fun ProfileTabs() {
     }
 }
 
-
-@Preview(showBackground = true, name = "Owner View")
-@Composable
-private fun ProfileHeaderPreviewOwner() {
-    MaterialTheme {
-        Surface {
-            ProfileHeader(
-                username = "Trần Văn A",
-                avatarUrl = "https://picsum.photos/id/237/200/300",
-                bio = "Đây là bio của tôi. Tôi thích lập trình và đi du lịch.",
-                followers = 1250,
-                following = 340,
-                postCount = 42,
-                isOwner = true,
-                isFollowing = false, // Not relevant for owner
-                onFollowClicked = {},
-                showBackButton = true,
-                onBackClicked = {},
-                onMoreClicked = {},
-                onMessageClicked = {},
-                onEditProfileClicked = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Visitor View - Not Following")
-@Composable
-private fun ProfileHeaderPreviewVisitorNotFollowing() {
-    MaterialTheme {
-        Surface {
-            ProfileHeader(
-                username = "Nguyễn Thị B",
-                avatarUrl = "https://picsum.photos/id/1/200/300",
-                bio = "Chào mừng đến với trang cá nhân của mình!",
-                followers = 800,
-                following = 150,
-                postCount = 25,
-                isOwner = false,
-                isFollowing = false,
-                onFollowClicked = {},
-                showBackButton = true,
-                onBackClicked = {},
-                onMoreClicked = {},
-                onMessageClicked = {},
-                onEditProfileClicked = {}
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, name = "Visitor View - Following")
-@Composable
-private fun ProfileHeaderPreviewVisitorFollowing() {
-    MaterialTheme {
-        Surface {
-            ProfileHeader(
-                username = "Nguyễn Thị B",
-                avatarUrl = "https://picsum.photos/id/1/200/300",
-                bio = "Chào mừng đến với trang cá nhân của mình!",
-                followers = 801,
-                following = 150,
-                postCount = 25,
-                isOwner = false,
-                isFollowing = true,
-                onFollowClicked = {},
-                showBackButton = true,
-                onBackClicked = {},
-                onMoreClicked = {},
-                onMessageClicked = {},
-                onEditProfileClicked = {}
-            )
-        }
-    }
-}
+//
+//@Preview(showBackground = true, name = "Owner View")
+//@Composable
+//private fun ProfileHeaderPreviewOwner() {
+//    MaterialTheme {
+//        Surface {
+//            ProfileHeader(
+//                username = "Trần Văn A",
+//                avatarUrl = "https://picsum.photos/id/237/200/300",
+//                bio = "Đây là bio của tôi. Tôi thích lập trình và đi du lịch.",
+//                followers = 1250,
+//                following = 340,
+//                productCount = 42,
+//
+//                postCount = 42,
+//
+//                isOwner = true,
+//                isFollowing = false, // Not relevant for owner
+//                onFollowClicked = {},
+//                showBackButton = true,
+//                onBackClicked = {},
+//                onMoreClicked = {},
+//                onMessageClicked = {},
+//                onSettingClicked = {}
+//            )
+//        }
+//    }
+//}
+//
+//@Preview(showBackground = true, name = "Visitor View - Not Following")
+//@Composable
+//private fun ProfileHeaderPreviewVisitorNotFollowing() {
+//    MaterialTheme {
+//        Surface {
+//            ProfileHeader(
+//                username = "Nguyễn Thị B",
+//                avatarUrl = "https://picsum.photos/id/1/200/300",
+//                bio = "Chào mừng đến với trang cá nhân của mình!",
+//                followers = 800,
+//                following = 150,
+//                postCount = 25,
+//                isOwner = false,
+//                isFollowing = false,
+//                onFollowClicked = {},
+//                showBackButton = true,
+//                onBackClicked = {},
+//                onMoreClicked = {},
+//                onMessageClicked = {},
+//                onSettingClicked = {}
+//            )
+//        }
+//    }
+//}
+//
+//@Preview(showBackground = true, name = "Visitor View - Following")
+//@Composable
+//private fun ProfileHeaderPreviewVisitorFollowing() {
+//    MaterialTheme {
+//        Surface {
+//            ProfileHeader(
+//                username = "Nguyễn Thị B",
+//                avatarUrl = "https://picsum.photos/id/1/200/300",
+//                bio = "Chào mừng đến với trang cá nhân của mình!",
+//                followers = 801,
+//                following = 150,
+//                postCount = 25,
+//                isOwner = false,
+//                isFollowing = true,
+//                onFollowClicked = {},
+//                showBackButton = true,
+//                onBackClicked = {},
+//                onMoreClicked = {},
+//                onMessageClicked = {},
+//                onSettingClicked = {}
+//            )
+//        }
+//    }
+//}

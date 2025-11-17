@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.component.navigation
 
+import SearchResultScreen
 import android.app.Activity
 import android.content.Intent
 import android.util.Log
@@ -38,7 +39,10 @@ import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.home.ProfileScreen
 import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
+//import com.example.uth_socials.ui.screen.search.SearchScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
+import com.example.uth_socials.ui.viewmodel.PostViewModel
+import com.example.uth_socials.ui.viewmodel.ProductViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModelFactory
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
@@ -48,6 +52,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import com.example.uth_socials.ui.screen.UserInfoScreen
 import com.example.uth_socials.ui.screen.setting.UserSettingScreen
+import com.example.uth_socials.ui.viewmodel.SearchViewModel
+import com.example.uth_socials.ui.viewmodel.NotificationViewModel
+import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
+import com.example.uth_socials.ui.viewmodel.BlockedUsersViewModel
+import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.screen.saved.SavedPostsScreen
 import com.example.uth_socials.ui.screen.saved.SavedPostDetail
 
@@ -128,6 +137,12 @@ fun NavGraphBuilder.authNavGraph(
                     viewModel.loginWithGoogle(activity = navController.context as Activity) {
                         launcher.launch(it)
                     }
+                },
+                onLoginSuccess = {
+                    // Chuyển sang đồ thị chính và xóa đồ thị auth khỏi back stack
+                    navController.navigate(Graph.MAIN) {
+                        popUpTo(Graph.AUTH) { inclusive = true }
+                    }
                 }
             )
         }
@@ -141,9 +156,8 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
         route = Graph.MAIN
     ) {
         composable(Screen.Home.route) {
-            MainScreen(rootNavController = navController) // <-- THAY ĐỔI Ở ĐÂY
-        }
-    }
+            MainScreen(rootNavController = navController)
+        }    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -159,6 +173,9 @@ fun MainScreen(rootNavController: NavHostController) {
         }
         Log.d("AppNavigation", "Logout triggered! Navigating to AUTH graph.")
     }
+
+   // val notificationViewModel : NotificationViewModel = viewModel()
+
     val showBottomBar = when (currentRoute) {
         Screen.Home.route,
         Screen.Market.route,
@@ -167,7 +184,7 @@ fun MainScreen(rootNavController: NavHostController) {
         Screen.Profile.route -> true
 
         Screen.AdminDashboard.route,
-        Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
+//        Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
         Screen.ProductDetail.route -> false  // THÊM: Ẩn bottom bar cho ProductDetail
         //true là gì, là sẽ show là bottomBar fasle ngược lại khỏi
         // Nói chung là đừng đụng vào
@@ -180,7 +197,9 @@ fun MainScreen(rootNavController: NavHostController) {
             if (currentRoute != Screen.Market.route) {
                 when (currentRoute) {
                     Screen.Home.route -> HomeTopAppBar(
-                        onSearchClick = { /* TODO */ },
+                        onSearchClick = { query ->
+                            navController.navigate("search_results/$query")
+                        },
                         onMessagesClick = { navController.navigate(Screen.ChatList.route) },
                         onAdminClick = {
                             navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
@@ -190,6 +209,17 @@ fun MainScreen(rootNavController: NavHostController) {
                     )
                     Screen.Add.route -> LogoTopAppBar()
                     Screen.Notifications.route -> LogoTopAppBar()
+                    Screen.SearchResult.route -> HomeTopAppBar(
+                        onSearchClick = { query ->
+                            navController.navigate("search_results/$query")
+                        },
+                        onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                        onAdminClick = {
+                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
                     else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
                 }
                 // else: nothing -> Market không có topBar
@@ -209,9 +239,13 @@ fun MainScreen(rootNavController: NavHostController) {
                     }
                 }
 
+                val notificationViewModel : NotificationViewModel = viewModel()
+
+
                 HomeBottomNavigation(
                     navController = navController,
-                    onBanDialogRequest = { showBanDialog = true }
+                    onBanDialogRequest = { showBanDialog = true },
+                    notificationViewModel = notificationViewModel
                 )
 
                 // Ban dialog for navigation
@@ -293,10 +327,57 @@ fun MainScreen(rootNavController: NavHostController) {
                     onMessage = { /* TODO: Implement message functionality */ }
                 )
             }
+            //Market
+            composable(Screen.Market.route) { MarketScreen(
+                navController = navController,
+                onProductClick = { productId ->
+                    navController.navigate(Screen.ProductDetail.createRoute(productId))
+                }
+            ) }
+            composable(Screen.Add.route) {
+                val postViewModel : PostViewModel = viewModel()
+                val productViewModel : ProductViewModel = viewModel()
+                PostScreen(postViewModel,productViewModel,navController = navController)
+            }
+            composable(Screen.Notifications.route) {
+                val notificationViewModel : NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel,navController)
+            }
+//            composable(Screen.Categories.route) {
+//                AdminDashboardScreen(
+//                    onNavigateBack = { navController.popBackStack() },
+//                    onNavigateToUser = { userId ->
+//                        navController.navigate(Screen.Profile.createRoute(userId)) {
+//                            launchSingleTop = true
+//                        }
+//                    }
+//                )
+//            }
+            composable(
+                route = Screen.AdminDashboard.route,
+                arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
+            ) { backStackEntry ->
+                AdminDashboardScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToUser = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    backStackEntry = backStackEntry
+                )
+            }
             //Create post - product
-            composable(Screen.Add.route) { PostScreen(navController = navController) }
+            composable(Screen.Add.route) {
+                val postViewModel : PostViewModel = viewModel()
+                val productViewModel : ProductViewModel = viewModel()
+                PostScreen(postViewModel,productViewModel,navController = navController)
+            }
             //Notifications                 - Trang test
-            composable(Screen.Notifications.route) { NotificationsScreen() }
+            composable(Screen.Notifications.route) {
+                val notificationViewModel : NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel,navController)
+            }
 
             //Profile
             composable(
@@ -318,15 +399,24 @@ fun MainScreen(rootNavController: NavHostController) {
                                 navController.navigate(Screen.ChatDetail.createRoute(chatId))
                             }
                         },
-                        onEditProfileClicked = {
+                        onSettingClicked = {
                             navController.navigate(Screen.Setting.route)
                         }
                     )
                 } else {
-                    // Xử lý trường hợp không có userId (ví dụ: hiển thị lỗi hoặc quay lại)
                     Text("Lỗi: Không tìm thấy ID người dùng.")
                 }
             }
+
+            composable(Screen.SearchResult.route) { backStackEntry ->
+                val query = backStackEntry.arguments?.getString("query") ?: ""
+                val searchViewModel : SearchViewModel = viewModel()
+                searchViewModel.searchPosts(query)
+                searchViewModel.searchUsers(query)
+                val blockedUsersViewModel: BlockedUsersViewModel = viewModel()
+                SearchResultScreen(searchViewModel,blockedUsersViewModel,navController)
+            }
+
             composable(
                 route = Screen.AdminDashboard.route,
                 arguments = listOf(navArgument("tab") {
@@ -356,11 +446,20 @@ fun MainScreen(rootNavController: NavHostController) {
                 ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
             }
             composable(Screen.Setting.route) {
-                // ✅ SỬA LỖI: Truyền viewModel và hàm onLogout đã nhận được
                 UserSettingScreen(
                     onBackClicked = { navController.popBackStack() },
                     onNavigateToUserInfo = {
                         navController.navigate(Screen.UserInfoScreen.route)
+                    },
+                    onNavigateToBlockedUsers = {
+                        Log.d("AppNavigation", "Navigating to BlockedUsers: ${Screen.BlockedUsers.route}")
+                        try {
+                            navController.navigate(Screen.BlockedUsers.route) {
+                                launchSingleTop = true
+                            }
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Error navigating to BlockedUsers", e)
+                        }
                     },
                     onNavigateToSavedPosts = {
                         navController.navigate(Screen.SavedPosts.route)
@@ -370,7 +469,16 @@ fun MainScreen(rootNavController: NavHostController) {
             }
             composable(Screen.UserInfoScreen.route) {
                 UserInfoScreen(
-                    onSaveSuccess = { navController.popBackStack() } // Quay lại sau khi lưu
+                    onSaveSuccess = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.BlockedUsers.route) {
+                val homeViewModel: HomeViewModel = viewModel()
+                BlockedUsersScreen(
+                    onBackClicked = { navController.popBackStack() },
+                    onUserUnblocked = {
+                        homeViewModel.refreshBlockedUsers()
+                    }
                 )
             }
             composable(Screen.SavedPosts.route) {

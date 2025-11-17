@@ -7,13 +7,16 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.uth_socials.R
+import com.example.uth_socials.data.notification.Notification
+import com.example.uth_socials.ui.component.navigation.Screen
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import java.util.UUID
 
-class MyFirebaseMessagingService : FirebaseMessagingService() {
+class MessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -36,6 +39,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         // Ghi log để debug
         Log.d("FCM", "Thông báo nhận được: ${remoteMessage.data}")
+
 
         remoteMessage.notification?.let {
             val title = it.title ?: "Thông báo mới"
@@ -60,5 +64,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 Log.w("FCM", "❌ Chưa có quyền POST_NOTIFICATIONS – không thể hiển thị thông báo.")
             }
         }
+
     }
 }

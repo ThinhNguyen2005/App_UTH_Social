@@ -58,6 +58,14 @@ dependencies {
 
     // gửi thông báo
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
+
+    // material
+    implementation("androidx.compose.material:material:1.6.8")
+
+// Coil (để tải ảnh từ URL)
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4") // Kiểm tra phiên bản mới nhất
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.foundation:foundation:1.9.3")
     implementation(libs.androidx.core.ktx)

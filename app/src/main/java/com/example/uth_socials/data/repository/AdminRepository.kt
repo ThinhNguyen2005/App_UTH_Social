@@ -147,7 +147,6 @@ class AdminRepository(
         val reportSnapshot = reportRef.get().await()
 
         val postId = reportSnapshot.getString("postId")
-        val reporterId = reportSnapshot.getString("reportedBy")
 
         val post = getPostById(postId ?: "")
         val targetUserId = post?.userId
@@ -171,22 +170,22 @@ class AdminRepository(
         // Handle action logic
         when (action) {
             AdminAction.DELETE_POST, AdminAction.BAN_USER -> {
-                postId?.let { pid ->
-                    val targetPost = getPostById(pid)
-                    val userId = targetPost?.userId
+                // Sử dụng post và userId đã lấy ở trên, không cần lấy lại
+                targetUserId?.let { userId ->
                     when (action) {
                         AdminAction.DELETE_POST -> {
-                            postRepository.deletePost(postId)
-                            userId?.let { autoBanUser(it) }
+                            postId?.let { postRepository.deletePost(it) }
+                            // Tăng violation count và tự động ban nếu >= 3 vi phạm
+                            autoBanUser(userId).onFailure { e ->
+                                Log.e("AdminRepository", "Failed to auto-ban user $userId after post deletion", e)
+                            }
                         }
                         AdminAction.BAN_USER -> {
-                            userId?.let {
-                                banUser(it, adminId, "Bị cấm do báo cáo: ${adminNotes ?: "Không cung cấp lý do"}")
-                            }
+                            banUser(userId, adminId, "Bị cấm do báo cáo: ${adminNotes ?: "Không cung cấp lý do"}")
                         }
                         else -> Unit
                     }
-                }
+                } ?: Log.w("AdminRepository", "Cannot perform action $action: targetUserId is null")
             }
             else -> Unit
         }
@@ -196,9 +195,11 @@ class AdminRepository(
 
 
     suspend fun banUser(userId: String, adminId: String, reason: String): Result<Unit> = runCatching {
-        val isAdminUser = isAdmin(adminId)
-        if (!isAdminUser) {
-            throw SecurityException("User $adminId does not have admin privileges to ban users")
+        if (adminId != "system") {
+            val isAdminUser = isAdmin(adminId)
+            if (!isAdminUser) {
+                throw SecurityException("User $adminId does not have admin privileges to ban users")
+            }
         }
 
         val userRef = db.collection("users").document(userId)
@@ -232,19 +233,54 @@ class AdminRepository(
     }
 
     suspend fun autoBanUser(userId: String): Result<Unit> = runCatching {
+        Log.d("AdminRepository", "🔍 autoBanUser called for user: $userId")
+        
         val userRef = db.collection("users").document(userId)
 
+        // Lấy current user để check violation count
         val currentUser = userRepository.getUser(userId)
-        val currentViolations = currentUser?.violationCount ?: 0
+        if (currentUser == null) {
+            Log.w("AdminRepository", "⚠️ User $userId not found!")
+            throw Exception("User not found: $userId")
+        }
+        
+        val currentViolations = currentUser.violationCount ?: 0
         val newViolationCount = currentViolations + 1
 
+        Log.d("AdminRepository", "📊 User $userId violations: $currentViolations -> $newViolationCount")
+
+        // Update violation count
         userRef.update("violationCount", newViolationCount).await()
+        
+        Log.d("AdminRepository", "Violation count updated in Firestore for user: $userId")
 
-        if (newViolationCount >= 3 && (currentUser?.isBanned != true)) {
-            banUser(userId, "system", "Tự động cấm: Quá nhiều vi phạm ($newViolationCount bài viết đã xóa)")
+        // Kiểm tra và ban nếu cần
+        if (newViolationCount >= 3) {
+            val updatedUser = userRepository.getUser(userId)
+            val isCurrentlyBanned = updatedUser?.isBanned == true
+            
+            Log.d("AdminRepository", "🔍 Checking ban status: isBanned=$isCurrentlyBanned, violations=$newViolationCount")
+            
+            if (!isCurrentlyBanned) {
+                Log.d("AdminRepository", "🚨 Auto-banning user $userId (violations: $newViolationCount)")
+                banUser(
+                    userId = userId,
+                    adminId = "system",
+                    reason = "Tự động cấm: Quá nhiều vi phạm ($newViolationCount bài viết đã xóa)"
+                ).onSuccess {
+                    Log.d("AdminRepository", "✅ User $userId auto-banned successfully")
+                }.onFailure { e ->
+                    Log.e("AdminRepository", "❌ Failed to ban user $userId", e)
+                    throw e
+                }
+            } else {
+                Log.d("AdminRepository", "⏭️ User $userId already banned, skipping")
+            }
+        } else {
+            Log.d("AdminRepository", "⏭️ User $userId has $newViolationCount violations (need 3+ to ban)")
         }
-
-        Log.d("AdminRepository", "User $userId violation count: $newViolationCount")
+        
+        Log.d("AdminRepository", "✅ autoBanUser completed for user: $userId")
     }
 
     suspend fun getBannedUsers(): List<User> {

@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.screen.setting
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,6 +28,7 @@ import com.google.firebase.auth.FirebaseAuth
 fun UserSettingScreen(
     onBackClicked: () -> Unit,
     onNavigateToUserInfo: () -> Unit,
+    onNavigateToBlockedUsers: () -> Unit,
     onNavigateToSavedPosts: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -127,7 +129,10 @@ fun UserSettingScreen(
             SettingsItem(
                 icon = Icons.Default.Block,
                 title = "Danh sách người dùng đã chặn",
-                onClick = { /* TODO */ }
+                onClick = {
+                    Log.d("UserSettingsScreen", "Blocked users clicked")
+                    onNavigateToBlockedUsers()
+                }
             )
 
             Spacer(modifier = Modifier.weight(1f))
