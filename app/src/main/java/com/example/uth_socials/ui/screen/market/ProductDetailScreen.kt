@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.uth_socials.R
 import com.example.uth_socials.data.market.Product
+import com.example.uth_socials.data.user.User
 import com.example.uth_socials.ui.viewmodel.ProductViewModel2
 
 @Composable
@@ -79,6 +80,7 @@ fun ProductDetailScreen(
         detailState.product != null -> {
             ProductDetailContent(
                 product = detailState.product!!,
+                seller = detailState.seller,
                 onBack = onBack,
                 onShare = onShare,
                 onCall = onCall,
@@ -92,6 +94,7 @@ fun ProductDetailScreen(
 @Composable
 fun ProductDetailContent(
     product: Product,
+    seller: User?,
     onBack: () -> Unit,
     onShare: () -> Unit = {},
     onCall: () -> Unit = {},
@@ -149,28 +152,8 @@ fun ProductDetailContent(
                         )
                     }
 
-                    //Thông tin người bán - CHUA XONG
-                    Row(verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.default_image),
-                            contentDescription = "Avatar người bán",
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .border(1.dp, Color.LightGray, CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = product.userId ?: "Người bán ẩn danh",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.Black
-                        )
-                    }
+                    //Thông tin người bán
+                    SellerInfoSection(seller = seller)
                     Spacer(modifier = Modifier.height(10.dp))
                     //Description product
                     Column(
@@ -254,6 +237,83 @@ fun ProductDetailContent(
                 .background(Color.White)
         ) {
             Call_Chat(onCall = onCall, onMessage = onMessage)
+        }
+    }
+}
+@Composable
+fun SellerInfoSection(seller: User?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        // Avatar
+        if (seller?.avatarUrl != null) {
+            AsyncImage(
+                model = seller.avatarUrl,
+                contentDescription = "Avatar người bán",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, Color.LightGray, CircleShape),
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.default_image),
+                error = painterResource(id = R.drawable.default_image)
+            )
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.default_image),
+                contentDescription = "Avatar người bán",
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, Color.LightGray, CircleShape)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Thông tin người bán
+        Column {
+            Text(
+                text = seller?.username ?: "Người bán ẩn danh",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.Black
+            )
+
+            // Hiển thị campus nếu có
+            seller?.campus?.let { campus ->
+                if (campus.isNotEmpty()) {
+                    Text(
+                        text = "- $campus",
+                        fontSize = 13.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+
+            // Hiển thị số điện thoại nếu có
+            seller?.phone?.let { phone ->
+                if (phone.isNotEmpty()) {
+                    Text(
+                        text = "- $phone",
+                        fontSize = 13.sp,
+                        color = Color(0xFF0E9397)
+                    )
+                }
+            }
+
+            // Cảnh báo nếu tài khoản bị ban
+            if (seller?.isBanned == true) {
+                Text(
+                    text = "* Tài khoản đã bị khóa",
+                    fontSize = 12.sp,
+                    color = Color.Red,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
