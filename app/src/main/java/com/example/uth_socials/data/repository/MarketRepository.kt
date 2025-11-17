@@ -4,12 +4,10 @@ import android.util.Log
 import com.example.uth_socials.data.market.Product
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlin.collections.mapNotNull
 import kotlin.jvm.java
@@ -22,7 +20,7 @@ private const val TAG = "MarketRepository"
  * - getProductById(): suspend function lấy 1 product theo id (one-shot).
  */
 
-class ProductRepository {
+class MarketRepository {
     //Khởi tạo kết nối đến cơ sở dữ liệu Cloud Firestore mặc định và gán nó vào một biến tên là db.
     private val db = FirebaseFirestore.getInstance()
     //Tạo một "tham chiếu" đến collection có tên là "products" trong cơ sở dữ liệu.

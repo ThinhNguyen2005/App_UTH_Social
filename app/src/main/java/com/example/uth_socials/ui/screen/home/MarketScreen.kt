@@ -34,12 +34,12 @@ import androidx.navigation.NavHostController
 import com.example.uth_socials.R
 import com.example.uth_socials.ui.screen.market.ProductItem
 import com.example.uth_socials.ui.screen.market.SearchBar
-import com.example.uth_socials.ui.viewmodel.ProductViewModel2
+import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
 @Composable
 fun MarketScreen(
     navController: NavHostController,
-    viewModel: ProductViewModel2 = viewModel(),
+    viewModel: MarketViewModel = viewModel(),
     onProductClick: (String) -> Unit, //Điều hướng đến trang chi tiết.
 ) {
     // 1. Lấy state từ ViewModel - BAO GỒM cả danh sách đã filter

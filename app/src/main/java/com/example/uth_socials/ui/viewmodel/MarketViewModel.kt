@@ -3,7 +3,7 @@ package com.example.uth_socials.ui.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.uth_socials.data.repository.ProductRepository
+import com.example.uth_socials.data.repository.MarketRepository
 import com.example.uth_socials.data.market.Product
 import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.data.user.User
@@ -45,8 +45,8 @@ data class DetailUiState(
 
 private const val TAG = "MarketViewModel"
 
-class ProductViewModel2: ViewModel() {
-    private val repository = ProductRepository()
+class MarketViewModel: ViewModel() {
+    private val repository = MarketRepository()
     private val userRepository = UserRepository()
 
     //MutableStateFlow để lưu query tìm kiếm
