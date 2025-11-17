@@ -1,6 +1,5 @@
 package com.example.uth_socials.data.repository
 
-import android.net.Uri
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.post.Report
@@ -8,7 +7,6 @@ import com.example.uth_socials.data.util.SecurityValidator
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -19,10 +17,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
 import com.example.uth_socials.data.user.User
-import com.google.firebase.Firebase
-import com.google.firebase.storage.storage
 import java.util.UUID
-import kotlin.collections.mutableListOf
 
 /**
  * PostRepository - Quản lý tất cả thao tác với dữ liệu bài viết (Posts)
@@ -39,8 +34,6 @@ import kotlin.collections.mutableListOf
  */
 class PostRepository {
     private val db = FirebaseFirestore.getInstance()
-
-    private val storage = Firebase.storage
     private val auth = FirebaseAuth.getInstance()
     private val postsCollection = db.collection("posts")
     private val reportsCollection = db.collection("reports")
@@ -231,48 +224,65 @@ class PostRepository {
 
 
     /**
-     * Lấy danh sách tất cả bài viết của một user cụ thể
+     * Lấy danh sách bài viết theo thời gian thực của một user cụ thể
      *
      * @param userId ID của user muốn lấy posts
-     * @return List<Post> - Danh sách posts của user đó
+     * @return Flow<List<Post>> - Stream real-time posts của user đó
      *
      * Logic:
-     * - Query posts collection với userId filter
+     * - Real-time listener cho posts của user cụ thể
      * - Order by timestamp descending (mới nhất trước)
-     * - Handle Firestore index errors (fallback without order)
+     * - Enrich posts với liked/saved status của current user
+     * - Handle Firestore index errors gracefully
      *
-     * Use case: Hiển thị profile của user với danh sách posts
+     * Use case: Real-time updates cho profile screen
      */
-    suspend fun getPostsForUser(userId: String): List<Post> { // Đổi tên từ getUserPosts
-        return try {
-            val snapshot = postsCollection
+    fun getPostsForUserFlow(userId: String): Flow<List<Post>> = callbackFlow {
+        val query = try {
+            postsCollection
                 .whereEqualTo("userId", userId)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
-                .get()
-                .await()
-
-            snapshot.documents.mapNotNull { doc ->
-                doc.toObject(Post::class.java)?.copy(id = doc.id)
-            }
-        } catch (e: FirebaseFirestoreException) {
-            if (e.code == FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
-                Log.w("PostRepository", "Missing index for getPostsForUser. Falling back without order.")
-                val snapshot = postsCollection
-                    .whereEqualTo("userId", userId)
-                    .get()
-                    .await()
-                snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Post::class.java)?.copy(id = doc.id)
-                }
-            } else {
-                Log.e("PostRepository", "Error fetching user posts", e)
-                emptyList()
-            }
         } catch (e: Exception) {
-            Log.e("PostRepository", "Error fetching user posts", e)
-            emptyList()
+            Log.e("PostRepository", "Index issue for getPostsForUserFlow. Using basic query.")
+            Log.e("PostRepository", "Error: $e")
+            postsCollection
+                .whereEqualTo("userId", userId)
         }
-    }
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    Log.w("PostRepository", "Permission denied listening to user posts. Emitting empty list.")
+                    trySend(emptyList())
+                } else {
+                    close(error)
+                }
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                trySend(snapshot.documents)
+            }
+        }
+
+        awaitClose { listener.remove() }
+    }.map { documents ->
+        val currentUserId = auth.currentUser?.uid
+        documents.mapNotNull { doc ->
+            try {
+                val post = doc.toObject(Post::class.java)
+                post?.copy(
+                    id = doc.id,
+                    isLiked = currentUserId?.let { post.likedBy.contains(it) } ?: false,
+                    isSaved = currentUserId?.let { post.savedBy.contains(it) } ?: false
+                )
+            } catch (e: Exception) {
+                Log.e("PostRepository", "Error mapping post ${doc.id}", e)
+                null
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
 
     // ==========================================
     // COMMENT SYSTEM FUNCTIONS (Hệ thống bình luận)
@@ -467,8 +477,6 @@ class PostRepository {
      */
     suspend fun reportPost(postId: String, reason: String, description: String): Boolean {
         val currentUserId = auth.currentUser?.uid ?: return false
-        
-        // ✅ KIỂM TRA SECURITY: Validate người báo cáo
         if (!SecurityValidator.canCreateReport(currentUserId, currentUserId)) {
             Log.w("PostRepository", "Cannot report: Invalid user")
             return false
@@ -528,29 +536,6 @@ class PostRepository {
         }
     }
 
-    /**
-     * Toggle trạng thái like/unlike của bình luận
-     *
-     * @param postId ID của bài viết chứa comment
-     * @param commentId ID của comment muốn like/unlike
-     * @param isCurrentlyLiked Trạng thái hiện tại (true = đang like)
-     *
-     * Logic:
-     * - Validate authentication
-     * - Check comment tồn tại
-     * - Nếu đang like: remove userId từ likedBy, giảm likes count
-     * - Nếu chưa like: add userId vào likedBy, tăng likes count
-     * - Atomic operations với FieldValue.increment()
-     *
-     * Similar to post like nhưng cho comments
-     */
-    /**
-     * Cập nhật nội dung text của bài viết
-     * 
-     * @param postId ID của bài viết
-     * @param newContent Nội dung mới
-     * @return Result<Unit> - Thành công hoặc thất bại
-     */
     suspend fun updatePostContent(postId: String, newContent: String): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid

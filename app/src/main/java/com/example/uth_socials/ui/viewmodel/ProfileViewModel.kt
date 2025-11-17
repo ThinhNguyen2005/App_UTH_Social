@@ -76,8 +76,9 @@ class ProfileViewModel(
 
     private val postReAction = PostReAction(postRepository, viewModelScope)
 
-    init {
+    private var postsJob: Job? = null
 
+    init {
         loadData()
     }
 
@@ -105,19 +106,16 @@ class ProfileViewModel(
                     return@launch
                 }
 
-                // Chạy song song để tải nhanh hơn
-                val userDeferred = async { userRepository.getUser(userId) }
-                val postsDeferred = async { postRepository.getPostsForUser(userId) }
-
-                val user = userDeferred.await()
-                val posts = postsDeferred.await()
+                // Lấy thông tin user và thiết lập real-time listener cho posts
+                val user = userRepository.getUser(userId)
 
                 if (user != null) {
                     val isOwner = currentUserId == userId
                     val isFollowing = currentUserId?.let(user.followers::contains) == true
+
+                    // Cập nhật thông tin user
                     _uiState.update {
                         it.copy(
-                            posts = posts,
                             isOwner = isOwner,
                             username = user.username,
                             userAvatarUrl = user.avatarUrl,
@@ -125,12 +123,13 @@ class ProfileViewModel(
                             following = user.following.size,
                             bio = user.bio,
                             isFollowing = isFollowing,
-                            isLoading = false,
-                            postCount = posts.size,
                             currentUserId = currentUserId,
                             profileUserId = userId,
                         )
                     }
+
+                    // Thiết lập real-time listener cho posts
+                    listenToUserPosts()
                 } else {
                     _uiState.update {
                         it.copy(
@@ -142,6 +141,22 @@ class ProfileViewModel(
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error loading profile data", e)
                 _uiState.update { it.copy(isLoading = false, error = "Lỗi tải dữ liệu.") }
+            }
+        }
+    }
+
+    private fun listenToUserPosts() {
+        postsJob?.cancel()
+        postsJob = viewModelScope.launch(Dispatchers.IO) {
+            postRepository.getPostsForUserFlow(userId).collect { posts ->
+                _uiState.update {
+                    it.copy(
+                        posts = posts,
+                        isLoading = false,
+                        postCount = posts.size,
+                        error = null
+                    )
+                }
             }
         }
     }
@@ -591,6 +606,12 @@ class ProfileViewModel(
                 )
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        postsJob?.cancel()
+        commentsJob?.cancel()
     }
 }
 
