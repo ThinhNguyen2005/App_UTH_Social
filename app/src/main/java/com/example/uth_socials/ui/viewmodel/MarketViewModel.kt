@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * ProductViewModel:
+ * MarketViewModel:
  * - products: StateFlow để UI collect
  * - init: subscribe realtime (hoặc bạn có thể gọi loadOnce() để lấy one-shot)
  * - add/update/delete: chạy trong viewModelScope (coroutines)

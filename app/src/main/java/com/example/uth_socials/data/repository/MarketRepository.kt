@@ -15,8 +15,8 @@ import kotlin.jvm.java
 private const val TAG = "MarketRepository"
 
 /**
- * ProductRepository - chịu trách nhiệm tương tác trực tiếp với Firestore.
- * - getProductsRealtime(): phát ra Flow<List<Product>> và lắng nghe realtime changes.
+ * MarketRepository - chịu trách nhiệm tương tác trực tiếp với Firestore.
+ * - getProductsStream(): phát ra Flow<List<Product>> và lắng nghe realtime changes.
  * - getProductById(): suspend function lấy 1 product theo id (one-shot).
  */
 
@@ -43,7 +43,7 @@ class MarketRepository {
                 }
 
                 if (snapshot == null) {
-                    Log.w(TAG, "⚠️ Snapshot null")
+                    Log.w(TAG, "Snapshot null")
                     trySend(emptyList())
                     return@addSnapshotListener
                 }

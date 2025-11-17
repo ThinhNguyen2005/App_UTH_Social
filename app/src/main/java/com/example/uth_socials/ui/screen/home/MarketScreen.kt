@@ -120,7 +120,7 @@ fun MarketScreen(
             )
         }
 
-        // 3. Hiển thị thông tin search (Optional nhưng nên có)
+        // 3. Hiển thị thông tin search
         if (listUiState.searchQuery.isNotEmpty()) {
             Row(
                 modifier = Modifier
