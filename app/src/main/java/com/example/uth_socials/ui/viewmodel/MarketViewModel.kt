@@ -135,6 +135,25 @@ class ProductViewModel2: ViewModel() {
      *
      * @param productId ID của sản phẩm cần load
      */
+
+    init {
+        // Log khi ViewModel được khởi tạo
+        Log.d(TAG, "MarketViewModel initialized")
+
+        // Theo dõi state changes
+        viewModelScope.launch {
+            listUiState.collect { state ->
+                Log.d(TAG, """
+                State Update:
+                - Loading: ${state.isLoading}
+                - Products: ${state.products.size}
+                - Filtered: ${state.filteredProducts.size}
+                - Query: "${state.searchQuery}"
+                - Error: ${state.error}
+            """.trimIndent())
+            }
+        }
+    }
     fun getProductById(productId: String?) {
         //Validate productId
         if (productId.isNullOrBlank()) {

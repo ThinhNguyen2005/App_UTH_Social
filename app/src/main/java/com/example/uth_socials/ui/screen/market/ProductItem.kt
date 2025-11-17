@@ -16,8 +16,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.uth_socials.R
 import com.example.uth_socials.data.market.Product
+import com.google.firebase.Timestamp
 import java.text.NumberFormat
-import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
@@ -66,15 +66,15 @@ fun formatVND(price: Double): String {
     val formatter = NumberFormat.getCurrencyInstance(locale)
     return formatter.format(price)
 }
-fun getRelativeTimeString(date: Date?): String {
+fun getRelativeTimeString(timestamp: Timestamp?): String {
     // Nếu date null, trả về mặc định
-    if (date == null) return "Thời gian không xác định"
+    if (timestamp == null) return "Thời gian không xác định"
 
     // Lấy thời gian hiện tại (milliseconds)
     val now = System.currentTimeMillis()
 
     // Lấy thời gian của sản phẩm (milliseconds)
-    val productTime = date.time
+    val productTime = timestamp.toDate().time
 
     // Tính khoảng cách thời gian (milliseconds)
     val diffInMillis = now - productTime

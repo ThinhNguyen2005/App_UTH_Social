@@ -146,7 +146,7 @@ fun ProductDetailContent(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Đăng ${getRelativeTimeString(product.createdAt)}",
+                            text = "Đăng ${getRelativeTimeString(product.timestamp)}",
                             fontSize = 14.sp,
                             color = Color.Gray
                         )

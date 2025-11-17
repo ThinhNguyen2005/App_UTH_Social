@@ -1,19 +1,28 @@
 package com.example.uth_socials.data.market
 
-import com.google.firebase.firestore.DocumentId
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ServerTimestamp
-import java.util.Date
 
 data class Product(
     val id: String = "",
     val name: String = "",
     val price: Double = 0.0,
-    val imageUrl: String? = null, //Link image in Firebase Storage
-    val description: String? = null,
-    val userId: String? = null,
-    val userName: String? = null,
-    val userAvatar: String? = null,
+    val imageUrl: String? = null,
+    val description: String = "",
+    val type: String = "", // "Sách", "Đồ điện tử", etc.
+    val userId: String = "",
 
-    @ServerTimestamp // Báo cho Firestore tự động gán thời gian tạo document vào biến này
-    val createdAt: Date? = null,
+    // Interaction data
+    val likedBy: List<String> = emptyList(),
+    val savedBy: List<String> = emptyList(),
+    val saves: Long = 0,
+    val shares: Long = 0,
+
+    // Timestamp
+    @ServerTimestamp
+    val timestamp: Timestamp? = null,
+
+    val campus: String? = null,
+    val userName: String? = null,
+    val userAvatar: String? = null
 )
