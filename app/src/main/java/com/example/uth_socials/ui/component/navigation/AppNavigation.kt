@@ -49,7 +49,6 @@ import com.example.uth_socials.ui.screen.setting.UserSettingScreen
 import com.example.uth_socials.ui.viewmodel.SearchViewModel
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
-import com.example.uth_socials.ui.viewmodel.BlockedUsersViewModel
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 
 @Composable
@@ -324,8 +323,11 @@ fun MainScreen(rootNavController: NavHostController) {
                         key = "profile-$userId",
                         factory = factory
                     )
+
+                    val homeViewModel: HomeViewModel = viewModel()
                     ProfileScreen(
                         viewModel = profileViewModel,
+                        homeViewModel = homeViewModel,
                         onBackClicked = { navController.popBackStack() },
                         onMessageClicked = { targetUserId ->
                             profileViewModel.openChatWithUser(targetUserId) { chatId ->
@@ -346,8 +348,7 @@ fun MainScreen(rootNavController: NavHostController) {
                 val searchViewModel : SearchViewModel = viewModel()
                 searchViewModel.searchPosts(query)
                 searchViewModel.searchUsers(query)
-                val blockedUsersViewModel: BlockedUsersViewModel = viewModel()
-                SearchResultScreen(searchViewModel,blockedUsersViewModel,navController)
+                SearchResultScreen(searchViewModel, navController)
             }
 
             composable(

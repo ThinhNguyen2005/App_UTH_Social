@@ -202,8 +202,7 @@ private fun PostHeader(
                 )
             )
 
-            // Chỉ thêm "Báo cáo" nếu chủ post KHÔNG phải admin
-            if (!isPostOwnerAdmin) {
+            if (!isPostOwnerAdmin && post.userId != currentUserId) {
                 menuItems.add(
                     MenuItemData(
                         text = "Báo cáo",
