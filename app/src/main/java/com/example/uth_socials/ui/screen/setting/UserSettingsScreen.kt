@@ -29,6 +29,7 @@ fun UserSettingScreen(
     onBackClicked: () -> Unit,
     onNavigateToUserInfo: () -> Unit,
     onNavigateToBlockedUsers: () -> Unit,
+    onNavigateToSavedPosts: () -> Unit,
     onLogout: () -> Unit
 ) {
     val user = FirebaseAuth.getInstance().currentUser
@@ -107,13 +108,13 @@ fun UserSettingScreen(
             )
             SettingsItem(
                 icon = Icons.Default.Visibility,
-                title = "Chế độ tôi",
+                title = "Chế độ tối",
                 onClick = { /* TODO */ }
             )
             SettingsItem(
                 icon = Icons.Default.BookmarkBorder,
                 title = "Xem bài viết đã lưu",
-                onClick = { /* TODO */ }
+                onClick = onNavigateToSavedPosts
             )
             SettingsItem(
                 icon = Icons.Default.PeopleOutline,

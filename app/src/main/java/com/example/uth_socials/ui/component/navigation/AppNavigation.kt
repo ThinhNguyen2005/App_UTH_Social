@@ -5,6 +5,11 @@ import android.app.Activity
 import android.content.Intent
 import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -32,6 +37,7 @@ import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.home.ProfileScreen
+import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
 //import com.example.uth_socials.ui.screen.search.SearchScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
@@ -50,6 +56,8 @@ import com.example.uth_socials.ui.viewmodel.SearchViewModel
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
+import com.example.uth_socials.ui.screen.saved.SavedPostsScreen
+import com.example.uth_socials.ui.screen.saved.SavedPostDetail
 
 @Composable
 fun AppNavGraph(
@@ -114,7 +122,7 @@ fun NavGraphBuilder.authNavGraph(
                     }
                 },
                 onRegisterSuccess = {
-                    navController.navigate(Graph.MAIN){
+                    navController.navigate(Graph.MAIN) {
                         popUpTo(Graph.AUTH) { inclusive = true }
                     }
                 }
@@ -174,45 +182,47 @@ fun MainScreen(rootNavController: NavHostController) {
         Screen.Notifications.route,
         Screen.Profile.route -> true
 
+        Screen.AdminDashboard.route,
+//        Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
+        Screen.ProductDetail.route -> false  // THÊM: Ẩn bottom bar cho ProductDetail
         //true là gì, là sẽ show là bottomBar fasle ngược lại khỏi
         // Nói chung là đừng đụng vào
         else -> false
     }
+
     Scaffold(
         topBar = {
-            //topBar này thì được định nghĩa sẵn trong logo/HomeTopAppBar, logo/LogoTopAppBar
-            //Biết sao không back được không, vì chưa composable cụ thể navback làm gì đó
-            when (currentRoute) {
-                Screen.Home.route -> HomeTopAppBar(
-                    onSearchClick = { query ->
-                        navController.navigate("search_results/$query")
-                    },
-                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                    onAdminClick = {
-                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                            launchSingleTop = true
+            // Nếu đang ở Market -> không vẽ topBar
+            if (currentRoute != Screen.Market.route) {
+                when (currentRoute) {
+                    Screen.Home.route -> HomeTopAppBar(
+                        onSearchClick = { query ->
+                            navController.navigate("search_results/$query")
+                        },
+                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+                        onAdminClick = {
+                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                                launchSingleTop = true
+                            }
                         }
-                    }
-                )
-
-                Screen.Market.route -> LogoTopAppBar() // chỉ logo
-                Screen.Add.route -> LogoTopAppBar()
-                Screen.Notifications.route -> LogoTopAppBar()
-                Screen.SearchResult.route -> HomeTopAppBar(
-                    onSearchClick = { query ->
-                        navController.navigate("search_results/$query")
-                    },
-                    onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
-                    onAdminClick = {
-                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                            launchSingleTop = true
+                    )
+                    Screen.Add.route -> LogoTopAppBar()
+                    Screen.Notifications.route -> LogoTopAppBar()
+                    Screen.SearchResult.route -> HomeTopAppBar(
+                        onSearchClick = { query ->
+                            navController.navigate("search_results/$query")
+                        },
+                        onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                        onAdminClick = {
+                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                                launchSingleTop = true
+                            }
                         }
-                    }
-                )
-                else -> { /* no app bar */
+                    )
+                    else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
                 }
+                // else: nothing -> Market không có topBar
             }
-
         },
         bottomBar = {
             //Cái này coi tao show cái này ở những trang nào, định nghĩa ở trên
@@ -229,6 +239,7 @@ fun MainScreen(rootNavController: NavHostController) {
                 }
 
                 val notificationViewModel : NotificationViewModel = viewModel()
+
 
                 HomeBottomNavigation(
                     navController = navController,
@@ -264,8 +275,64 @@ fun MainScreen(rootNavController: NavHostController) {
                     onLogout = onLogout
                 )
             }
-            //Shop                            - Trang test
-            composable(Screen.Market.route) { MarketScreen() }
+            composable(
+                Screen.Market.route,
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                }
+            ) {
+                MarketScreen(
+                    navController = navController,
+                    onProductClick = { productId ->
+                        navController.navigate(Screen.ProductDetail.createRoute(productId))
+                    }
+                )
+            }
+
+            // ===== THÊM ProductDetailScreen =====
+            composable(
+                route = Screen.ProductDetail.route,
+                arguments = listOf(
+                    navArgument("productId") { type = NavType.StringType }
+                ),
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) { backStackEntry ->
+                val productId = backStackEntry.arguments?.getString("productId")
+                ProductDetailScreen(
+                    productId = productId,
+                    onBack = { navController.popBackStack() },
+                    onShare = { /* TODO: Implement share functionality */ },
+                    onCall = { /* TODO: Implement call functionality */ },
+                    onMessage = { /* TODO: Implement message functionality */ }
+                )
+            }
+            //Market
+            composable(Screen.Market.route) { MarketScreen(
+                navController = navController,
+                onProductClick = { productId ->
+                    navController.navigate(Screen.ProductDetail.createRoute(productId))
+                }
+            ) }
             composable(Screen.Add.route) {
                 val postViewModel : PostViewModel = viewModel()
                 val productViewModel : ProductViewModel = viewModel()
@@ -353,7 +420,9 @@ fun MainScreen(rootNavController: NavHostController) {
 
             composable(
                 route = Screen.AdminDashboard.route,
-                arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
+                arguments = listOf(navArgument("tab") {
+                    type = NavType.StringType; defaultValue = "reports"
+                })
             ) { backStackEntry ->
                 AdminDashboardScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -375,7 +444,7 @@ fun MainScreen(rootNavController: NavHostController) {
             }
             composable(Screen.ChatDetail.route) { backStackEntry ->
                 val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
-                ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
+                ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
             }
             composable(Screen.Setting.route) {
                 UserSettingScreen(
@@ -392,6 +461,9 @@ fun MainScreen(rootNavController: NavHostController) {
                         } catch (e: Exception) {
                             Log.e("AppNavigation", "Error navigating to BlockedUsers", e)
                         }
+                    },
+                    onNavigateToSavedPosts = {
+                        navController.navigate(Screen.SavedPosts.route)
                     },
                     onLogout = onLogout
                 )
@@ -410,6 +482,58 @@ fun MainScreen(rootNavController: NavHostController) {
                     }
                 )
             }
+            composable(Screen.SavedPosts.route) {
+                SavedPostsScreen(
+                    onBackClicked = { navController.popBackStack() },
+                    onPostClick = { postId ->
+                        //Navigate to post detail
+                        navController.navigate(Screen.PostDetail.createRoute(postId))
+                    },
+                    onUserClick = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    //Navigate to comments from grid
+//                    onCommentClicked = { postId ->
+//                        navController.navigate(Screen.Comments.createRoute(postId))
+//                    }
+                )
+            }
+            composable(
+                route = Screen.PostDetail.route,
+                arguments = listOf(
+                    navArgument("postId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val postId = backStackEntry.arguments?.getString("postId") ?: ""
+                SavedPostDetail(
+                    postId = postId,
+                    onBackClicked = { navController.popBackStack() },
+                    onUserClick = { userId ->
+                        navController.navigate(Screen.Profile.createRoute(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    //Navigate to comments from detail
+//                    onCommentClicked = { postId ->
+//                        navController.navigate(Screen.Comments.createRoute(postId))
+//                    }
+                )
+            }
+            //Comment composable
+//            composable(
+//                route = Screen.Comments.route,
+//                arguments = listOf(
+//                    navArgument("postId") { type = NavType.StringType }
+//                )
+//            ) { backStackEntry ->
+//                val postId = backStackEntry.arguments?.getString("postId") ?: ""
+//                CommentsScreen(
+//                    postId = postId,
+//                    onBackClicked = { navController.popBackStack() }
+//                )
+//            }
         }
     }
 }
