@@ -71,6 +71,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.core.*
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
@@ -321,7 +322,6 @@ fun PostMedia(
         HorizontalPager(
             state = pagerState,
             pageSpacing = 12.dp,
-            // SỬA: Xóa dòng 'beyondBoundsPageCount'
             flingBehavior = PagerDefaults.flingBehavior(
                 state = pagerState,
                 snapAnimationSpec = spring(stiffness = Spring.StiffnessMediumLow)
@@ -350,13 +350,53 @@ fun PostMedia(
                     }
                 }
         ) { page ->
+
+            var imageRatio by remember(page) { mutableStateOf<Float?>(null) }
+
+            val safeAspectRatio = remember(imageRatio) {
+                when {
+                    imageRatio == null -> 1f // Default khi chưa load
+                    imageRatio!! <= 0f -> 1f // Fallback nếu ratio <= 0
+                    imageRatio!!.isNaN() -> 1f // Fallback nếu NaN
+                    imageRatio!! > 3f -> 3f // ảnh quá ngang
+                    imageRatio!! < 0.3f -> 0.3f // ảnh quá dọc
+                    else -> imageRatio!!
+                }
+            }
+
+            // ✅ Sửa: Tự quyết định ContentScale dựa trên tỉ lệ
+            val scale = remember(safeAspectRatio) {
+                when {
+                    safeAspectRatio < 0.7f -> ContentScale.Fit        // ảnh dọc dài
+                    safeAspectRatio > 1.6f -> ContentScale.FillWidth  // ảnh ngang dài
+                    else -> ContentScale.Crop                    // gần vuông -> crop nhẹ cho đẹp
+                }
+            }
+
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context) // Bây giờ sẽ hoạt động
+                model = ImageRequest.Builder(context)
                     .data(imageUrls[page])
                     .crossfade(true)
                     .dispatcher(Dispatchers.IO)
+                    .allowHardware(true)
                     .build(),
                 contentDescription = "Post image ${page + 1}",
+
+                onSuccess = { state ->
+                    val w = state.result.drawable.intrinsicWidth
+                    val h = state.result.drawable.intrinsicHeight
+                    if (w > 0 && h > 0) {
+                        val ratio = w.toFloat() / h.toFloat()
+                        if (ratio.isFinite() && ratio > 0f) {
+                            imageRatio = ratio
+                        } else {
+                            imageRatio = 1f // Fallback
+                        }
+                    } else {
+                        imageRatio = 1f // Fallback nếu không lấy được size
+                    }
+                },
+
                 loading = {
                     Box(Modifier.fillMaxSize()) {
                         CircularProgressIndicator(
@@ -365,28 +405,35 @@ fun PostMedia(
                         )
                     }
                 },
+
                 error = {
-                    Icon(
-                        imageVector = Icons.Rounded.ImageNotSupported,
-                        contentDescription = "Image loading failed",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .align(Alignment.Center)
-                    )
+                    Box(Modifier.fillMaxSize()) {
+                        Icon(
+                            imageVector = Icons.Rounded.ImageNotSupported,
+                            contentDescription = "Image loading failed",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .align(Alignment.Center)
+                        )
+                    }
                 },
-                contentScale = ContentScale.Crop,
+
+                contentScale = scale,
+
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f)
+                    .aspectRatio(safeAspectRatio)
+                    .heightIn(max = 520.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .combinedClickable(
-                        onClick = { /* TODO: Xử lý click để xem ảnh full màn hình */ },
-                        onLongClick = { /* TODO: Xử lý giữ lâu để lưu/chia sẻ */ }
+                        onClick = { /* TODO: xem ảnh full screen */ },
+                        onLongClick = { /* TODO: lưu hoặc chia sẻ ảnh */ }
                     )
             )
         }
 
+        // Indicator
         AnimatedVisibility(
             visible = imageUrls.size > 1,
             enter = fadeIn(),

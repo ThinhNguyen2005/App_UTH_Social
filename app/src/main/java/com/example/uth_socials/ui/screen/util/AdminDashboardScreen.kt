@@ -27,7 +27,7 @@ import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.user.AdminUser
 import com.example.uth_socials.ui.component.logo.OnlyLogo
-import com.example.uth_socials.ui.viewmodel.AdminDashboardViewModel
+import com.example.uth_socials.ui.viewmodel.admin.AdminDashboardViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.vector.ImageVector

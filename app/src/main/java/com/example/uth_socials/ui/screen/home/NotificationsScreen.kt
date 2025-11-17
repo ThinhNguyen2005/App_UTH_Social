@@ -127,74 +127,74 @@ fun NotificationsScreen(
         visibleNotifications = notifications.take(originItemValue)
     }
 
-        Column(
-            modifier = Modifier
-                //.padding(innerPadding)
-                .padding(horizontal = 16.dp)
-        ) {
-            if (notifications.isNotEmpty()) {
-                SectionTitle("Thông báo")
+    Column(
+        modifier = Modifier
+            //.padding(innerPadding)
+            .padding(horizontal = 16.dp)
+    ) {
+        if (notifications.isNotEmpty()) {
+            SectionTitle("Thông báo")
 
-                Column {
+            Column {
 
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 0.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
-                    ) {
-                        itemsIndexed(
-                            items = visibleNotifications,
-                            key = { _, item -> item.id }) { index, notification ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 0.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    itemsIndexed(
+                        items = visibleNotifications,
+                        key = { _, item -> item.id }) { index, notification ->
 
-                            if(!notification.isRead) notificationViewModel.markAsRead(notification)
+                        if(!notification.isRead) notificationViewModel.markAsRead(notification)
 
-                            val visibleState = remember { MutableTransitionState(false) }
+                        val visibleState = remember { MutableTransitionState(false) }
 
-                            LaunchedEffect(visibleNotifications.size) {
-                                delay(index * 230L)
-                                visibleState.targetState = true
-                            }
+                        LaunchedEffect(visibleNotifications.size) {
+                            delay(index * 230L)
+                            visibleState.targetState = true
+                        }
 //
-                            AnimatedVisibility(
-                                visibleState = visibleState,
-                                enter = slideInHorizontally(
-                                    initialOffsetX = { fullWidth -> fullWidth }, // trượt từ trên xuống
-                                    animationSpec = tween(durationMillis = 300)
-                                ) + fadeIn(animationSpec = tween(300)),
-                                exit = slideOutHorizontally(
-                                    targetOffsetX = { fullWidth -> fullWidth },
-                                    animationSpec = tween(300)
-                                ) + fadeOut(animationSpec = tween(300)),
-                                modifier = Modifier
-                            ) {
-                                SwipeToDeleteNotification(
-                                    notification = notification,
-                                    onDelete = {
-                                        notificationViewModel.deleteNotification(notification.id)
-                                    },
-                                    onUserClick = {
-                                        navController.navigate(
-                                            Screen.Profile.createRoute(
-                                                notification.userId
-                                            )
-                                        ) {
-                                            launchSingleTop = true
-                                        }
-                                    },
-                                )
-                            }
+                        AnimatedVisibility(
+                            visibleState = visibleState,
+                            enter = slideInHorizontally(
+                                initialOffsetX = { fullWidth -> fullWidth }, // trượt từ trên xuống
+                                animationSpec = tween(durationMillis = 300)
+                            ) + fadeIn(animationSpec = tween(300)),
+                            exit = slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(300)
+                            ) + fadeOut(animationSpec = tween(300)),
+                            modifier = Modifier
+                        ) {
+                            SwipeToDeleteNotification(
+                                notification = notification,
+                                onDelete = {
+                                    notificationViewModel.deleteNotification(notification.id)
+                                },
+                                onUserClick = {
+                                    navController.navigate(
+                                        Screen.Profile.createRoute(
+                                            notification.userId
+                                        )
+                                    ) {
+                                        launchSingleTop = true
+                                    }
+                                },
+                            )
                         }
                     }
-                    // 🔹 Nút "Hiển thị thêm"
-                    if (notifications.size > visibleNotifications.size) {
-                        MoreButton(
-                            onClick = {
-                                visibleNotifications = notifications.take(
-                                    (visibleNotifications.size + moreItemValue).coerceAtMost(
-                                        notifications.size
-                                    )
+                }
+                // 🔹 Nút "Hiển thị thêm"
+                if (notifications.size > visibleNotifications.size) {
+                    MoreButton(
+                        onClick = {
+                            visibleNotifications = notifications.take(
+                                (visibleNotifications.size + moreItemValue).coerceAtMost(
+                                    notifications.size
                                 )
+                            )
 //                                    if (visibleNotifications.size < notifications.size) {
 //                                        // Hiển thị thêm
 //                                        notifications.take(
@@ -206,24 +206,24 @@ fun NotificationsScreen(
 //                                        // Thu gọn lại
 //                                        notifications.take(originItemValue)
 //                                    }
-                            },
-                            text = "Hiển thị thêm",//if (visibleNotifications.size < notifications.size)
+                        },
+                        text = "Hiển thị thêm",//if (visibleNotifications.size < notifications.size)
 //                                "Hiển thị thêm"
 //                            else
 //                                "Thu gọn",
-                            rotateIconDegress = collapseRotate
-                        )
+                        rotateIconDegress = collapseRotate
+                    )
 
-                        if (visibleNotifications.size < notifications.size) {
-                            isCollapsed = false
-                        } else {
-                            isCollapsed = true
-                        }
+                    if (visibleNotifications.size < notifications.size) {
+                        isCollapsed = false
+                    } else {
+                        isCollapsed = true
                     }
                 }
-            } else {
-                SectionTitle("Bạn chưa có thông báo nào")
             }
+        } else {
+            SectionTitle("Bạn chưa có thông báo nào")
+        }
     }
 }
 

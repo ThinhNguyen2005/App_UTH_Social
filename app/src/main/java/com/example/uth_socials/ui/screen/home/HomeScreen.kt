@@ -50,8 +50,6 @@ fun HomeScreen(
     val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ✅ Refresh blocked users khi HomeScreen được focus lại
-    // Refresh mỗi khi screen được recompose (khi quay lại từ ProfileScreen)
     LaunchedEffect(Unit) {
         homeViewModel.refreshBlockedUsers()
     }
@@ -62,13 +60,13 @@ fun HomeScreen(
         }
     }
     LaunchedEffect(uiState.error) {
-        uiState.error?.let {message ->
+        uiState.error?.let { message ->
             snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
             homeViewModel.clearError()
         }
     }
     LaunchedEffect(uiState.successMessage) {
-        uiState.successMessage?.let {message ->
+        uiState.successMessage?.let { message ->
             snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
             homeViewModel.clearSuccessMessage()
         }
@@ -169,15 +167,15 @@ fun HomeScreen(
                 }
 
                 else -> {
-                    // 🔸 Filter hidden posts và posts của blocked users
-                    val filteredPosts = remember(uiState.posts, uiState.hiddenPostIds, uiState.blockedUserIds) {
-                        uiState.posts.filter { post ->
-                            // ✅ Loại bỏ hidden posts
-                            post.id !in uiState.hiddenPostIds &&
-                            // ✅ Loại bỏ posts của blocked users
-                            post.userId !in uiState.blockedUserIds
+                    val filteredPosts =
+                        remember(uiState.posts, uiState.hiddenPostIds, uiState.blockedUserIds) {
+                            uiState.posts.filter { post ->
+                                // Loại bỏ hidden posts
+                                post.id !in uiState.hiddenPostIds &&
+                                        // Loại bỏ posts của blocked users
+                                        post.userId !in uiState.blockedUserIds
+                            }
                         }
-                    }
 
                     if (filteredPosts.isEmpty()) {
                         // 🔸 Empty state - không có posts trong category này
@@ -225,7 +223,9 @@ fun HomeScreen(
                                 LaunchedEffect(post.userId) {
                                     if (adminStatusCache[post.userId] == null) {
                                         try {
-                                            val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(post.userId)
+                                            val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(
+                                                post.userId
+                                            )
                                             adminStatusCache[post.userId] = isAdmin
                                         } catch (e: CancellationException) {
                                             throw e
@@ -302,16 +302,17 @@ fun HomeScreen(
                     onConfirm = { homeViewModel.onConfirmDialog() },
                     isLoading = uiState.isProcessing,
                     title = if (uiState.isCurrentUserAdmin) "Xóa bài viết (Admin)" else "Xóa bài viết",
-                    message = if (uiState.isCurrentUserAdmin) 
-                        "Bạn đang xóa bài viết này với quyền Admin. Người đăng bài sẽ bị cấm tự động. Hành động này không thể hoàn tác." 
-                    else 
+                    message = if (uiState.isCurrentUserAdmin)
+                        "Bạn đang xóa bài viết này với quyền Admin. Người đăng bài sẽ bị cấm tự động. Hành động này không thể hoàn tác."
+                    else
                         "Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.",
                     confirmButtonText = "Xóa",
                     confirmButtonColor = MaterialTheme.colorScheme.error,
                     isCurrentUserAdmin = uiState.isCurrentUserAdmin
                 )
             }
-            is DialogType.None -> { }
+
+            is DialogType.None -> {}
             is DialogType.BlockUser -> {}
             is DialogType.UnblockUser -> {}
         }

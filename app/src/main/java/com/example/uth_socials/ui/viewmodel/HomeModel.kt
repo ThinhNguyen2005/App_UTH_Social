@@ -19,7 +19,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.example.uth_socials.data.util.SecurityValidator
 import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.data.util.SecurityValidator.clearCache
-import com.example.uth_socials.ui.viewmodel.DialogType
 
 
 //Enum để quản lý trạng thái gửi bình luận

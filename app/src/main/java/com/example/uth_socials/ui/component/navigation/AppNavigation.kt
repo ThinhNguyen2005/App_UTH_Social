@@ -36,7 +36,7 @@ import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
-import com.example.uth_socials.ui.screen.home.ProfileScreen
+import com.example.uth_socials.ui.screen.profile.ProfileScreen
 import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
 //import com.example.uth_socials.ui.screen.search.SearchScreen
@@ -342,16 +342,6 @@ fun MainScreen(rootNavController: NavHostController) {
                 val notificationViewModel : NotificationViewModel = viewModel()
                 NotificationsScreen(notificationViewModel,navController)
             }
-//            composable(Screen.Categories.route) {
-//                AdminDashboardScreen(
-//                    onNavigateBack = { navController.popBackStack() },
-//                    onNavigateToUser = { userId ->
-//                        navController.navigate(Screen.Profile.createRoute(userId)) {
-//                            launchSingleTop = true
-//                        }
-//                    }
-//                )
-//            }
             composable(
                 route = Screen.AdminDashboard.route,
                 arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
@@ -403,6 +393,9 @@ fun MainScreen(rootNavController: NavHostController) {
                         },
                         onSettingClicked = {
                             navController.navigate(Screen.Setting.route)
+                        },
+                        onProductClick = { productId ->
+                            navController.navigate(Screen.ProductDetail.createRoute(productId))
                         }
                     )
                 } else {
