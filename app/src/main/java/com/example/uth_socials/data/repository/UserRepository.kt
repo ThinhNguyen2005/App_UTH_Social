@@ -319,7 +319,7 @@ class UserRepository {
 
     // (Trong file UserRepository.kt)
 
-    suspend fun updateUserProfile(username: String, campus: String, phone: String, major: String, avatarUrl: String?) {
+    suspend fun updateUserProfile(username: String, campus: String, phone: String, major: String, avatarUrl: String?,bio: String) {
         val user = auth.currentUser ?: throw Exception("Chưa đăng nhập")
         val uid = user.uid
 
@@ -328,6 +328,7 @@ class UserRepository {
         updates["campus"] = campus
         updates["phone"] = phone
         updates["major"] = major
+        updates["bio"] = bio
 
         if (avatarUrl != null) {
             updates["avatarUrl"] = avatarUrl
