@@ -1,7 +1,7 @@
 package com.example.uth_socials.ui.screen.util
 
 
-import PageIndicator
+import com.example.uth_socials.ui.component.common.PageIndicator
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*

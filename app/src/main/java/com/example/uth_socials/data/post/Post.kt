@@ -15,7 +15,8 @@ data class Post(
     val userId: String = "",
     val username: String = "",
     val userAvatarUrl: String = "",
-    var textContent: String = "",
+    val textContent: String = "",
+    val textContentFormat : String = "",
     val imageUrls: List<String> = emptyList(),
 
     // Các trường dùng để lọc và tương tác
@@ -30,12 +31,12 @@ data class Post(
     val savedBy: List<String> = emptyList(),
 
     @get:Exclude
-    @PropertyName("isLiked")  // ✅ Map Firebase field 'isLiked' (or 'liked' if DB has it)
+    @PropertyName("isLiked")
     val isLiked: Boolean = false,
 
     @get:Exclude
-    @PropertyName("isSaved")  // ✅ Map Firebase field 'isSaved' (or 'saved' if DB has it)
+    @PropertyName("isSaved")
     val isSaved: Boolean = false
 ) {
-    constructor() : this(null, "", "", "", "", "", emptyList(), "", 0, 0, 0,0,emptyList(), emptyList(),false)
+    constructor() : this(null, "", "", "", "", "", "",emptyList(), "", 0, 0, 0,0,emptyList(), emptyList(),false)
 }

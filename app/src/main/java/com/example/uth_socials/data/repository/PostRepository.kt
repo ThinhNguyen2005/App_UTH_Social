@@ -7,7 +7,6 @@ import com.example.uth_socials.data.util.SecurityValidator
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +16,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
+import com.example.uth_socials.data.user.User
+import com.google.firebase.firestore.DocumentSnapshot
+import java.util.UUID
 
 /**
  * PostRepository - Quản lý tất cả thao tác với dữ liệu bài viết (Posts)
@@ -38,6 +40,30 @@ class PostRepository {
     private val reportsCollection = db.collection("reports")
     private val usersCollection = db.collection("users")
 
+    suspend fun uploadPost(
+        user : User?, content: String, category: String?, imageUrl : List<String>
+    ): Boolean {
+        return try {
+            // Tạo bài viết
+            val post = Post(
+                id = UUID.randomUUID().toString(),
+                username = user?.username ?: "",
+                userAvatarUrl = user?.avatarUrl ?: "",
+                userId = user?.id ?: "",
+                textContent = content.trim(),
+                textContentFormat = content.trim().lowercase(),
+                imageUrls = imageUrl,
+                category  = category
+            )
+
+            // Lưu lên Firestore
+            postsCollection.document(post.id).set(post).await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 
     // ==========================================
     // POST DATA FUNCTIONS (Lấy dữ liệu bài viết)
@@ -107,11 +133,7 @@ class PostRepository {
         documents.mapNotNull { doc ->
             try {
                 val post = doc.toObject(Post::class.java)
-                post?.copy(
-                    id = doc.id,
-                    isLiked = currentUserId?.let { post.likedBy.contains(it) } ?: false,
-                    isSaved = currentUserId?.let { post.savedBy.contains(it) } ?: false
-                )
+                post?.enrich(currentUserId)?.copy(id = doc.id)
             } catch (e: Exception) {
                 Log.e("PostRepository", "Error mapping post ${doc.id}", e)
                 null
@@ -139,7 +161,6 @@ class PostRepository {
      */
     suspend fun toggleLikeStatus(postId: String, isCurrentlyLiked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
-        // Client-side permission guard
         if (!SecurityValidator.checkCurrentUserId(currentUserId)) {
             Log.w("PostRepository", "toggleLikeStatus denied for $currentUserId")
             return
@@ -200,48 +221,62 @@ class PostRepository {
 
 
     /**
-     * Lấy danh sách tất cả bài viết của một user cụ thể
+     * Lấy danh sách bài viết theo thời gian thực của một user cụ thể
      *
      * @param userId ID của user muốn lấy posts
-     * @return List<Post> - Danh sách posts của user đó
+     * @return Flow<List<Post>> - Stream real-time posts của user đó
      *
      * Logic:
-     * - Query posts collection với userId filter
+     * - Real-time listener cho posts của user cụ thể
      * - Order by timestamp descending (mới nhất trước)
-     * - Handle Firestore index errors (fallback without order)
+     * - Enrich posts với liked/saved status của current user
+     * - Handle Firestore index errors gracefully
      *
-     * Use case: Hiển thị profile của user với danh sách posts
+     * Use case: Real-time updates cho profile screen
      */
-    suspend fun getPostsForUser(userId: String): List<Post> { // Đổi tên từ getUserPosts
-        return try {
-            val snapshot = postsCollection
+    fun getPostsForUserFlow(userId: String): Flow<List<Post>> = callbackFlow {
+        val query = try {
+            postsCollection
                 .whereEqualTo("userId", userId)
                 .orderBy("timestamp", Query.Direction.DESCENDING)
-                .get()
-                .await()
-
-            snapshot.documents.mapNotNull { doc ->
-                doc.toObject(Post::class.java)?.copy(id = doc.id)
-            }
-        } catch (e: FirebaseFirestoreException) {
-            if (e.code == FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
-                Log.w("PostRepository", "Missing index for getPostsForUser. Falling back without order.")
-                val snapshot = postsCollection
-                    .whereEqualTo("userId", userId)
-                    .get()
-                    .await()
-                snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Post::class.java)?.copy(id = doc.id)
-                }
-            } else {
-                Log.e("PostRepository", "Error fetching user posts", e)
-                emptyList()
-            }
         } catch (e: Exception) {
-            Log.e("PostRepository", "Error fetching user posts", e)
-            emptyList()
+            Log.e("PostRepository", "Index issue for getPostsForUserFlow. Using basic query.")
+            Log.e("PostRepository", "Error: $e")
+            postsCollection
+                .whereEqualTo("userId", userId)
         }
-    }
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    Log.w("PostRepository", "Permission denied listening to user posts. Emitting empty list.")
+                    trySend(emptyList())
+                } else {
+                    close(error)
+                }
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                trySend(snapshot.documents)
+            }
+        }
+
+        awaitClose { listener.remove() }
+    }.map { documents ->
+        val currentUserId = auth.currentUser?.uid
+        documents.mapNotNull { doc ->
+            try {
+                val post = doc.toObject(Post::class.java)
+                post?.enrich(currentUserId)?.copy(id = doc.id)
+
+            } catch (e: Exception) {
+                Log.e("PostRepository", "Error mapping post ${doc.id}", e)
+                null
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
 
     // ==========================================
     // COMMENT SYSTEM FUNCTIONS (Hệ thống bình luận)
@@ -436,8 +471,6 @@ class PostRepository {
      */
     suspend fun reportPost(postId: String, reason: String, description: String): Boolean {
         val currentUserId = auth.currentUser?.uid ?: return false
-        
-        // ✅ KIỂM TRA SECURITY: Validate người báo cáo
         if (!SecurityValidator.canCreateReport(currentUserId, currentUserId)) {
             Log.w("PostRepository", "Cannot report: Invalid user")
             return false
@@ -485,41 +518,18 @@ class PostRepository {
             val snapshot = postRef.get().await()
             val ownerId = snapshot.getString("userId") ?: return false
 
-            // Client-side validation để tối ưu UX
             if (SecurityValidator.canDeletePost(currentUserId, ownerId)) {
                 postRef.delete().await()
                 true
             } else {
                 false
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error deleting post", e)
             false
         }
     }
 
-    /**
-     * Toggle trạng thái like/unlike của bình luận
-     *
-     * @param postId ID của bài viết chứa comment
-     * @param commentId ID của comment muốn like/unlike
-     * @param isCurrentlyLiked Trạng thái hiện tại (true = đang like)
-     *
-     * Logic:
-     * - Validate authentication
-     * - Check comment tồn tại
-     * - Nếu đang like: remove userId từ likedBy, giảm likes count
-     * - Nếu chưa like: add userId vào likedBy, tăng likes count
-     * - Atomic operations với FieldValue.increment()
-     *
-     * Similar to post like nhưng cho comments
-     */
-    /**
-     * Cập nhật nội dung text của bài viết
-     * 
-     * @param postId ID của bài viết
-     * @param newContent Nội dung mới
-     * @return Result<Unit> - Thành công hoặc thất bại
-     */
     suspend fun updatePostContent(postId: String, newContent: String): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid
@@ -584,44 +594,51 @@ class PostRepository {
         }
     }
 
-////    private fun DocumentSnapshot.toPostOrNull(): Post? {
-////        val imageUrls = sanitizeStringList(get("imageUrls"), treatBlankAsEmpty = true)
-////        val likedBy = sanitizeStringList(get("likedBy"))
-////        val savedBy = sanitizeStringList(get("savedBy"))
-////
-////        return Post(
-////            timestamp = getTimestamp("timestamp"),
-////            id = id,
-////            userId = getString("userId") ?: "",
-////            username = getString("username") ?: "",
-////            userAvatarUrl = getString("userAvatarUrl") ?: "",
-////            textContent = getString("textContent") ?: "",
-////            imageUrls = imageUrls,
-////            category = getString("category") ?: "",
-////            likes = getLong("likes")?.toInt() ?: 0,
-////            commentCount = getLong("commentCount")?.toInt() ?: 0,
-////            shareCount = getLong("shareCount")?.toInt() ?: 0,
-////            saveCount = getLong("saveCount")?.toInt() ?: 0,
-////            likedBy = likedBy,
-////            savedBy = savedBy
-////        )
-////    }
-//
-//    private fun Post.enrich(currentUserId: String?): Post {
-//        val liked = currentUserId?.let { likedBy.contains(it) } ?: false
-//        val saved = currentUserId?.let { savedBy.contains(it) } ?: false
-//        return copy(isLiked = liked, isSaved = saved)
-//    }
-//
-//    private fun sanitizeStringList(raw: Any?, treatBlankAsEmpty: Boolean = false): List<String> {
-//        return when (raw) {
-//            is List<*> -> raw.filterIsInstance<String>()
-//            is String -> {
-//                if (treatBlankAsEmpty && raw.isBlank()) emptyList() else listOf(raw)
-//            }
-//            null -> emptyList()
-//            else -> emptyList()
-//        }
-//    }
+    private fun DocumentSnapshot.toPostOrNull(): Post? {
+        val imageUrls = sanitizeStringList(get("imageUrls"), treatBlankAsEmpty = true)
+            .filter { url ->
+                val isValid = url.startsWith("http://") || url.startsWith("https://")
+                if (!isValid && url.isNotEmpty()) {
+                    Log.w("PostRepository", "Filtered invalid imageUrl: $url (Post ID: $id)")
+                }
+                isValid
+            }
+        val likedBy = sanitizeStringList(get("likedBy"))
+        val savedBy = sanitizeStringList(get("savedBy"))
+
+        return Post(
+            timestamp = getTimestamp("timestamp"),
+            id = id,
+            userId = getString("userId") ?: "",
+            username = getString("username") ?: "",
+            userAvatarUrl = getString("userAvatarUrl") ?: "",
+            textContent = getString("textContent") ?: "",
+            imageUrls = imageUrls,
+            category = getString("category") ?: "",
+            likes = getLong("likes")?.toInt() ?: 0,
+            commentCount = getLong("commentCount")?.toInt() ?: 0,
+            shareCount = getLong("shareCount")?.toInt() ?: 0,
+            saveCount = getLong("saveCount")?.toInt() ?: 0,
+            likedBy = likedBy,
+            savedBy = savedBy
+        )
+    }
+
+    private fun Post.enrich(currentUserId: String?): Post {
+        val liked = currentUserId?.let { likedBy.contains(it) } ?: false
+        val saved = currentUserId?.let { savedBy.contains(it) } ?: false
+        return copy(isLiked = liked, isSaved = saved)
+    }
+
+    private fun sanitizeStringList(raw: Any?, treatBlankAsEmpty: Boolean = false): List<String> {
+        return when (raw) {
+            is List<*> -> raw.filterIsInstance<String>()
+            is String -> {
+                if (treatBlankAsEmpty && raw.isBlank()) emptyList() else listOf(raw)
+            }
+            null -> emptyList()
+            else -> emptyList()
+        }
+    }
 }
 

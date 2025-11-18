@@ -27,10 +27,10 @@ import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.user.AdminUser
 import com.example.uth_socials.ui.component.logo.OnlyLogo
-import com.example.uth_socials.ui.viewmodel.AdminDashboardViewModel
+import com.example.uth_socials.ui.viewmodel.admin.AdminDashboardViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.material3.pulltorefresh.*
+import androidx.compose.ui.graphics.vector.ImageVector
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,7 +151,8 @@ fun AdminDashboardScreen(
                     reports = uiState.pendingReports,
                     isLoading = uiState.isLoadingReports,
                     onReportClick = { showPostDetail = it },
-                    onNavigateToUser = onNavigateToUser
+                    onNavigateToUser = onNavigateToUser,
+                    modifier = Modifier.weight(1f)
                 )
                 AdminTab.USERS -> UsersTab(
                     bannedUsers = uiState.bannedUsers,
@@ -162,7 +163,8 @@ fun AdminDashboardScreen(
                     onUnbanUser = { userId ->
                         viewModel.unbanUser(userId)
                     },
-                    onRefresh = { viewModel.refreshBannedUsers() }
+                    onRefresh = { viewModel.refreshBannedUsers() },
+                    modifier = Modifier.weight(1f)
 
                 )
                 AdminTab.ADMINS -> AdminsTab(
@@ -174,7 +176,9 @@ fun AdminDashboardScreen(
                         scope.launch {
                             viewModel.revokeAdminRole(adminUser.userId)
                         }
-                    }
+                    },
+                    modifier = Modifier.weight(1f)
+
                 )
                 AdminTab.CATEGORIES -> CategoriesTab(
                     categories = uiState.categories,
@@ -182,7 +186,8 @@ fun AdminDashboardScreen(
                     onEditCategory = { category -> showEditCategoryDialog = category },
                     onDeleteCategory = { category ->
                         showDeleteCategoryDialog = category
-                    }
+                    },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -373,7 +378,8 @@ private fun ReportsTab(
     reports: List<AdminReport>,
     isLoading: Boolean,
     onReportClick: (AdminReport) -> Unit,
-    onNavigateToUser: (String) -> Unit
+    onNavigateToUser: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -382,12 +388,12 @@ private fun ReportsTab(
     } else if (reports.isEmpty()) {
         EmptyState("No pending reports", Icons.Default.Report)
     } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = modifier) {
             items(reports) { report ->
                 ReportCard(
                     report,
                     onClick = { onReportClick(report) },
-                    onNavigateToUser = { onNavigateToUser(report.reportedUser?.id ?: "") }
+                    onNavigateToUser = { onNavigateToUser(report.reportedUser?.id ?: "") },
                 )
             }
         }
@@ -400,10 +406,10 @@ private fun UsersTab(
     isLoading: Boolean,
     onBanUser: (User) -> Unit,
     onUnbanUser: (String) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Refresh button ở trên cùng
+    Column(modifier = Modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -435,9 +441,9 @@ private fun UsersTab(
                 CircularProgressIndicator()
             }
         } else if (bannedUsers.isEmpty()) {
-            EmptyState("No banned users", Icons.Default.Person)
+            EmptyState("Danh sách trống", Icons.Default.Person)
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(modifier = modifier) {
                 items(bannedUsers) { user ->
                     BannedUserCard(
                         user,
@@ -455,7 +461,7 @@ private fun UsersTab(
 private fun ReportCard(
     report: AdminReport,
     onClick: () -> Unit,
-    onNavigateToUser: () -> Unit
+    onNavigateToUser: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -509,7 +515,7 @@ private fun ReportCard(
 private fun BannedUserCard(
     user: User,
     onBan: () -> Unit,
-    onUnban: () -> Unit
+    onUnban: () -> Unit,
 ) {
     Card(
         modifier = Modifier
@@ -580,14 +586,15 @@ private fun AdminsTab(
     isLoading: Boolean,
     isSuperAdmin: Boolean,
     onGrantAdmin: () -> Unit,
-    onRevokeAdmin: (AdminUser) -> Unit
+    onRevokeAdmin: (AdminUser) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
     } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = modifier) {
             item {
                 Row(
                     modifier = Modifier
@@ -629,15 +636,16 @@ private fun AdminsTab(
 private fun CategoriesTab(
     categories: List<Category>,
     isLoading: Boolean,
-    onEditCategory: (com.example.uth_socials.data.post.Category) -> Unit,
-    onDeleteCategory: (com.example.uth_socials.data.post.Category) -> Unit
+    onEditCategory: (Category) -> Unit,
+    onDeleteCategory: (Category) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
     } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(modifier = modifier) {
             item {
                 // Header chỉ có title
                 Text(
@@ -731,7 +739,10 @@ private fun AdminCard(
 }
 
 @Composable
-private fun EmptyState(message: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
+private fun EmptyState(
+    message: String,
+    icon: ImageVector? = null,
+) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -923,7 +934,7 @@ private fun AddCategoryDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditCategoryDialog(
-    category: com.example.uth_socials.data.post.Category,
+    category: Category,
     onDismiss: () -> Unit,
     onEdit: (String, String) -> Unit
 ) {
@@ -1226,8 +1237,8 @@ private fun PostDetailModal(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DeleteCategoryDialog(
-    category: com.example.uth_socials.data.post.Category,
-    allCategories: List<com.example.uth_socials.data.post.Category>,
+    category: Category,
+    allCategories: List<Category>,
     onDismiss: () -> Unit,
     onDelete: (String?) -> Unit
 ) {
@@ -1235,7 +1246,7 @@ private fun DeleteCategoryDialog(
     var isLoading by remember { mutableStateOf(false) }
 
     // Filter out the category being deleted and default categories from migration options
-    val migrationOptions = allCategories.filter { it.id != category.id && !com.example.uth_socials.data.post.Category.DEFAULT_CATEGORIES.any { default -> default.id == it.id } }
+    val migrationOptions = allCategories.filter { it.id != category.id && !Category.DEFAULT_CATEGORIES.any { default -> default.id == it.id } }
 
     AlertDialog(
         onDismissRequest = onDismiss,

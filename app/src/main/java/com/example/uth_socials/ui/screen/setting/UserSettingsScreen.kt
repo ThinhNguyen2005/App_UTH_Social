@@ -1,6 +1,10 @@
 package com.example.uth_socials.ui.screen.setting
 
+
 import android.widget.Toast
+
+import android.util.Log
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -41,6 +45,8 @@ fun UserSettingScreen(
     authViewModel: AuthViewModel,
     onBackClicked: () -> Unit,
     onNavigateToUserInfo: () -> Unit,
+    onNavigateToBlockedUsers: () -> Unit,
+    onNavigateToSavedPosts: () -> Unit,
     onLogout: () -> Unit
 ) {
 
@@ -147,13 +153,13 @@ fun UserSettingScreen(
             )
             SettingsItem(
                 icon = Icons.Default.Visibility,
-                title = "Chế độ tôi",
+                title = "Chế độ tối",
                 onClick = { /* TODO */ }
             )
             SettingsItem(
                 icon = Icons.Default.BookmarkBorder,
                 title = "Xem bài viết đã lưu",
-                onClick = { /* TODO */ }
+                onClick = onNavigateToSavedPosts
             )
             if (isEmailPasswordUser) {
                 SettingsItem(
@@ -173,7 +179,10 @@ fun UserSettingScreen(
             SettingsItem(
                 icon = Icons.Default.Block,
                 title = "Danh sách người dùng đã chặn",
-                onClick = { /* TODO */ }
+                onClick = {
+                    Log.d("UserSettingsScreen", "Blocked users clicked")
+                    onNavigateToBlockedUsers()
+                }
             )
 
             Spacer(modifier = Modifier.weight(1f))

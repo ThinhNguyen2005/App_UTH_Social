@@ -58,6 +58,14 @@ dependencies {
 
     // gửi thông báo
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
+
+    // material
+    implementation("androidx.compose.material:material:1.6.8")
+
+// Coil (để tải ảnh từ URL)
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4") // Kiểm tra phiên bản mới nhất
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.foundation:foundation:1.9.3")
     implementation(libs.androidx.core.ktx)
@@ -87,6 +95,30 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
+    implementation("com.google.firebase:firebase-auth") // Nếu cần xác thực
+    implementation("com.google.firebase:firebase-firestore") // Database chính
+    implementation("com.google.firebase:firebase-storage") // Lưu trữ ảnh
+    implementation("com.google.firebase:firebase-analytics")
 
+    // Jetpack Compose
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.3")
+    implementation("androidx.navigation:navigation-compose:2.9.5") // Để điều hướng
+
+    // gửi thông báo
+    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0")
+
+    // Coil (để tải ảnh từ URL)
+    implementation("io.coil-kt:coil-compose:2.7.0") // Dùng cho AsyncImage
+    implementation("androidx.compose.material:material-icons-core")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.foundation:foundation:1.9.3")
     implementation("com.google.android.gms:play-services-auth:21.2.0")//Auth API GG
+
+    // Coroutines (để quản lý luồng)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 }

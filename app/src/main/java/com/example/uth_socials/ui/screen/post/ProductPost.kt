@@ -10,6 +10,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -20,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,16 +46,22 @@ fun ProductPost(productViewModel: ProductViewModel){
         Text(text = "Tên sản phẩm", fontSize = 14.sp)
         TextField(
             value = productViewModel.name,
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant),
             onValueChange = { productViewModel.name = it },
             placeholder = { Text("Nhập tên sản phẩm") },
             modifier = Modifier
                 .fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
             colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = Color(0xFFCFE9E9),
-                focusedContainerColor = Color(0xFFCFE9E9),
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent
+                //focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                //focusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+               // unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                //cursorColor = MaterialTheme.colorScheme.surfaceVariant,
+                //focusedTextColor = MaterialTheme.colorScheme.surfaceVariant,
+                //unfocusedTextColor = MaterialTheme.colorScheme.surface,
+                focusedPlaceholderColor = Color.Transparent,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
 
@@ -61,16 +69,22 @@ fun ProductPost(productViewModel: ProductViewModel){
         Text(text = "Mô tả sản phẩm", fontSize = 14.sp)
         TextField(
             value = productViewModel.description,
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant),
             onValueChange = { productViewModel.description = it },
             placeholder = { Text("Nhập mô tả sản phẩm") },
             modifier = Modifier
                 .fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
             colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = Color(0xFFCFE9E9),
-                focusedContainerColor = Color(0xFFCFE9E9),
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent
+                //focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                //focusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                // unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                //cursorColor = MaterialTheme.colorScheme.surfaceVariant,
+                //focusedTextColor = MaterialTheme.colorScheme.surfaceVariant,
+                //unfocusedTextColor = MaterialTheme.colorScheme.surface,
+                focusedPlaceholderColor = Color.Transparent,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
 
@@ -86,6 +100,8 @@ fun ProductPost(productViewModel: ProductViewModel){
             ) {
                 TextField(
                     value = productViewModel.type,
+                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant),
+                    label = { Text("Chọn loại sản phẩm", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     onValueChange = {productViewModel.type = it},
                     readOnly = true,
                     trailingIcon = {
@@ -96,10 +112,13 @@ fun ProductPost(productViewModel: ProductViewModel){
                         .fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     colors = ExposedDropdownMenuDefaults.textFieldColors(
-                        unfocusedContainerColor = Color(0xFFCFE9E9),
-                        focusedContainerColor = Color(0xFFCFE9E9),
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent
+                        //focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        //focusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                        // unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                        //cursorColor = MaterialTheme.colorScheme.surfaceVariant,
+                        //focusedTextColor = MaterialTheme.colorScheme.surfaceVariant,
+                        //unfocusedTextColor = MaterialTheme.colorScheme.surface,
                     )
                 )
 
@@ -109,7 +128,7 @@ fun ProductPost(productViewModel: ProductViewModel){
                 ) {
                     productTypes.forEach { type ->
                         DropdownMenuItem(
-                            text = { Text(type) },
+                            text = { Text(type, color = MaterialTheme.colorScheme.onSurfaceVariant) },
                             onClick = {
                                 productViewModel.type = type
                                 expanded = false
@@ -124,16 +143,22 @@ fun ProductPost(productViewModel: ProductViewModel){
         Text(text = "Giá", fontSize = 14.sp)
         TextField(
             value = productViewModel.price.toString(),
+            textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant),
             onValueChange = { productViewModel.price = it.toDoubleOrNull() ?: 0.0 },
             placeholder = { Text("Nhập giá") },
             modifier = Modifier
                 .fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
             colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = Color(0xFFCFE9E9),
-                focusedContainerColor = Color(0xFFCFE9E9),
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent
+                //focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                //focusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                // unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                //cursorColor = MaterialTheme.colorScheme.surfaceVariant,
+                //focusedTextColor = MaterialTheme.colorScheme.surfaceVariant,
+                //unfocusedTextColor = MaterialTheme.colorScheme.surface,
+                focusedPlaceholderColor = Color.Transparent,
+                unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
 

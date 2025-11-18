@@ -21,27 +21,11 @@ object SecurityValidator {
     }
 
     /**
-     * Kiểm tra xem người dùng có thể sửa đổi hồ sơ của mình hay không
-     * Quy tắc: request.auth.uid == userId
-     */
-    fun canModifyOwnProfile(currentUserId: String?, targetUserId: String): Boolean {
-        return currentUserId == targetUserId
-    }
-
-    /**
      * Kiểm tra xem người dùng có thể sửa đổi người theo dõi (theo dõi/bỏ theo dõi) hay không
      * Quy tắc: request.auth.uid != null && chỉ trường người theo dõi
      */
     fun canModifyFollowers(currentUserId: String?): Boolean {
         return currentUserId != null
-    }
-
-    /**
-     * Kiểm tra xem người dùng có thể tạo bài đăng hay không
-     * Quy tắc: request.auth.uid != null && request.resource.data.userId == request.auth.uid
-     */
-    fun canCreatePost(currentUserId: String?, postUserId: String): Boolean {
-        return currentUserId != null && currentUserId == postUserId
     }
 
     /**
