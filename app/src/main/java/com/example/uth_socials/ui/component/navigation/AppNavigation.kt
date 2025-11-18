@@ -65,7 +65,7 @@ fun AppNavGraph(
         )
 
         // Đồ thị cho luồng chính của ứng dụng (Home, Profile, ...)
-        mainNavGraph(navController = navController)
+        mainNavGraph(navController = navController,authViewModel=viewModel)
     }
 }
 
@@ -121,31 +121,25 @@ fun NavGraphBuilder.authNavGraph(
                         launcher.launch(it)
                     }
                 },
-                onLoginSuccess = {
-                    // Chuyển sang đồ thị chính và xóa đồ thị auth khỏi back stack
-                    navController.navigate(Graph.MAIN) {
-                        popUpTo(Graph.AUTH) { inclusive = true }
-                    }
-                }
             )
         }
     }
 }
 
 // Điều hướng chính, tất cả đều hướng chỉ nên thay đổi và cập nhật trong MainScreen
-fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
+fun NavGraphBuilder.mainNavGraph(navController: NavHostController,authViewModel: AuthViewModel) {
     navigation(
         startDestination = Screen.Home.route,
         route = Graph.MAIN
     ) {
         composable(Screen.Home.route) {
-            MainScreen(rootNavController = navController) // <-- THAY ĐỔI Ở ĐÂY
+            MainScreen(rootNavController = navController,authViewModel=authViewModel) // <-- THAY ĐỔI Ở ĐÂY
         }    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(rootNavController: NavHostController) {
+fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -299,8 +293,8 @@ fun MainScreen(rootNavController: NavHostController) {
                 ChatScreen(chatId = chatId,onBack = { navController.popBackStack()})
             }
             composable(Screen.Setting.route) {
-                // ✅ SỬA LỖI: Truyền viewModel và hàm onLogout đã nhận được
                 UserSettingScreen(
+                    authViewModel=authViewModel,
                     onBackClicked = { navController.popBackStack() },
                     onNavigateToUserInfo = {
                         navController.navigate(Screen.UserInfoScreen.route)
@@ -310,7 +304,8 @@ fun MainScreen(rootNavController: NavHostController) {
             }
             composable(Screen.UserInfoScreen.route) {
                 UserInfoScreen(
-                    onSaveSuccess = { navController.popBackStack() } // Quay lại sau khi lưu
+                    onSaveSuccess = { navController.popBackStack() },
+                    onBackClicked = { navController.popBackStack() }
                 )
             }
         }
