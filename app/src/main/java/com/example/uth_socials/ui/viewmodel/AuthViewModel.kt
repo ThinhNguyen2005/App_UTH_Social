@@ -11,7 +11,10 @@ import com.example.uth_socials.data.repository.UserRepository
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.firebase.Firebase
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
@@ -176,6 +179,35 @@ class AuthViewModel(
                 }
         }
     }
+    fun changePassword(oldPassword: String,newPassword: String ){
+        viewModelScope.launch(Dispatchers.IO){
+            _state.value = AuthState.Loading
+            try {
+                val user = auth.currentUser
+                if (user ==null || user.email ==null){
+                    _state.value =AuthState.Error("Không tìm thấy người dùng hiện tại")
+                    return@launch
+                }
+                val credential = EmailAuthProvider.getCredential(user.email!!,oldPassword)
+                user.reauthenticate(credential).await()
+                user.updatePassword(newPassword).await()
+                _state.value =AuthState.Success("Đổi mật khẩu thành công")
+            }catch (e: Exception){
+                Log.e("AuthViewModel", "Lỗi khi đổi mật khẩu", e)
+                val errorMessage = when (e) {
+                    is FirebaseAuthInvalidCredentialsException -> "Mật khẩu cũ không đúng."
+                    is FirebaseAuthWeakPasswordException -> "Mật khẩu mới quá yếu (cần ít nhất 6 ký tự)."
+                    else -> "Đã xảy ra lỗi. Vui lòng thử lại."
+                }
+                _state.value = AuthState.Error(errorMessage)
+            }
+        }
+    }
 
+    // Hàm kiểm tra xem user có đăng nhập bằng mật khẩu không
+    fun isEmailPasswordUser(): Boolean {
+        val user = auth.currentUser
+        return user?.providerData?.any { it.providerId == "password" } == true
+    }
 
 }

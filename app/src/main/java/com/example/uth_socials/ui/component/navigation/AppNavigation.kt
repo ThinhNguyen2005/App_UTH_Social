@@ -85,7 +85,7 @@ fun AppNavGraph(
         )
 
         // Đồ thị cho luồng chính của ứng dụng (Home, Profile, ...)
-        mainNavGraph(navController = navController)
+        mainNavGraph(navController = navController,authViewModel=viewModel)
     }
 }
 
@@ -141,31 +141,27 @@ fun NavGraphBuilder.authNavGraph(
                         launcher.launch(it)
                     }
                 },
-                onLoginSuccess = {
-                    // Chuyển sang đồ thị chính và xóa đồ thị auth khỏi back stack
-                    navController.navigate(Graph.MAIN) {
-                        popUpTo(Graph.AUTH) { inclusive = true }
-                    }
-                }
             )
         }
     }
 }
 
 // Điều hướng chính, tất cả đều hướng chỉ nên thay đổi và cập nhật trong MainScreen
-fun NavGraphBuilder.mainNavGraph(navController: NavHostController) {
+fun NavGraphBuilder.mainNavGraph(navController: NavHostController,authViewModel: AuthViewModel) {
     navigation(
         startDestination = Screen.Home.route,
         route = Graph.MAIN
     ) {
         composable(Screen.Home.route) {
-            MainScreen(rootNavController = navController)
+
+            MainScreen(rootNavController = navController,authViewModel=authViewModel) // <-- THAY ĐỔI Ở ĐÂY
+
         }    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(rootNavController: NavHostController) {
+fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -465,6 +461,7 @@ fun MainScreen(rootNavController: NavHostController) {
             }
             composable(Screen.Setting.route) {
                 UserSettingScreen(
+                    authViewModel=authViewModel,
                     onBackClicked = { navController.popBackStack() },
                     onNavigateToUserInfo = {
                         navController.navigate(Screen.UserInfoScreen.route)
@@ -487,7 +484,10 @@ fun MainScreen(rootNavController: NavHostController) {
             }
             composable(Screen.UserInfoScreen.route) {
                 UserInfoScreen(
-                    onSaveSuccess = { navController.popBackStack() }
+
+                    onSaveSuccess = { navController.popBackStack() },
+                    onBackClicked = { navController.popBackStack() }
+
                 )
             }
             composable(Screen.BlockedUsers.route) {

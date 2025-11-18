@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,7 +29,7 @@ fun GoogleButton(
 
         Text(
             text = "Tiếp tục với",
-            color = Color(0xFF1F41BB),
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -41,8 +42,7 @@ fun GoogleButton(
                 .fillMaxWidth()
                 .height(50.dp),
             shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, Color.LightGray)
-        ) {
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -55,7 +55,7 @@ fun GoogleButton(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Đăng nhập với Google",
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Medium
                 )
             }
