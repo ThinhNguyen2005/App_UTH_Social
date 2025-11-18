@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,69 +45,110 @@ fun ChatListScreen(
 ) {
     val viewModel: ChatViewModel = viewModel()
     val chats by viewModel.chats.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isLoading by viewModel.isListLoading.collectAsState()
+    val currentUserId = viewModel.currentUserId
 
-    LaunchedEffect(currentUserId) {
-        currentUserId?.let { viewModel.listenToChatList(it) }
-    }
+
 
     Scaffold(
-        topBar ={
+        topBar = {
             ChatListTopBar(
                 onBackClick = onBack
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+
+        when {
+            // ⏳ Loading (và chưa có dữ liệu)
+            isLoading  -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-        } else {
-            LazyColumn(contentPadding = padding) {
-                items(chats) { chat ->
-                    ListItem(
-                        leadingContent = {
-                            AsyncImage(
-                                model = chat.avatarUrl.ifEmpty {
-                                    "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp).clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        },
-                        headlineContent = { Text(chat.userName) },
-                        supportingContent = {
-                            Row(
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = chat.lastMessage,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis, // ✅ cắt bằng "..."
-                                    style = MaterialTheme.typography.bodyMedium,
+
+            // ❌ Không có đoạn chat nào
+            chats.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                        Icon(
+                            imageVector = Icons.Default.ChatBubbleOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(70.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Chưa có đoạn chat nào",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // ✅ Có danh sách chat → hiện list
+            else -> {
+                LazyColumn(contentPadding = padding) {
+                    items(chats) { chat ->
+                        ListItem(
+                            leadingContent = {
+                                AsyncImage(
+                                    model = chat.avatarUrl.ifEmpty {
+                                        "https://firebasestorage.googleapis.com/v0/b/uthsocial-a2f90.firebasestorage.app/o/avatarDef.jpg?alt=media&token=b6363023-1c54-4370-a2f1-09127c4673da"
+                                    },
+                                    contentDescription = null,
                                     modifier = Modifier
-                                        .weight(1f) // ✅ chiếm phần còn lại
-                                        .padding(end = 8.dp), // tránh dính vào giờ
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        .size(48.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
-                                Text(
-                                    text = DateUtils.formatTimeHeader(chat.timestamp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.outline
-                                )
+                            },
+                            headlineContent = { Text(chat.userName) },
+                            supportingContent = {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = chat.lastMessage,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 8.dp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    Text(
+                                        text = DateUtils.formatTimeHeader(chat.timestamp),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            },
+                            modifier = Modifier.clickable {
+                                val chatId = viewModel.getChatId(chat.userId)
+                                if (chatId != null) onChatSelected(chatId)
                             }
-                        },
-                        modifier = Modifier.clickable {
-                            val chatId = viewModel.getChatId(currentUserId ?: "", chat.userId)
-                            onChatSelected(chatId)
-                        }
-                    )
-                    Divider()
+                        )
+                        Divider()
+                    }
                 }
             }
         }
