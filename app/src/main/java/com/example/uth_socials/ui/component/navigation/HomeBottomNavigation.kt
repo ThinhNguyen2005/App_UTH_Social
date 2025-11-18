@@ -12,6 +12,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.animation.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -35,7 +36,8 @@ import androidx.compose.runtime.collectAsState
 fun HomeBottomNavigation(
     navController: NavController,
     onBanDialogRequest: (() -> Unit)? = null,
-    notificationViewModel : NotificationViewModel
+    notificationViewModel : NotificationViewModel,
+    isVisible: Boolean = true
 ) {
     data class NavItem(
         val route: String,
@@ -68,12 +70,17 @@ fun HomeBottomNavigation(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    NavigationBar(
-        modifier = Modifier
-            .windowInsetsPadding(WindowInsets.navigationBars),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
     ) {
+        NavigationBar(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
         items.forEach { item ->
             val isSelected = currentRoute == item.route
             NavigationBarItem(
@@ -121,5 +128,6 @@ fun HomeBottomNavigation(
                 )
             )
         }
+    }
     }
 }

@@ -52,17 +52,10 @@ import androidx.compose.ui.text.withStyle
 import com.example.uth_socials.data.util.MenuItemData
 import com.example.uth_socials.ui.component.common.ReusablePopupMenu
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.foundation.pager.PagerDefaults
-import androidx.compose.material.icons.rounded.ImageNotSupported
 import androidx.compose.ui.platform.LocalContext
-import coil.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.Dispatchers
-import kotlin.math.abs
 import coil.request.ImageRequest
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.composed
@@ -228,7 +221,7 @@ private fun PostHeader(
                     )
                 )
             }
-            
+
             // Hiện tùy chọn xóa nếu là admin và chủ bài viết
             if (post.userId == currentUserId || isCurrentUserAdmin) {
                 menuItems.add(
@@ -470,60 +463,19 @@ fun PostMedia(
         HorizontalPager(
             state = pagerState,
             pageSpacing = 12.dp,
-            // SỬA: Xóa dòng 'beyondBoundsPageCount'
             flingBehavior = PagerDefaults.flingBehavior(
                 state = pagerState,
                 snapAnimationSpec = spring(stiffness = Spring.StiffnessMediumLow)
             ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .pointerInput(Unit) {
-                    forEachGesture {
-                        awaitPointerEventScope {
-                            awaitFirstDown()
-                            var horizontalDragConsumed = false
-                            do {
-                                val event = awaitPointerEvent()
-                                if (event.changes.any { it.pressed }) {
-                                    val dragAmount = event.changes.sumOf { it.positionChange().x.toDouble() }.toFloat()
-                                    if (!horizontalDragConsumed && abs(dragAmount) > 0.5f) {
-                                        horizontalDragConsumed = true
-                                        event.changes.forEach {
-                                            if (it.positionChange() != Offset.Zero) it.consume()
-                                        }
-                                    }
-                                    pagerState.dispatchRawDelta(-dragAmount)
-                                }
-                            } while (event.changes.any { it.pressed })
-                        }
-                    }
-                }
+            modifier = Modifier.fillMaxWidth()
         ) { page ->
-            SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context) // Bây giờ sẽ hoạt động
+            AsyncImage(
+                model = ImageRequest.Builder(context)
                     .data(imageUrls[page])
                     .crossfade(true)
                     .dispatcher(Dispatchers.IO)
                     .build(),
                 contentDescription = "Post image ${page + 1}",
-                loading = {
-                    Box(Modifier.fillMaxSize()) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center),
-                            strokeWidth = 2.dp
-                        )
-                    }
-                },
-                error = {
-                    Icon(
-                        imageVector = Icons.Rounded.ImageNotSupported,
-                        contentDescription = "Image loading failed",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .align(Alignment.Center)
-                    )
-                },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()

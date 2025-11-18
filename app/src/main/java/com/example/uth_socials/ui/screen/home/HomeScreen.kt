@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,13 +35,16 @@ import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import com.example.uth_socials.ui.viewmodel.DialogType
 import com.example.uth_socials.data.util.SecurityValidator
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.coroutines.cancellation.CancellationException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToProfile: (String) -> Unit = {},
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onScrollStateChanged: (isScrollingUp: Boolean, isAtTop: Boolean) -> Unit = { _, _ -> },
+    scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     val homeViewModel: HomeViewModel = viewModel()
     val banStatusViewModel: BanStatusViewModel = viewModel()
@@ -50,6 +55,9 @@ fun HomeScreen(
     val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Scroll state management for top/bottom bar visibility
+    val lazyListState = rememberLazyListState()
+    var lastScrollPosition by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         homeViewModel.refreshBlockedUsers()
     }
@@ -93,6 +101,19 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(lazyListState) {
+        snapshotFlow {
+            lazyListState.firstVisibleItemIndex * 1000 + lazyListState.firstVisibleItemScrollOffset
+        }
+            .distinctUntilChanged() // Chỉ emit khi giá trị thực sự thay đổi
+            .collect { currentScrollPosition ->
+                val isScrollingUp = currentScrollPosition < lastScrollPosition
+                val isAtTop = currentScrollPosition <= 0
+
+                onScrollStateChanged(isScrollingUp, isAtTop)
+                lastScrollPosition = currentScrollPosition
+            }
+    }
     Column(modifier = Modifier.fillMaxSize()) {
         // Tabs lọc danh mục
         FilterTabs(
@@ -214,7 +235,10 @@ fun HomeScreen(
                         }
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(scrollBehavior?.let { Modifier.nestedScroll(it.nestedScrollConnection) } ?: Modifier),
+                            state = lazyListState,
                             contentPadding = PaddingValues(horizontal = 16.dp)
                         ) {
                             items(filteredPosts, key = { it.id }) { post ->
