@@ -25,6 +25,15 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.messaging.FirebaseMessaging
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.google.firebase.firestore.BuildConfig
 
 
 class MainActivity : ComponentActivity() {
@@ -41,7 +50,6 @@ class MainActivity : ComponentActivity() {
             .build()
         val googleClient = GoogleSignIn.getClient(this, gso)
 
-        // ✅ SỬA LỖI 1: Khởi tạo UserRepository
         val userRepository = UserRepository()
 
         // Sử dụng Factory để tạo AuthViewModel
@@ -52,12 +60,13 @@ class MainActivity : ComponentActivity() {
         banStatusViewModel = ViewModelProvider(this)[BanStatusViewModel::class.java]
 
         // --- Xử lý kết quả từ Google Sign-In ---
-        val launcher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                // ✅ SỬA LỖI 2: Chỉ truyền 'result.data'
-                viewModel.handleGoogleResult(result.data)
+        val launcher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    // ✅ SỬA LỖI 2: Chỉ truyền 'result.data'
+                    viewModel.handleGoogleResult(result.data)
+                }
             }
-        }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -81,16 +90,31 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             UTH_SocialsTheme {
-                AppNavGraph(
-                    viewModel = viewModel,
-                    launcher = launcher
-                )
+                // Sử dụng Box để chứa cả AppNavGraph và nút crash
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // 1. Nội dung chính của ứng dụng vẫn được giữ nguyên
+                    AppNavGraph(
+                        viewModel = viewModel,
+                        launcher = launcher
+                    )
 
+                    // 2. Thêm nút "Test Crash" ở đây
+                    // Chỉ hiển thị nút này trong phiên bản DEBUG để tránh người dùng cuối thấy
+                    if (BuildConfig.DEBUG) {
+                        Button(
+                            onClick = {
+                                throw RuntimeException("Test Crash") // Hành động gây crash
+                            },
+                            // Căn chỉnh nút xuống góc dưới bên phải màn hình
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp)
+                        ) {
+                            Text("Test Crash")
+                        }
+                    }
+                }
             }
         }
     }
-
-    // ✅ REMOVED: setupBannedStatusListener() - Logic đã được chuyển sang BanStatusViewModel
-    // BanStatusViewModel sẽ tự động theo dõi trạng thái ban real-time
-    // UI components sẽ observe banStatus từ ViewModel thay vì force logout
 }
