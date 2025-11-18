@@ -14,7 +14,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -36,7 +40,7 @@ import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
-import com.example.uth_socials.ui.screen.home.ProfileScreen
+import com.example.uth_socials.ui.screen.profile.ProfileScreen
 import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
 //import com.example.uth_socials.ui.screen.search.SearchScreen
@@ -165,6 +169,11 @@ fun MainScreen(rootNavController: NavHostController) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // Scroll state for top/bottom bar visibility
+    var isScrollingUp by remember { mutableStateOf(false) }
+    var isAtTop by remember { mutableStateOf(true) }
+
     val onLogout: () -> Unit = {
         FirebaseAuth.getInstance().signOut()
         rootNavController.navigate(Graph.AUTH) {
@@ -190,7 +199,14 @@ fun MainScreen(rootNavController: NavHostController) {
         else -> false
     }
 
+    // Top app bar scroll behavior for collapsing/expanding
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+
+    // Determine if bottom bar should be visible based on scroll state (only for Home screen)
+    val shouldShowBottomBar = showBottomBar && (currentRoute != Screen.Home.route || isAtTop || isScrollingUp)
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             // Nếu đang ở Market -> không vẽ topBar
             if (currentRoute != Screen.Market.route) {
@@ -204,7 +220,8 @@ fun MainScreen(rootNavController: NavHostController) {
                             navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
                                 launchSingleTop = true
                             }
-                        }
+                        },
+                        scrollBehavior = scrollBehavior
                     )
                     Screen.Add.route -> LogoTopAppBar()
                     Screen.Notifications.route -> LogoTopAppBar()
@@ -217,7 +234,8 @@ fun MainScreen(rootNavController: NavHostController) {
                             navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
                                 launchSingleTop = true
                             }
-                        }
+                        },
+                        scrollBehavior = scrollBehavior
                     )
                     else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
                 }
@@ -226,7 +244,7 @@ fun MainScreen(rootNavController: NavHostController) {
         },
         bottomBar = {
             //Cái này coi tao show cái này ở những trang nào, định nghĩa ở trên
-            if (showBottomBar) {
+            if (shouldShowBottomBar) {
                 var showBanDialog by remember { mutableStateOf(false) }
                 val banStatusViewModel: BanStatusViewModel = viewModel()
                 val banStatus by banStatusViewModel.banStatus.collectAsState()
@@ -244,7 +262,8 @@ fun MainScreen(rootNavController: NavHostController) {
                 HomeBottomNavigation(
                     navController = navController,
                     onBanDialogRequest = { showBanDialog = true },
-                    notificationViewModel = notificationViewModel
+                    notificationViewModel = notificationViewModel,
+                    isVisible = shouldShowBottomBar
                 )
 
                 // Ban dialog for navigation
@@ -272,7 +291,12 @@ fun MainScreen(rootNavController: NavHostController) {
                             launchSingleTop = true
                         }
                     },
-                    onLogout = onLogout
+                    onLogout = onLogout,
+                    onScrollStateChanged = { isScrollingUpState, isAtTopState ->
+                        isScrollingUp = isScrollingUpState
+                        isAtTop = isAtTopState
+                    },
+                    scrollBehavior = scrollBehavior
                 )
             }
             composable(
@@ -342,16 +366,6 @@ fun MainScreen(rootNavController: NavHostController) {
                 val notificationViewModel : NotificationViewModel = viewModel()
                 NotificationsScreen(notificationViewModel,navController)
             }
-//            composable(Screen.Categories.route) {
-//                AdminDashboardScreen(
-//                    onNavigateBack = { navController.popBackStack() },
-//                    onNavigateToUser = { userId ->
-//                        navController.navigate(Screen.Profile.createRoute(userId)) {
-//                            launchSingleTop = true
-//                        }
-//                    }
-//                )
-//            }
             composable(
                 route = Screen.AdminDashboard.route,
                 arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
@@ -403,6 +417,9 @@ fun MainScreen(rootNavController: NavHostController) {
                         },
                         onSettingClicked = {
                             navController.navigate(Screen.Setting.route)
+                        },
+                        onProductClick = { productId ->
+                            navController.navigate(Screen.ProductDetail.createRoute(productId))
                         }
                     )
                 } else {

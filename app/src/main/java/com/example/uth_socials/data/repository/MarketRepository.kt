@@ -76,7 +76,53 @@ class ProductRepository {
         Log.e(TAG, "Flow error: ${e.message}", e)
         emit(emptyList())
     }
-    //(ONE-SHOT) Lấy chi tiết 1 sản phẩm theo ID, Sử dụng cho ProductDetailScreen.
+    /**
+     * (REALTIME) Lấy sản phẩm của một user cụ thể và lắng nghe thay đổi.
+     * Trả về Flow<List<Product>> cho user đó.
+     */
+    fun getProductsForUserFlow(userId: String): Flow<List<Product>> = callbackFlow {
+        Log.d(TAG, "🔍 Setting up listener for products of user: $userId")
+
+        val listener = productCollection
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error snapshot products for user $userId: ${error.message}", error)
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot == null) {
+                    Log.w(TAG, "Snapshot null for user $userId")
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+
+                Log.d(TAG, "User $userId has ${snapshot.size()} product documents")
+
+                val products = snapshot.documents.mapNotNull { doc ->
+                    try {
+                        val product = doc.toObject(Product::class.java)
+                        product?.copy(id = doc.id)?.also {
+                            Log.d(TAG, "Parsed product for user $userId: ${it.name} (id: ${it.id}, userId: ${it.userId})")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing document ${doc.id} for user $userId: ${e.message}")
+                        null
+                    }
+                }
+
+                Log.d(TAG, "Total ${products.size} valid products for user $userId")
+                trySend(products)
+            }
+
+        awaitClose {
+            Log.d(TAG, "Closing listener for products of user $userId")
+            listener.remove()
+        }
+    }.catch { e ->
+        emit(emptyList())
+    }
     suspend fun getProductById(productId: String): Product? {
         return try {
             Log.d(TAG, "Loading product: $productId")

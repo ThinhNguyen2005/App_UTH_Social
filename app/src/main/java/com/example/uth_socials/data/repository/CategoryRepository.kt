@@ -41,7 +41,6 @@ class CategoryRepository {
             categories
         } catch (e: Exception) {
             Log.e("CategoryRepository", "Error fetching categories", e)
-            // Fallback to default categories nếu có lỗi
             Category.DEFAULT_CATEGORIES.sortedBy { it.order }
         }
     }
@@ -65,7 +64,6 @@ class CategoryRepository {
                 }
 
                 if (snapshot != null) {
-                    // Emit raw documents to be processed on background thread
                     trySend(snapshot.documents)
                 }
             }
@@ -73,12 +71,9 @@ class CategoryRepository {
         // Cleanup khi Flow bị hủy
         awaitClose { listener.remove() }
     }.map { documents ->
-        // Process documents on background thread
         val categories = documents.mapNotNull { doc ->
             doc.toObject(Category::class.java)?.copy(id = doc.id)
         }
-
-        // Nếu chưa có categories, emit empty list (HomeViewModel sẽ handle việc tạo categories mặc định)
         categories.ifEmpty {
             emptyList()
         }
@@ -92,7 +87,6 @@ class CategoryRepository {
                     batch.set(docRef, category)
                 }
             }.await()
-            Log.d("CategoryRepository", "Initialized default categories")
         } catch (e: Exception) {
             Log.e("CategoryRepository", "Error initializing default categories", e)
         }
@@ -104,17 +98,14 @@ class CategoryRepository {
         }
 
         categoriesCollection.document(category.id).set(category).await()
-        Log.d("CategoryRepository", "Added category: ${category.name} by user: $userId")
     }
 
     suspend fun updateCategory(category: Category, userId: String? = null): Result<Unit> = runCatching {
-        // Client-side validation để tối ưu UX
         if (!SecurityValidator.canModifyCategories(userId)) {
             throw SecurityException("Only admins can update categories")
         }
 
         categoriesCollection.document(category.id).set(category).await()
-        Log.d("CategoryRepository", "Updated category: ${category.name} by user: $userId")
     }
 
     suspend fun getCategoryById(categoryId: String): Category? {
@@ -158,7 +149,6 @@ class CategoryRepository {
     suspend fun migratePostsToCategory(oldCategoryId: String, newCategoryId: String): Result<Int> = runCatching {
         val postsCollection = FirebaseFirestore.getInstance().collection("posts")
 
-        // Get all posts using old category
         val postsToMigrate = postsCollection
             .whereEqualTo("category", oldCategoryId)
             .get()
@@ -167,7 +157,6 @@ class CategoryRepository {
 
         var migratedCount = 0
 
-        // Batch update posts
         val batch = FirebaseFirestore.getInstance().batch()
         postsToMigrate.forEach { doc ->
             batch.update(doc.reference, "category", newCategoryId)
@@ -175,8 +164,6 @@ class CategoryRepository {
         }
 
         batch.commit().await()
-
-        Log.d("CategoryRepository", "Migrated $migratedCount posts from $oldCategoryId to $newCategoryId")
         migratedCount
     }
 
@@ -188,28 +175,21 @@ class CategoryRepository {
         userId: String? = null,
         migrateToCategoryId: String? = null
     ): Result<CategoryDeletionResult> = runCatching {
-        // Client-side validation để tối ưu UX
         if (!SecurityValidator.canModifyCategories(userId)) {
             throw SecurityException("Only admins can delete categories")
         }
-
-        // Prevent deleting default categories
         if (Category.DEFAULT_CATEGORIES.any { it.id == categoryId }) {
             throw IllegalArgumentException("Cannot delete default categories")
         }
 
-        // Check if category exists
         val category = getCategoryById(categoryId)
             ?: throw IllegalArgumentException("Category not found")
 
-        // Count posts using this category
         val postsCount = countPostsUsingCategory(categoryId)
 
         if (postsCount > 0) {
-            // If no migration target specified, migrate to empty category
             val targetCategoryId = migrateToCategoryId ?: ""
 
-            // Validate target category exists (if specified)
             if (targetCategoryId.isNotEmpty() && !categoryExists(targetCategoryId)) {
                 throw IllegalArgumentException("Target category does not exist")
             }

@@ -8,7 +8,6 @@ import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.data.user.User
-import com.example.uth_socials.data.util.SecurityValidator
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.Dispatchers
@@ -53,7 +52,7 @@ data class SearchUiState(
     val shareContent: String? = null
 )
 class SearchViewModel(
-    private val postRepository: PostRepository = PostRepository(),
+    postRepository: PostRepository = PostRepository(),
     private val userRepository: UserRepository = UserRepository()
 ) : ViewModel() {
     private val _searchPostResults = MutableStateFlow<List<Post>>(emptyList())
@@ -122,16 +121,15 @@ class SearchViewModel(
     }
 
     fun onLikeClicked(postId: String) {
-        // Thêm log ở đây để kiểm tra xem hàm có được gọi không
         Log.d("SearchViewModel", "onLikeClicked for post ID: $postId")
 
         postReAction.mutiLikePost(
             postId = postId,
-            posts = _searchPostResults.value, // ✅ Sử dụng danh sách kết quả tìm kiếm
+            posts = _searchPostResults.value,
             isUserBanned = _uiState.value.isUserBanned,
             onBanDialog = { _uiState.update { it.copy(showBanDialog = true) } },
             onPostsUpdate = { updatedPosts ->
-                _searchPostResults.value = updatedPosts // ✅ Cập nhật lại danh sách kết quả
+                _searchPostResults.value = updatedPosts
             },
             onError = { error ->
                 _uiState.update { it.copy(error = error) }
