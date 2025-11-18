@@ -29,14 +29,6 @@ object SecurityValidator {
     }
 
     /**
-     * Kiểm tra xem người dùng có thể tạo bài đăng hay không
-     * Quy tắc: request.auth.uid != null && request.resource.data.userId == request.auth.uid
-     */
-    fun canCreatePost(currentUserId: String?, postUserId: String): Boolean {
-        return currentUserId != null && currentUserId == postUserId
-    }
-
-    /**
      * Kiểm tra xem người dùng có thể sửa đổi tương tác bài đăng (thích/lưu) hay không
      * Quy tắc: request.auth.uid != null && chỉ các trường likedBy/likes/savedBy/saveCount
      */

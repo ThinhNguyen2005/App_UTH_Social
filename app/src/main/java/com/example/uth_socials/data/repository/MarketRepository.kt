@@ -87,37 +87,37 @@ class ProductRepository {
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e(TAG, "❌ Error snapshot products for user $userId: ${error.message}", error)
+                    Log.e(TAG, "Error snapshot products for user $userId: ${error.message}", error)
                     close(error)
                     return@addSnapshotListener
                 }
 
                 if (snapshot == null) {
-                    Log.w(TAG, "⚠️ Snapshot null for user $userId")
+                    Log.w(TAG, "Snapshot null for user $userId")
                     trySend(emptyList())
                     return@addSnapshotListener
                 }
 
-                Log.d(TAG, "📊 User $userId has ${snapshot.size()} product documents")
+                Log.d(TAG, "User $userId has ${snapshot.size()} product documents")
 
                 val products = snapshot.documents.mapNotNull { doc ->
                     try {
                         val product = doc.toObject(Product::class.java)
                         product?.copy(id = doc.id)?.also {
-                            Log.d(TAG, "✅ Parsed product for user $userId: ${it.name} (id: ${it.id}, userId: ${it.userId})")
+                            Log.d(TAG, "Parsed product for user $userId: ${it.name} (id: ${it.id}, userId: ${it.userId})")
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "❌ Error parsing document ${doc.id} for user $userId: ${e.message}")
+                        Log.e(TAG, "Error parsing document ${doc.id} for user $userId: ${e.message}")
                         null
                     }
                 }
 
-                Log.d(TAG, "🎯 Total ${products.size} valid products for user $userId")
+                Log.d(TAG, "Total ${products.size} valid products for user $userId")
                 trySend(products)
             }
 
         awaitClose {
-            Log.d(TAG, "🔚 Closing listener for products of user $userId")
+            Log.d(TAG, "Closing listener for products of user $userId")
             listener.remove()
         }
     }.catch { e ->

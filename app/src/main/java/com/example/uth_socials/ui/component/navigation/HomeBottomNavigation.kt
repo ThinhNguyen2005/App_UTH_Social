@@ -1,7 +1,5 @@
 package com.example.uth_socials.ui.component.navigation
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -26,7 +24,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.uth_socials.data.repository.UserRepository
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
-import com.example.uth_socials.data.notification.Notification
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 import com.example.uth_socials.ui.theme.UthTeal
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel

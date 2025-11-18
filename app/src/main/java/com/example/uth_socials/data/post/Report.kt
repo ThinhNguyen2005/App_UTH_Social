@@ -13,7 +13,6 @@ data class Report(
     @ServerTimestamp
     val timestamp: Timestamp? = null,
     val status: String = "pending", // "pending", "reviewed", "resolved", "dismissed"
-    // Admin action fields
     val reviewedBy: String? = null, // Admin user ID who reviewed
     val reviewedAt: Timestamp? = null,
     val adminAction: AdminAction? = null, // Action taken by admin

@@ -233,21 +233,21 @@ class AdminRepository(
     }
 
     suspend fun autoBanUser(userId: String): Result<Unit> = runCatching {
-        Log.d("AdminRepository", "🔍 autoBanUser called for user: $userId")
+        Log.d("AdminRepository", "autoBanUser called for user: $userId")
         
         val userRef = db.collection("users").document(userId)
 
         // Lấy current user để check violation count
         val currentUser = userRepository.getUser(userId)
         if (currentUser == null) {
-            Log.w("AdminRepository", "⚠️ User $userId not found!")
+            Log.w("AdminRepository", "User $userId not found!")
             throw Exception("User not found: $userId")
         }
         
         val currentViolations = currentUser.violationCount ?: 0
         val newViolationCount = currentViolations + 1
 
-        Log.d("AdminRepository", "📊 User $userId violations: $currentViolations -> $newViolationCount")
+        Log.d("AdminRepository", "User $userId violations: $currentViolations -> $newViolationCount")
 
         // Update violation count
         userRef.update("violationCount", newViolationCount).await()
@@ -259,28 +259,28 @@ class AdminRepository(
             val updatedUser = userRepository.getUser(userId)
             val isCurrentlyBanned = updatedUser?.isBanned == true
             
-            Log.d("AdminRepository", "🔍 Checking ban status: isBanned=$isCurrentlyBanned, violations=$newViolationCount")
+            Log.d("AdminRepository", "Checking ban status: isBanned=$isCurrentlyBanned, violations=$newViolationCount")
             
             if (!isCurrentlyBanned) {
-                Log.d("AdminRepository", "🚨 Auto-banning user $userId (violations: $newViolationCount)")
+                Log.d("AdminRepository", "Auto-banning user $userId (violations: $newViolationCount)")
                 banUser(
                     userId = userId,
                     adminId = "system",
                     reason = "Tự động cấm: Quá nhiều vi phạm ($newViolationCount bài viết đã xóa)"
                 ).onSuccess {
-                    Log.d("AdminRepository", "✅ User $userId auto-banned successfully")
+                    Log.d("AdminRepository", "User $userId auto-banned successfully")
                 }.onFailure { e ->
-                    Log.e("AdminRepository", "❌ Failed to ban user $userId", e)
+                    Log.e("AdminRepository", "Failed to ban user $userId", e)
                     throw e
                 }
             } else {
-                Log.d("AdminRepository", "⏭️ User $userId already banned, skipping")
+                Log.d("AdminRepository", "⏭User $userId already banned, skipping")
             }
         } else {
-            Log.d("AdminRepository", "⏭️ User $userId has $newViolationCount violations (need 3+ to ban)")
+            Log.d("AdminRepository", "User $userId has $newViolationCount violations (need 3+ to ban)")
         }
         
-        Log.d("AdminRepository", "✅ autoBanUser completed for user: $userId")
+        Log.d("AdminRepository", "autoBanUser completed for user: $userId")
     }
 
     suspend fun getBannedUsers(): List<User> {
