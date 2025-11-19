@@ -5,6 +5,7 @@ import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.post.CategoryDeletionResult
 import com.example.uth_socials.data.util.SecurityValidator
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -54,7 +55,7 @@ class CategoryRepository {
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e("CategoryRepository", "Error listening to categories", error)
-                    if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                         Log.w("CategoryRepository", "Permission denied listening to categories. Emitting empty list.")
                         trySend(emptyList()) // Gửi list rỗng thay vì crash
                     } else {

@@ -62,6 +62,8 @@ import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.screen.saved.SavedPostsScreen
 import com.example.uth_socials.ui.screen.saved.SavedPostDetail
+import com.example.uth_socials.ui.screen.util.HelloUserScreen
+import com.example.uth_socials.ui.screen.util.WelcomeScreen
 
 @Composable
 fun AppNavGraph(
@@ -95,9 +97,27 @@ fun NavGraphBuilder.authNavGraph(
     launcher: ActivityResultLauncher<Intent>
 ) {
     navigation(
-        startDestination = Screen.AuthScreen.Login.route,
+        startDestination = Screen.AuthScreen.HelloUser.route,
         route = Graph.AUTH
     ) {
+        composable (Screen.AuthScreen.HelloUser.route){
+            HelloUserScreen(
+                onStartClicked = {
+                    navController.navigate(Screen.AuthScreen.WelcomeUser.route) {
+                        popUpTo(Screen.AuthScreen.HelloUser.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.AuthScreen.WelcomeUser.route) {
+            WelcomeScreen(
+                onLoginClick = { navController.navigate(Screen.AuthScreen.Login.route) },
+                onRegisterClick = { navController.navigate(Screen.AuthScreen.Register.route) }
+            )
+        }
+
+
         composable(Screen.AuthScreen.Login.route) {
             LoginScreen(
                 viewModel = viewModel,
@@ -225,7 +245,7 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                         onSearchClick = { query ->
                             navController.navigate("search_results/$query")
                         },
-                        onMessagesClick = { /* TODO: Điều hướng đến màn hình tin nhắn */ },
+                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
                         onAdminClick = {
                             navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
                                 launchSingleTop = true
@@ -259,7 +279,7 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     navController = navController,
                     onBanDialogRequest = { showBanDialog = true },
                     notificationViewModel = notificationViewModel,
-                    isVisible = shouldShowBottomBar
+                    isVisible = true
                 )
 
                 // Ban dialog for navigation

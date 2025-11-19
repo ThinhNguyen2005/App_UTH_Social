@@ -155,7 +155,6 @@ class AdminRepository(
             throw IllegalArgumentException("Cannot perform admin actions on admin users")
         }
 
-        // Update report metadata first
         val updateData = mutableMapOf(
             "status" to if (action == AdminAction.DISMISS) "dismissed" else "reviewed",
             "reviewedBy" to adminId,
@@ -167,7 +166,6 @@ class AdminRepository(
 
         reportRef.update(updateData).await()
 
-        // Handle action logic
         when (action) {
             AdminAction.DELETE_POST, AdminAction.BAN_USER -> {
                 // Sử dụng post và userId đã lấy ở trên, không cần lấy lại
@@ -244,7 +242,7 @@ class AdminRepository(
             throw Exception("User not found: $userId")
         }
         
-        val currentViolations = currentUser.violationCount ?: 0
+        val currentViolations = currentUser.violationCount
         val newViolationCount = currentViolations + 1
 
         Log.d("AdminRepository", "User $userId violations: $currentViolations -> $newViolationCount")
