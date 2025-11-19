@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import android.util.Log
 import com.example.uth_socials.data.user.User
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestoreException
 import java.util.UUID
 
 /**
@@ -113,7 +114,7 @@ class PostRepository {
         // Lắng nghe thay đổi thời gian thực
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     Log.w("CategoryRepository", "Permission denied listening to categories. Emitting empty list.")
                     trySend(emptyList()) // Gửi list rỗng thay vì crash
                 } else {
@@ -248,7 +249,7 @@ class PostRepository {
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     Log.w("PostRepository", "Permission denied listening to user posts. Emitting empty list.")
                     trySend(emptyList())
                 } else {
@@ -328,7 +329,7 @@ class PostRepository {
 
             Log.d("PostRepository", "Comment data prepared: $commentData")
 
-            // ✅ BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
+            // BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
             db.runTransaction { transaction ->
                 Log.d("PostRepository", "Starting transaction")
                 transaction.update(postRef, "commentCount", FieldValue.increment(1))
@@ -336,7 +337,7 @@ class PostRepository {
                 Log.d("PostRepository", "Transaction operations set")
             }.await()
 
-            // ✅ BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
+            // BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
             usersCollection.document(currentUserId)
                 .update("lastCommentAt", FieldValue.serverTimestamp())
                 .await()
