@@ -290,11 +290,38 @@ class HomeViewModel(
 
     private var postsJob: Job? = null
 
+    /**
+     * ✅ OPTIMIZED: Incremental updates - chỉ update posts thay đổi thay vì replace toàn bộ
+     * Giúp Compose chỉ recompose items thay đổi, giảm overhead đáng kể
+     */
     private fun listenToPostChanges(categoryId: String) {
         postsJob?.cancel()
         postsJob = viewModelScope.launch(Dispatchers.IO) {
-            postRepository.getPostsFlow(categoryId).collect { posts ->
-                _uiState.update { it.copy(posts = posts, isLoading = false) }
+            postRepository.getPostsFlow(categoryId).collect { newPosts ->
+                // ✅ INCREMENTAL UPDATE: Merge updates thay vì replace
+                val currentPosts = _uiState.value.posts
+                
+                // Tạo map để quick lookup
+                val newPostsMap = newPosts.associateBy { it.id }
+                
+                // Update existing posts hoặc giữ nguyên nếu không có trong newPosts
+                val updatedPosts = currentPosts.map { existingPost ->
+                    newPostsMap[existingPost.id] ?: existingPost
+                }
+                
+                // Thêm posts mới (không có trong currentPosts)
+                val newPostsToAdd = newPosts.filter { it.id !in currentPosts.map { p -> p.id } }
+                
+                // Merge và maintain order (newest first)
+                val mergedPosts = (updatedPosts + newPostsToAdd)
+                    .sortedByDescending { it.timestamp?.seconds ?: 0L }
+                
+                _uiState.update { 
+                    it.copy(
+                        posts = mergedPosts, 
+                        isLoading = false
+                    ) 
+                }
             }
         }
     }
@@ -901,9 +928,57 @@ class HomeViewModel(
         commentsJob = null
         postsJob = null
         clearCache()
+        
+        // ✅ OPTIMIZATION: Clear cache trong repository
+        postRepository.clearCache()
+        
         // Reset state
         _uiState.update { HomeUiState() }
 
         Log.d("HomeViewModel", "Cleanup completed")
+    }
+    
+    // ✅ OPTIMIZATION: Flag để tránh load nhiều lần cùng lúc
+    private var isLoadingMore = false
+    
+    /**
+     * ✅ OPTIMIZATION: Load more posts (pagination)
+     * Gọi khi user scroll đến cuối danh sách
+     */
+    fun loadMorePosts() {
+        // Tránh load nhiều lần cùng lúc
+        if (isLoadingMore) return
+        
+        val currentState = _uiState.value
+        val currentPosts = currentState.posts
+        
+        // Không load nếu đang loading hoặc không có posts
+        if (currentPosts.isEmpty() || currentState.isLoading) return
+        
+        val lastPost = currentPosts.lastOrNull() ?: return
+        val lastTimestamp = lastPost.timestamp ?: return
+        
+        isLoadingMore = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val categoryId = currentState.selectedCategory?.id ?: "all"
+                val morePosts = postRepository.loadMorePosts(categoryId, lastTimestamp)
+                
+                if (morePosts.isNotEmpty()) {
+                    // Merge với posts hiện tại, tránh duplicate
+                    val existingIds: Set<String> = currentPosts.map { it.id }.toSet()
+                    val newPosts: List<Post> = morePosts.filter { post -> post.id !in existingIds }
+                    
+                    val updatedPosts: List<Post> = currentPosts + newPosts
+                    _uiState.update { 
+                        it.copy(posts = updatedPosts) 
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading more posts", e)
+            } finally {
+                isLoadingMore = false
+            }
+        }
     }
 }

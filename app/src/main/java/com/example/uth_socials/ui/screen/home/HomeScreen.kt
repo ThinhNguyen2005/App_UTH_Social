@@ -114,6 +114,23 @@ fun HomeScreen(
                 lastScrollPosition = currentScrollPosition
             }
     }
+    
+    LaunchedEffect(lazyListState) {
+        snapshotFlow {
+            val layoutInfo = lazyListState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            
+            // Load more khi còn 3 items nữa là đến cuối
+            totalItems > 0 && lastVisibleItem >= totalItems - 3
+        }
+            .distinctUntilChanged()
+            .collect { shouldLoadMore ->
+                if (shouldLoadMore && !uiState.isLoading) {
+                    homeViewModel.loadMorePosts()
+                }
+            }
+    }
     Column(modifier = Modifier.fillMaxSize()) {
         // Tabs lọc danh mục
         FilterTabs(
