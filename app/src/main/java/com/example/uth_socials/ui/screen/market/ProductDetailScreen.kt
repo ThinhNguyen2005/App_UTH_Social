@@ -1,5 +1,6 @@
 package com.example.uth_socials.ui.screen.market
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,24 +10,34 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -35,6 +46,7 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.R
 import com.example.uth_socials.data.market.Product
 import com.example.uth_socials.data.user.User
+import com.example.uth_socials.ui.component.common.CallConfirmDialog
 import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
 @Composable
@@ -43,15 +55,20 @@ fun ProductDetailScreen(
     onBack: () -> Unit = {},
     onShare: () -> Unit = {},
     onCall: () -> Unit = {},
-    onMessage: () -> Unit = {},
+    onMessage: (String) -> Unit = {},
     viewModel: MarketViewModel = viewModel(),
 ) {
+    val context = LocalContext.current
+
     //Load san pham theo id
     LaunchedEffect(productId) {
         viewModel.getProductById(productId)
     }
 
     val detailState by viewModel.detailState.collectAsState()
+
+    //State để hiển thị dialog gọi điện
+    var showCallDialog by remember { mutableStateOf(false) }
 
     when {
         detailState.isLoading -> {
@@ -83,9 +100,28 @@ fun ProductDetailScreen(
                 seller = detailState.seller,
                 onBack = onBack,
                 onShare = onShare,
-                onCall = onCall,
+                onCall = {
+                    //Kiểm tra số điện thoại trước khi hiển thị dialog
+                    val phoneNumber = detailState.seller?.phone
+                    if (!phoneNumber.isNullOrEmpty()) {
+                        showCallDialog = true
+                    } else {
+                        //Hiển thị thông báo không có số điện thoại
+                        Toast.makeText(
+                            context,
+                            "Người bán chưa cập nhật số điện thoại",
+                            Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onMessage = onMessage,
                 viewModel = viewModel
+            )
+            //Hiển thị dialog xác nhận gọi điện
+            CallConfirmDialog(
+                isVisible = showCallDialog,
+                phoneNumber = detailState.seller?.phone ?: "",
+                sellerName = detailState.seller?.username ?: "Người bán",
+                onDismiss = { showCallDialog = false }
             )
         }
     }
@@ -98,7 +134,7 @@ fun ProductDetailContent(
     onBack: () -> Unit,
     onShare: () -> Unit = {},
     onCall: () -> Unit = {},
-    onMessage: () -> Unit = {},
+    onMessage: (String) -> Unit = {},
     viewModel: MarketViewModel
 ) {
     Box(
@@ -172,7 +208,7 @@ fun ProductDetailContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = product.description ?: "Không có mô tả",
+                            text = product.description,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Normal,
                             color = Color.DarkGray
@@ -236,84 +272,165 @@ fun ProductDetailContent(
                 .align(Alignment.BottomCenter)
                 .background(Color.White)
         ) {
-            Call_Chat(onCall = onCall, onMessage = onMessage)
+            Call_Chat(
+                onCall = onCall,
+                onMessage = {
+                    product.userId?.let {sellerId ->
+                        onMessage(sellerId)
+                    }
+                }
+            )
         }
     }
 }
 @Composable
 fun SellerInfoSection(seller: User?) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // Avatar
-        if (seller?.avatarUrl != null) {
-            AsyncImage(
-                model = seller.avatarUrl,
-                contentDescription = "Avatar người bán",
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .border(1.5.dp, Color.LightGray, CircleShape),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.default_image),
-                error = painterResource(id = R.drawable.default_image)
-            )
-        } else {
-            Image(
-                painter = painterResource(id = R.drawable.default_image),
-                contentDescription = "Avatar người bán",
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .border(1.5.dp, Color.LightGray, CircleShape)
+        //Header: Avatar + Name
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Avatar
+            if (seller?.avatarUrl != null) {
+                AsyncImage(
+                    model = seller.avatarUrl,
+                    contentDescription = "Avatar người bán",
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color(0xFF0E9397), CircleShape),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.default_image),
+                    error = painterResource(id = R.drawable.default_image)
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.default_image),
+                    contentDescription = "Avatar người bán",
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color(0xFF0E9397), CircleShape)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Name
+            Text(
+                text = seller?.username ?: "Người bán ẩn danh",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                modifier = Modifier.weight(1f)
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Thông tin người bán
-        Column {
-            Text(
-                text = seller?.username ?: "Người bán ẩn danh",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.Black
-            )
-
-            // Hiển thị campus nếu có
+        //Info Grid: Campus | Phone
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Campus
             seller?.campus?.let { campus ->
                 if (campus.isNotEmpty()) {
-                    Text(
-                        text = "- $campus",
-                        fontSize = 13.sp,
-                        color = Color.Gray
+                    InfoChip(
+                        icon = Icons.Default.LocationOn,
+                        text = campus,
+                        iconTint = Color(0xFF4CAF50),
+                        backgroundColor = Color(0xFFF1F8F4),
+                        textColor = Color(0xFF2E7D32),
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
 
-            // Hiển thị số điện thoại nếu có
+            // Phone
             seller?.phone?.let { phone ->
                 if (phone.isNotEmpty()) {
-                    Text(
-                        text = "- $phone",
-                        fontSize = 13.sp,
-                        color = Color(0xFF0E9397)
+                    InfoChip(
+                        icon = Icons.Default.Phone,
+                        text = phone,
+                        iconTint = Color(0xFF0E9397),
+                        backgroundColor = Color(0xFFE8F6F7),
+                        textColor = Color(0xFF0E9397),
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
+        }
 
-            // Cảnh báo nếu tài khoản bị ban
-            if (seller?.isBanned == true) {
-                Text(
-                    text = "* Tài khoản đã bị khóa",
-                    fontSize = 12.sp,
-                    color = Color.Red,
-                    fontWeight = FontWeight.Medium
-                )
+        // Warning nếu bị ban
+        if (seller?.isBanned == true) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFFFFEBEE)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Warning",
+                        modifier = Modifier.size(18.dp),
+                        tint = Color(0xFFC62828)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Tài khoản đã bị khóa",
+                        fontSize = 13.sp,
+                        color = Color(0xFFC62828),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
+        }
+    }
+}
+
+@Composable
+fun InfoChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+    iconTint: Color,
+    backgroundColor: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        color = backgroundColor
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = iconTint
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = text,
+                fontSize = 14.sp,
+                color = textColor,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

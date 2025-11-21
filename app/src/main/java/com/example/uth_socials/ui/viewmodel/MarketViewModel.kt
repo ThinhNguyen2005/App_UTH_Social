@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.repository.MarketRepository
 import com.example.uth_socials.data.market.Product
+import com.example.uth_socials.data.repository.ChatRepository
 import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.data.user.User
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +49,7 @@ private const val TAG = "MarketViewModel"
 class MarketViewModel: ViewModel() {
     private val repository = MarketRepository()
     private val userRepository = UserRepository()
+    private val chatRepository = ChatRepository()
 
     //MutableStateFlow để lưu query tìm kiếm
     private val _searchQuery = MutableStateFlow("")
@@ -236,6 +238,45 @@ class MarketViewModel: ViewModel() {
                         error = "Có lỗi xảy ra: ${e.message}"
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * Mở chat với người bán sản phẩm
+     *
+     * @param sellerId ID của người bán
+     * @param onChatReady Callback trả về chatId để navigate
+     */
+    fun openChatWithSeller(sellerId: String, onChatReady: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val currentUserId = userRepository.getCurrentUserId()
+
+                if (currentUserId == null) {
+                    Log.w("MarketViewModel", "User chưa đăng nhập")
+                    // Có thể hiển thị thông báo yêu cầu đăng nhập
+                    return@launch
+                }
+
+                if (currentUserId == sellerId) {
+                    Log.w("MarketViewModel", "Không thể nhắn tin với chính mình")
+                    return@launch
+                }
+
+                // Kiểm tra chat đã tồn tại chưa
+                val existingChatId = chatRepository.getExistingChatId(sellerId)
+
+                if (existingChatId != null) {
+                    // Chat đã tồn tại -> mở ngay
+                    onChatReady(existingChatId)
+                } else {
+                    // Chat chưa tồn tại -> tạo chatId mới
+                    val newChatId = chatRepository.buildChatId(currentUserId, sellerId)
+                    onChatReady(newChatId)
+                }
+            } catch (e: Exception) {
+                Log.e("MarketViewModel", "Lỗi khi mở chat", e)
             }
         }
     }
