@@ -49,14 +49,14 @@ fun ProductItem(
                 fontSize = 16.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = formatVND(product.price),
                 fontSize = 16.sp,
                 maxLines = 1,
                 color = Color(0xFFFF0000),
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Medium
             )
         }
     }

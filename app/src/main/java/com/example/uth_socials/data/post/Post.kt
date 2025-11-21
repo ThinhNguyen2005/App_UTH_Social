@@ -31,11 +31,11 @@ data class Post(
     val savedBy: List<String> = emptyList(),
 
     @get:Exclude
-    @PropertyName("isLiked")  // ✅ Map Firebase field 'isLiked' (or 'liked' if DB has it)
+    @PropertyName("isLiked")
     val isLiked: Boolean = false,
 
     @get:Exclude
-    @PropertyName("isSaved")  // ✅ Map Firebase field 'isSaved' (or 'saved' if DB has it)
+    @PropertyName("isSaved")
     val isSaved: Boolean = false
 ) {
     constructor() : this(null, "", "", "", "", "", "",emptyList(), "", 0, 0, 0,0,emptyList(), emptyList(),false)

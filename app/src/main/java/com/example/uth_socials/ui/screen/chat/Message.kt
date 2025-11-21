@@ -43,7 +43,7 @@ fun Message(
         if (!isMe) {
             AsyncImage(
                 model = otherUserAvatar.ifEmpty {
-                    "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                    "https://firebasestorage.googleapis.com/v0/b/uthsocial-a2f90.firebasestorage.app/o/avatarDef.jpg?alt=media&token=b6363023-1c54-4370-a2f1-09127c4673da"
                 },
                 contentDescription = null,
                 modifier = Modifier

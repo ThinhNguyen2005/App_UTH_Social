@@ -1,7 +1,5 @@
 package com.example.uth_socials.ui.component.navigation
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -14,6 +12,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.animation.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -26,7 +25,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.uth_socials.data.repository.UserRepository
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
-import com.example.uth_socials.data.notification.Notification
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 import com.example.uth_socials.ui.theme.UthTeal
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
@@ -38,7 +36,8 @@ import androidx.compose.runtime.collectAsState
 fun HomeBottomNavigation(
     navController: NavController,
     onBanDialogRequest: (() -> Unit)? = null,
-    notificationViewModel : NotificationViewModel
+    notificationViewModel : NotificationViewModel,
+    isVisible: Boolean = true
 ) {
     data class NavItem(
         val route: String,
@@ -71,12 +70,17 @@ fun HomeBottomNavigation(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    NavigationBar(
-        modifier = Modifier
-            .windowInsetsPadding(WindowInsets.navigationBars),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
     ) {
+        NavigationBar(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
         items.forEach { item ->
             val isSelected = currentRoute == item.route
             NavigationBarItem(
@@ -124,5 +128,6 @@ fun HomeBottomNavigation(
                 )
             )
         }
+    }
     }
 }

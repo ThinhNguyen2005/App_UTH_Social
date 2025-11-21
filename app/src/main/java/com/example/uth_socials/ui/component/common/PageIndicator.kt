@@ -1,3 +1,5 @@
+package com.example.uth_socials.ui.component.common
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

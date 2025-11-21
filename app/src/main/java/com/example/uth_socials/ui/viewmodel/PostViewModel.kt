@@ -86,7 +86,7 @@ class PostViewModel : ViewModel() {
                     val ref = storage.reference.child("posts/${UUID.randomUUID()}.jpg")
                     ref.putFile(uri).await()
                     val url = ref.downloadUrl.await().toString()
-                    imageUrl.add(uri.toString())
+                    imageUrl.add(url)
                 }
 
                 PostRepository.uploadPost(user, content, category, imageUrl)
