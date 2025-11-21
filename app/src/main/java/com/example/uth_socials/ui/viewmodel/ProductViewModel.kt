@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.uth_socials.data.repository.UserRepository
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
@@ -47,7 +48,7 @@ class ProductViewModel : ViewModel() {
     fun postArticle(userId: String) {
         viewModelScope.launch {
             // Check ban status trước khi đăng
-            val userRepository = com.example.uth_socials.data.repository.UserRepository()
+            val userRepository = UserRepository()
             val user = userRepository.getUser(userId)
             if (user?.isBanned == true) {
                 showBanDialog = true

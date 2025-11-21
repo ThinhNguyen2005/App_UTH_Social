@@ -28,6 +28,8 @@ sealed class Screen(val route: String) {
         fun createRoute(tab: String = "reports") = "admin_dashboard/$tab"
     }
     sealed class AuthScreen(val route: String) {
+        object HelloUser : AuthScreen("hello_user")
+        object WelcomeUser : AuthScreen("welcome_user")
         object Login : AuthScreen("login")
         object Register : AuthScreen("register")
         object ResetPassword : AuthScreen("reset_password")

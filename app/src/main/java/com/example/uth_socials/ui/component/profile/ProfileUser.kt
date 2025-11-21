@@ -25,6 +25,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.uth_socials.data.market.Product
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,8 +35,8 @@ fun ProfileHeader(
     bio: String,
     followers: Int,
     following: Int,
-    productCount: Int = 0,
     postCount: Int = 0,
+    products: List<Product>,
     isOwner: Boolean,
     isFollowing: Boolean,
     onFollowClicked: () -> Unit,
@@ -44,7 +45,6 @@ fun ProfileHeader(
     onMoreClicked: () -> Unit = {},
     onMessageClicked: () -> Unit = {},
     onSettingClicked: () -> Unit = {},
-    onEditProfileClicked: () -> Unit = {},
     selectedTabIndex: Int = 0,
     onTabSelected: (Int) -> Unit = {}
 ) {
@@ -58,7 +58,7 @@ fun ProfileHeader(
                 followers = followers,
                 following = following,
                 postCount = postCount,
-                productCount = productCount,
+                products = products,
                 isOwner = isOwner,
                 isFollowing = isFollowing,
                 onFollowClicked = onFollowClicked,
@@ -136,7 +136,7 @@ private fun ProfileInfoCard(
     bio: String,
     followers: Int,
     following: Int,
-    productCount: Int = 0,
+    products: List<Product>,
     postCount: Int = 0,
     isOwner: Boolean,
     isFollowing: Boolean,
@@ -144,7 +144,7 @@ private fun ProfileInfoCard(
     onMessageClicked: () -> Unit,
     onSettingClicked: () -> Unit,
 
-) {
+    ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,7 +172,7 @@ private fun ProfileInfoCard(
 
                 ProfileStats(
                     postCount = postCount,
-                    productCount = productCount,
+                    productCount = products.size,
                     followers = followers,
                     following = following
                 )

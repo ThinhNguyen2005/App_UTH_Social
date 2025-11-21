@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -42,13 +43,14 @@ fun PasswordTextField(
         },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
+        singleLine = true,
         colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Color(0xFF06635A),
-            unfocusedIndicatorColor = Color(0xFFB0BEC5),
-            focusedContainerColor = Color(0xFFF1F4FF),
-            unfocusedContainerColor = Color(0xFFF1F4FF),
-            focusedTextColor = Color.Black,
-            unfocusedTextColor = Color.Black
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
         )
 
     )
@@ -66,13 +68,14 @@ fun InputTextField(
         label = { Text(label) },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
+        singleLine = true,
         colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Color(0xFF06635A),
-            unfocusedIndicatorColor = Color(0xFFB0BEC5),
-            focusedContainerColor = Color(0xFFF1F4FF),
-            unfocusedContainerColor = Color(0xFFF1F4FF),
-            focusedTextColor = Color.Black,
-            unfocusedTextColor = Color.Black
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
         )
     )
 }

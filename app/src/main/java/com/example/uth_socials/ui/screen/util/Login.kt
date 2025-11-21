@@ -28,9 +28,11 @@ import com.example.uth_socials.ui.component.button.ComfirmAuthButton
 import com.example.uth_socials.ui.component.button.GoogleButton
 import com.example.uth_socials.ui.component.common.InputTextField
 import com.example.uth_socials.ui.component.common.PasswordTextField
+import com.example.uth_socials.ui.component.logo.LogoTopAppBar
 import com.example.uth_socials.ui.screen.util.RequestNotificationPermission
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: AuthViewModel,
@@ -46,119 +48,130 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
 
     RequestNotificationPermission()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(color = Color.White)
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Spacer(modifier = Modifier.height(60.dp))
-
-        // UTH Social Logo
-        Text(
-            text = buildAnnotatedString {
-                withStyle(style = SpanStyle(color = Color(0xFF4DB6AC), fontWeight = FontWeight.Bold, fontSize = 24.sp)) {
-                    append("UTH")
-                }
-                withStyle(style = SpanStyle(color = Color.Red, fontWeight = FontWeight.Bold, fontSize =24.sp)) {
-                    append(" Social")
-                }
-            },
-            modifier = Modifier.align(Alignment.Start)
-        )
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        Text(
-            text = "Đăng nhập",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF06635A)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Chào mừng trở lại UTH",
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray,
-            fontWeight = FontWeight.Bold
-
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        InputTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = "Email"
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        PasswordTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = "Mật khẩu"
-        )
-
-        TextButton(
-            onClick = onResetPasswordClick,
-            modifier = Modifier.align(Alignment.End)
+    Scaffold(
+        topBar = {
+            LogoTopAppBar()
+        },
+    ) { innerpadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerpadding)
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
         ) {
-            Text("Quên mật khẩu rồi?", color = Color(0xFF00897B))
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(60.dp))
 
 
-        ComfirmAuthButton(
-            text = "Đăng nhập",
-            onClick = {
-                if (email.isEmpty() || password.isEmpty()) {
-                    Toast.makeText(context, "Vui lòng nhập email và mật khẩu", Toast.LENGTH_SHORT).show()
-                } else {
-                    viewModel.login(email, password)
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            Text(
+                text = "Đăng nhập",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF06635A)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Chào mừng trở lại UTH",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.Gray,
+                fontWeight = FontWeight.Bold
+
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            InputTextField(
+                value = email,
+                onValueChange = { newEmail ->
+                    email = newEmail.filter{!it.isWhitespace()}
+                },
+                label = "Email",
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            PasswordTextField(
+                value = password,
+                onValueChange = { newPassword ->
+                    password = newPassword.filter{!it.isWhitespace()}
+                },
+                label = "Mật khẩu"
+            )
+
+            TextButton(
+                onClick = onResetPasswordClick,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Quên mật khẩu rồi?", color = Color(0xFF00897B))
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+
+            ComfirmAuthButton(
+                text = "Đăng nhập",
+                onClick = {
+                    if (email.isEmpty() || password.isEmpty()) {
+                        Toast.makeText(
+                            context,
+                            "Vui lòng nhập email và mật khẩu",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        viewModel.login(email, password)
+                    }
                 }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            TextButton(onClick = onRegisterClick) {
+                Text("Tạo tài khoản mới", color = Color.Gray, fontWeight = FontWeight.Bold)
             }
-        )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TextButton(onClick = onRegisterClick) {
-            Text("Tạo tài khoản mới", color = Color.Gray, fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(1f))
 
 
 
-        GoogleButton(
-            onClick=onGoogleLoginClick
-        )
+            GoogleButton(
+                onClick = onGoogleLoginClick
+            )
 
-        Spacer(modifier = Modifier.height(100.dp))
+            Spacer(modifier = Modifier.height(100.dp))
 
-        // ViewModel State Handling
-        when (state) {
-            is AuthState.Loading ->{
-                CircularProgressIndicator(
-                    modifier = Modifier.padding(bottom=50.dp),
-                )
+            // ViewModel State Handling
+            when (state) {
+                is AuthState.Loading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(bottom = 50.dp),
+                    )
+                }
+
+                is AuthState.Success -> {
+                    Toast.makeText(
+                        context,
+                        (state as AuthState.Success).message,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    viewModel.resetState()
+                    onLoginSuccess()
+                }
+
+                is AuthState.Error -> {
+                    Toast.makeText(context, (state as AuthState.Error).message, Toast.LENGTH_SHORT)
+                        .show()
+                    viewModel.resetState()
+                }
+
+                else -> {}
             }
-            is AuthState.Success -> {
-                Toast.makeText(context, (state as AuthState.Success).message, Toast.LENGTH_SHORT).show()
-                viewModel.resetState()
-                onLoginSuccess()
-            }
-            is AuthState.Error -> {
-                Toast.makeText(context, (state as AuthState.Error).message, Toast.LENGTH_SHORT).show()
-                viewModel.resetState()
-            }
-            else -> {}
         }
     }
 }
-

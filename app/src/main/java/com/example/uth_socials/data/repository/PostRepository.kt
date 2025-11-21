@@ -17,6 +17,8 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
 import com.example.uth_socials.data.user.User
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestoreException
 import java.util.UUID
 
 /**
@@ -112,7 +114,7 @@ class PostRepository {
         // Lắng nghe thay đổi thời gian thực
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     Log.w("CategoryRepository", "Permission denied listening to categories. Emitting empty list.")
                     trySend(emptyList()) // Gửi list rỗng thay vì crash
                 } else {
@@ -132,11 +134,7 @@ class PostRepository {
         documents.mapNotNull { doc ->
             try {
                 val post = doc.toObject(Post::class.java)
-                post?.copy(
-                    id = doc.id,
-                    isLiked = currentUserId?.let { post.likedBy.contains(it) } ?: false,
-                    isSaved = currentUserId?.let { post.savedBy.contains(it) } ?: false
-                )
+                post?.enrich(currentUserId)?.copy(id = doc.id)
             } catch (e: Exception) {
                 Log.e("PostRepository", "Error mapping post ${doc.id}", e)
                 null
@@ -251,7 +249,7 @@ class PostRepository {
 
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     Log.w("PostRepository", "Permission denied listening to user posts. Emitting empty list.")
                     trySend(emptyList())
                 } else {
@@ -271,11 +269,8 @@ class PostRepository {
         documents.mapNotNull { doc ->
             try {
                 val post = doc.toObject(Post::class.java)
-                post?.copy(
-                    id = doc.id,
-                    isLiked = currentUserId?.let { post.likedBy.contains(it) } ?: false,
-                    isSaved = currentUserId?.let { post.savedBy.contains(it) } ?: false
-                )
+                post?.enrich(currentUserId)?.copy(id = doc.id)
+
             } catch (e: Exception) {
                 Log.e("PostRepository", "Error mapping post ${doc.id}", e)
                 null
@@ -334,7 +329,7 @@ class PostRepository {
 
             Log.d("PostRepository", "Comment data prepared: $commentData")
 
-            // ✅ BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
+            // BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
             db.runTransaction { transaction ->
                 Log.d("PostRepository", "Starting transaction")
                 transaction.update(postRef, "commentCount", FieldValue.increment(1))
@@ -342,7 +337,7 @@ class PostRepository {
                 Log.d("PostRepository", "Transaction operations set")
             }.await()
 
-            // ✅ BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
+            // BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
             usersCollection.document(currentUserId)
                 .update("lastCommentAt", FieldValue.serverTimestamp())
                 .await()
@@ -600,44 +595,51 @@ class PostRepository {
         }
     }
 
-////    private fun DocumentSnapshot.toPostOrNull(): Post? {
-////        val imageUrls = sanitizeStringList(get("imageUrls"), treatBlankAsEmpty = true)
-////        val likedBy = sanitizeStringList(get("likedBy"))
-////        val savedBy = sanitizeStringList(get("savedBy"))
-////
-////        return Post(
-////            timestamp = getTimestamp("timestamp"),
-////            id = id,
-////            userId = getString("userId") ?: "",
-////            username = getString("username") ?: "",
-////            userAvatarUrl = getString("userAvatarUrl") ?: "",
-////            textContent = getString("textContent") ?: "",
-////            imageUrls = imageUrls,
-////            category = getString("category") ?: "",
-////            likes = getLong("likes")?.toInt() ?: 0,
-////            commentCount = getLong("commentCount")?.toInt() ?: 0,
-////            shareCount = getLong("shareCount")?.toInt() ?: 0,
-////            saveCount = getLong("saveCount")?.toInt() ?: 0,
-////            likedBy = likedBy,
-////            savedBy = savedBy
-////        )
-////    }
-//
-//    private fun Post.enrich(currentUserId: String?): Post {
-//        val liked = currentUserId?.let { likedBy.contains(it) } ?: false
-//        val saved = currentUserId?.let { savedBy.contains(it) } ?: false
-//        return copy(isLiked = liked, isSaved = saved)
-//    }
-//
-//    private fun sanitizeStringList(raw: Any?, treatBlankAsEmpty: Boolean = false): List<String> {
-//        return when (raw) {
-//            is List<*> -> raw.filterIsInstance<String>()
-//            is String -> {
-//                if (treatBlankAsEmpty && raw.isBlank()) emptyList() else listOf(raw)
-//            }
-//            null -> emptyList()
-//            else -> emptyList()
-//        }
-//    }
+    private fun DocumentSnapshot.toPostOrNull(): Post? {
+        val imageUrls = sanitizeStringList(get("imageUrls"), treatBlankAsEmpty = true)
+            .filter { url ->
+                val isValid = url.startsWith("http://") || url.startsWith("https://")
+                if (!isValid && url.isNotEmpty()) {
+                    Log.w("PostRepository", "Filtered invalid imageUrl: $url (Post ID: $id)")
+                }
+                isValid
+            }
+        val likedBy = sanitizeStringList(get("likedBy"))
+        val savedBy = sanitizeStringList(get("savedBy"))
+
+        return Post(
+            timestamp = getTimestamp("timestamp"),
+            id = id,
+            userId = getString("userId") ?: "",
+            username = getString("username") ?: "",
+            userAvatarUrl = getString("userAvatarUrl") ?: "",
+            textContent = getString("textContent") ?: "",
+            imageUrls = imageUrls,
+            category = getString("category") ?: "",
+            likes = getLong("likes")?.toInt() ?: 0,
+            commentCount = getLong("commentCount")?.toInt() ?: 0,
+            shareCount = getLong("shareCount")?.toInt() ?: 0,
+            saveCount = getLong("saveCount")?.toInt() ?: 0,
+            likedBy = likedBy,
+            savedBy = savedBy
+        )
+    }
+
+    private fun Post.enrich(currentUserId: String?): Post {
+        val liked = currentUserId?.let { likedBy.contains(it) } ?: false
+        val saved = currentUserId?.let { savedBy.contains(it) } ?: false
+        return copy(isLiked = liked, isSaved = saved)
+    }
+
+    private fun sanitizeStringList(raw: Any?, treatBlankAsEmpty: Boolean = false): List<String> {
+        return when (raw) {
+            is List<*> -> raw.filterIsInstance<String>()
+            is String -> {
+                if (treatBlankAsEmpty && raw.isBlank()) emptyList() else listOf(raw)
+            }
+            null -> emptyList()
+            else -> emptyList()
+        }
+    }
 }
 

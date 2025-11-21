@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
+import com.example.uth_socials.data.market.Product
 import com.example.uth_socials.data.repository.ChatRepository
+import com.example.uth_socials.data.repository.MarketRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -20,6 +22,7 @@ import com.example.uth_socials.ui.viewmodel.PostReAction
 
 data class ProfileUiState(
     val posts: List<Post> = emptyList(),
+    val products: List<Product> = emptyList(),
     val isOwner: Boolean = false,
     val username: String = "",
     val userAvatarUrl: String? = null,
@@ -30,6 +33,7 @@ data class ProfileUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val postCount: Int = 0,
+    val productCount: Int = 0,
     val currentUserId: String? = null,
     val profileUserId: String = "",
 
@@ -66,7 +70,8 @@ data class ProfileUiState(
 class ProfileViewModel(
     private val userId: String,
     private val userRepository: UserRepository = UserRepository(),
-    private val postRepository: PostRepository = PostRepository()
+    private val postRepository: PostRepository = PostRepository(),
+    private val marketRepository: MarketRepository = MarketRepository(),
 ) : ViewModel() {
     private val chatRepository = ChatRepository()
     private var commentsJob: Job? = null
@@ -77,16 +82,19 @@ class ProfileViewModel(
     private val postReAction = PostReAction(postRepository, viewModelScope)
 
     private var postsJob: Job? = null
+    private var productsJob: Job? = null
 
     init {
         loadData()
     }
 
     private fun loadData() {
+        Log.d("ProfileViewModel", "🏁 Loading profile data for userId: $userId")
         _uiState.update { it.copy() }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val currentUserId = userRepository.getCurrentUserId()
+                Log.d("ProfileViewModel", "👤 Current user ID: $currentUserId, Profile user ID: $userId")
 
                 // ✅ Kiểm tra xem user đã bị block chưa
                 val isBlocked = if (currentUserId != null) {
@@ -128,8 +136,9 @@ class ProfileViewModel(
                         )
                     }
 
-                    // Thiết lập real-time listener cho posts
+                    // Thiết lập real-time listener cho posts và products
                     listenToUserPosts()
+                    listenToUserProducts()
                 } else {
                     _uiState.update {
                         it.copy(
@@ -155,6 +164,25 @@ class ProfileViewModel(
                         isLoading = false,
                         postCount = posts.size,
                         error = null
+                    )
+                }
+            }
+        }
+    }
+
+    private fun listenToUserProducts() {
+        productsJob?.cancel()
+        Log.d("ProfileViewModel", "🔍 Listening to products for userId: $userId")
+        productsJob = viewModelScope.launch(Dispatchers.IO) {
+            marketRepository.getProductsForUserFlow(userId).collect { products ->
+                Log.d("ProfileViewModel", "📦 Found ${products.size} products for user $userId")
+                products.forEach { product ->
+                    Log.d("ProfileViewModel", "   Product: ${product.name} (userId: ${product.userId})")
+                }
+                _uiState.update {
+                    it.copy(
+                        products = products,
+                        productCount = products.size
                     )
                 }
             }
@@ -611,6 +639,7 @@ class ProfileViewModel(
     override fun onCleared() {
         super.onCleared()
         postsJob?.cancel()
+        productsJob?.cancel()
         commentsJob?.cancel()
     }
 }
