@@ -58,6 +58,7 @@ import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.screen.saved.SavedPostsScreen
 import com.example.uth_socials.ui.screen.saved.SavedPostDetail
+import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
 @Composable
 fun AppNavGraph(
@@ -318,21 +319,26 @@ fun MainScreen(rootNavController: NavHostController) {
                 }
             ) { backStackEntry ->
                 val productId = backStackEntry.arguments?.getString("productId")
+                val marketViewModel: MarketViewModel = viewModel()
                 ProductDetailScreen(
                     productId = productId,
                     onBack = { navController.popBackStack() },
                     onShare = { /* TODO: Implement share functionality */ },
-                    onCall = { /* TODO: Implement call functionality */ },
-                    onMessage = { /* TODO: Implement message functionality */ }
+                    onCall = { },
+                    onMessage = { sellerId ->
+                        marketViewModel.openChatWithSeller(sellerId) { chatId ->
+                            navController.navigate(Screen.ChatDetail.createRoute(chatId))
+                        }
+                    }
                 )
             }
             //Market
-            composable(Screen.Market.route) { MarketScreen(
-                navController = navController,
-                onProductClick = { productId ->
-                    navController.navigate(Screen.ProductDetail.createRoute(productId))
-                }
-            ) }
+//            composable(Screen.Market.route) { MarketScreen(
+//                navController = navController,
+//                onProductClick = { productId ->
+//                    navController.navigate(Screen.ProductDetail.createRoute(productId))
+//                }
+//            ) }
             composable(Screen.Add.route) {
                 val postViewModel : PostViewModel = viewModel()
                 val productViewModel : ProductViewModel = viewModel()
