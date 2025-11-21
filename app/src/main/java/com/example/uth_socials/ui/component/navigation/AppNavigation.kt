@@ -62,6 +62,10 @@ import com.example.uth_socials.ui.screen.setting.BlockedUsersScreen
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.screen.saved.SavedPostsScreen
 import com.example.uth_socials.ui.screen.saved.SavedPostDetail
+import com.example.uth_socials.ui.screen.setting.FollowListScreen
+import com.example.uth_socials.ui.viewmodel.FollowListType
+import com.example.uth_socials.ui.viewmodel.FollowListViewModel
+import com.example.uth_socials.ui.viewmodel.FollowListViewModelFactory
 import com.example.uth_socials.ui.screen.util.HelloUserScreen
 import com.example.uth_socials.ui.screen.util.WelcomeScreen
 
@@ -480,6 +484,9 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                 ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
             }
             composable(Screen.Setting.route) {
+                val currentUserId = remember {
+                    FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                }
                 UserSettingScreen(
                     authViewModel=authViewModel,
                     onBackClicked = { navController.popBackStack() },
@@ -499,6 +506,18 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     onNavigateToSavedPosts = {
                         navController.navigate(Screen.SavedPosts.route)
                     },
+                    //Navigation đến Followers
+                    onNavigateToFollowers = {
+                        navController.navigate(Screen.FollowersList.createRoute(currentUserId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                    //Navigation đến Following
+                    onNavigateToFollowing = {
+                        navController.navigate(Screen.FollowingList.createRoute(currentUserId)) {
+                            launchSingleTop = true
+                        }
+                    },
                     onLogout = onLogout
                 )
             }
@@ -516,6 +535,55 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     onBackClicked = { navController.popBackStack() },
                     onUserUnblocked = {
                         homeViewModel.refreshBlockedUsers()
+                    }
+                )
+            }
+            // Màn hình Followers List
+            composable(
+                route = Screen.FollowersList.route,
+                arguments = listOf(
+                    navArgument("userId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                val factory = FollowListViewModelFactory(userId, FollowListType.FOLLOWERS)
+                val viewModel: FollowListViewModel = viewModel(
+                    key = "followers-$userId",
+                    factory = factory
+                )
+
+                FollowListScreen(
+                    viewModel = viewModel,
+                    onBackClicked = { navController.popBackStack() },
+                    onUserClicked = { clickedUserId ->
+                        navController.navigate(Screen.Profile.createRoute(clickedUserId)) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+
+            // Màn hình Following List
+            composable(
+                route = Screen.FollowingList.route,
+                arguments = listOf(
+                    navArgument("userId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                val factory = FollowListViewModelFactory(userId, FollowListType.FOLLOWING)
+                val viewModel: FollowListViewModel = viewModel(
+                    key = "following-$userId",
+                    factory = factory
+                )
+
+                FollowListScreen(
+                    viewModel = viewModel,
+                    onBackClicked = { navController.popBackStack() },
+                    onUserClicked = { clickedUserId ->
+                        navController.navigate(Screen.Profile.createRoute(clickedUserId)) {
+                            launchSingleTop = true
+                        }
                     }
                 )
             }

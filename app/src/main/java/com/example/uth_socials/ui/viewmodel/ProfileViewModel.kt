@@ -7,7 +7,7 @@ import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.market.Product
 import com.example.uth_socials.data.repository.ChatRepository
-import com.example.uth_socials.data.repository.ProductRepository
+import com.example.uth_socials.data.repository.MarketRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -71,7 +71,7 @@ class ProfileViewModel(
     private val userId: String,
     private val userRepository: UserRepository = UserRepository(),
     private val postRepository: PostRepository = PostRepository(),
-    private val productRepository: ProductRepository = ProductRepository()
+    private val marketRepository: MarketRepository = MarketRepository(),
 ) : ViewModel() {
     private val chatRepository = ChatRepository()
     private var commentsJob: Job? = null
@@ -174,7 +174,7 @@ class ProfileViewModel(
         productsJob?.cancel()
         Log.d("ProfileViewModel", "🔍 Listening to products for userId: $userId")
         productsJob = viewModelScope.launch(Dispatchers.IO) {
-            productRepository.getProductsForUserFlow(userId).collect { products ->
+            marketRepository.getProductsForUserFlow(userId).collect { products ->
                 Log.d("ProfileViewModel", "📦 Found ${products.size} products for user $userId")
                 products.forEach { product ->
                     Log.d("ProfileViewModel", "   Product: ${product.name} (userId: ${product.userId})")

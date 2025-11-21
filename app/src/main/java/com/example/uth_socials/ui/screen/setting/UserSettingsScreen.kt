@@ -47,6 +47,8 @@ fun UserSettingScreen(
     onNavigateToUserInfo: () -> Unit,
     onNavigateToBlockedUsers: () -> Unit,
     onNavigateToSavedPosts: () -> Unit,
+    onNavigateToFollowers: () -> Unit,
+    onNavigateToFollowing: () -> Unit,
     onLogout: () -> Unit
 ) {
 
@@ -172,9 +174,14 @@ fun UserSettingScreen(
                 )
             }
             SettingsItem(
+                icon = Icons.Default.PeopleOutline,
+                title = "Danh sách người theo dõi",
+                onClick = onNavigateToFollowing
+            )
+            SettingsItem(
                 icon = Icons.Default.People,
                 title = "Danh sách người theo dõi bạn",
-                onClick = { /* TODO */ }
+                onClick = onNavigateToFollowers
             )
             SettingsItem(
                 icon = Icons.Default.Block,

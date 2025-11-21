@@ -35,7 +35,7 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.R
 import com.example.uth_socials.data.market.Product
 import com.example.uth_socials.data.user.User
-import com.example.uth_socials.ui.viewmodel.ProductViewModel2
+import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
 @Composable
 fun ProductDetailScreen(
@@ -44,7 +44,7 @@ fun ProductDetailScreen(
     onShare: () -> Unit = {},
     onCall: () -> Unit = {},
     onMessage: () -> Unit = {},
-    viewModel: ProductViewModel2 = viewModel(),
+    viewModel: MarketViewModel = viewModel(),
 ) {
     //Load san pham theo id
     LaunchedEffect(productId) {
@@ -99,7 +99,7 @@ fun ProductDetailContent(
     onShare: () -> Unit = {},
     onCall: () -> Unit = {},
     onMessage: () -> Unit = {},
-    viewModel: ProductViewModel2
+    viewModel: MarketViewModel
 ) {
     Box(
         modifier = Modifier
