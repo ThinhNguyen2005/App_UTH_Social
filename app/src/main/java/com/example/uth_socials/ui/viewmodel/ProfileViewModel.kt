@@ -71,7 +71,7 @@ class ProfileViewModel(
     private val userId: String,
     private val userRepository: UserRepository = UserRepository(),
     private val postRepository: PostRepository = PostRepository(),
-    private val marketRepository: MarketRepository = MarketRepository()
+    private val marketRepository: MarketRepository = MarketRepository(),
 ) : ViewModel() {
     private val chatRepository = ChatRepository()
     private var commentsJob: Job? = null
