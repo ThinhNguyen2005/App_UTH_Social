@@ -46,8 +46,7 @@ data class HomeUiState(
     val reportReason: String = "",
     val reportDescription: String = "",
     val isReporting: Boolean = false,
-    val reportErrorMessage: String? = null,  // 🔸 Thêm error message cho report
-    // ✅ Sử dụng DialogType thay vì các boolean flags riêng lẻ
+    val reportErrorMessage: String? = null,
     val dialogType: DialogType = DialogType.None,
     val isProcessing: Boolean = false,
     val currentUserId: String? = null,
@@ -57,6 +56,7 @@ data class HomeUiState(
     // 🔸 Admin state
     val isCurrentUserAdmin: Boolean = false,
     val currentUserRole: String? = null,
+    val adminStatusMap: Map<String, Boolean> = emptyMap(),
     // 🔸 Generic confirmation dialog
     val showGenericDialog: Boolean = false,
     val genericDialogAction: (() -> Unit)? = null,
@@ -120,7 +120,7 @@ class HomeViewModel(
                 currentUserRole = null,
                 isUserBanned = false,
                 hiddenPostIds = emptySet(),
-                blockedUserIds = emptySet(), // ✅ Clear blocked users on logout
+                blockedUserIds = emptySet(),
                 posts = it.posts.map { post ->
                     post.copy(isLiked = false, isSaved = false)
                 }
@@ -134,9 +134,9 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             loadCategoriesAndInitialPosts()
             loadHiddenPosts()
-            loadBlockedUsers() // ✅ Load blocked users
+            loadBlockedUsers()
             loadBanStatus()
-            checkAccout() // Kiểm tra admin
+            checkAccout()
         }
     }
 
@@ -168,10 +168,8 @@ class HomeViewModel(
         categoriesJob = viewModelScope.launch(Dispatchers.IO) {
             categoryRepository.getCategoriesFlow().collect { categories ->
                 if (categories.isEmpty()) {
-                    // Nếu chưa có categories, thử tạo mặc định
                     categoriesIfNeeded()
                 } else {
-                    // Cập nhật categories và chọn category đầu tiên nếu chưa có selectedCategory
                     _uiState.update { currentState ->
                         val newSelectedCategory = currentState.selectedCategory
                             ?: categories.firstOrNull()
@@ -290,15 +288,10 @@ class HomeViewModel(
 
     private var postsJob: Job? = null
 
-    /**
-     * ✅ OPTIMIZED: Incremental updates - chỉ update posts thay đổi thay vì replace toàn bộ
-     * Giúp Compose chỉ recompose items thay đổi, giảm overhead đáng kể
-     */
     private fun listenToPostChanges(categoryId: String) {
         postsJob?.cancel()
         postsJob = viewModelScope.launch(Dispatchers.IO) {
             postRepository.getPostsFlow(categoryId).collect { newPosts ->
-                // ✅ INCREMENTAL UPDATE: Merge updates thay vì replace
                 val currentPosts = _uiState.value.posts
                 
                 // Tạo map để quick lookup
@@ -322,6 +315,52 @@ class HomeViewModel(
                         isLoading = false
                     ) 
                 }
+                
+                loadAdminStatusForPosts(mergedPosts)
+            }
+        }
+    }
+
+    private fun loadAdminStatusForPosts(posts: List<Post>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Extract unique user IDs from posts
+                val uniqueUserIds = posts.map { it.userId }.distinct()
+                
+                // Get current admin status map to avoid reloading
+                val currentAdminMap = _uiState.value.adminStatusMap
+                
+                // Find user IDs that need to be checked (not in cache)
+                val userIdsToCheck = uniqueUserIds.filter { userId ->
+                    userId.isNotBlank() && !currentAdminMap.containsKey(userId)
+                }
+                
+                if (userIdsToCheck.isEmpty()) {
+                    return@launch // All admin statuses already cached
+                }
+                
+                // Batch load admin status for all users
+                val newAdminMap = mutableMapOf<String, Boolean>()
+                userIdsToCheck.forEach { userId ->
+                    try {
+                        val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(userId)
+                        newAdminMap[userId] = isAdmin
+                    } catch (e: Exception) {
+                        Log.e("HomeViewModel", "Error loading admin status for $userId", e)
+                        newAdminMap[userId] = false
+                    }
+                }
+                
+                // Merge with existing map
+                val updatedAdminMap = currentAdminMap + newAdminMap
+                
+                _uiState.update { 
+                    it.copy(adminStatusMap = updatedAdminMap)
+                }
+                
+                Log.d("HomeViewModel", "Loaded admin status for ${newAdminMap.size} users")
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading admin status for posts", e)
             }
         }
     }
@@ -562,7 +601,6 @@ class HomeViewModel(
             try {
                 val success = postRepository.hidePost(postId)
                 if (success) {
-                    // Cập nhật UI: thêm postId vào hiddenPostIds
                     _uiState.update {
                         it.copy(hiddenPostIds = it.hiddenPostIds + postId)
                     }
@@ -929,56 +967,11 @@ class HomeViewModel(
         postsJob = null
         clearCache()
         
-        // ✅ OPTIMIZATION: Clear cache trong repository
         postRepository.clearCache()
         
         // Reset state
         _uiState.update { HomeUiState() }
 
         Log.d("HomeViewModel", "Cleanup completed")
-    }
-    
-    // ✅ OPTIMIZATION: Flag để tránh load nhiều lần cùng lúc
-    private var isLoadingMore = false
-    
-    /**
-     * ✅ OPTIMIZATION: Load more posts (pagination)
-     * Gọi khi user scroll đến cuối danh sách
-     */
-    fun loadMorePosts() {
-        // Tránh load nhiều lần cùng lúc
-        if (isLoadingMore) return
-        
-        val currentState = _uiState.value
-        val currentPosts = currentState.posts
-        
-        // Không load nếu đang loading hoặc không có posts
-        if (currentPosts.isEmpty() || currentState.isLoading) return
-        
-        val lastPost = currentPosts.lastOrNull() ?: return
-        val lastTimestamp = lastPost.timestamp ?: return
-        
-        isLoadingMore = true
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val categoryId = currentState.selectedCategory?.id ?: "all"
-                val morePosts = postRepository.loadMorePosts(categoryId, lastTimestamp)
-                
-                if (morePosts.isNotEmpty()) {
-                    // Merge với posts hiện tại, tránh duplicate
-                    val existingIds: Set<String> = currentPosts.map { it.id }.toSet()
-                    val newPosts: List<Post> = morePosts.filter { post -> post.id !in existingIds }
-                    
-                    val updatedPosts: List<Post> = currentPosts + newPosts
-                    _uiState.update { 
-                        it.copy(posts = updatedPosts) 
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error loading more posts", e)
-            } finally {
-                isLoadingMore = false
-            }
-        }
     }
 }

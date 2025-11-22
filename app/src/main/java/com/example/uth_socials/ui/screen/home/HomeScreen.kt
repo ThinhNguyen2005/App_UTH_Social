@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -34,16 +35,13 @@ import com.example.uth_socials.ui.component.common.EditPostDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import com.example.uth_socials.ui.viewmodel.DialogType
-import com.example.uth_socials.data.util.SecurityValidator
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.FlowPreview
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun HomeScreen(
     onNavigateToProfile: (String) -> Unit = {},
     onLogout: () -> Unit,
-    onScrollStateChanged: (isScrollingUp: Boolean, isAtTop: Boolean) -> Unit = { _, _ -> },
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     val homeViewModel: HomeViewModel = viewModel()
@@ -52,12 +50,10 @@ fun HomeScreen(
     val banStatus by banStatusViewModel.banStatus.collectAsState()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Scroll state management for top/bottom bar visibility
     val lazyListState = rememberLazyListState()
-    var lastScrollPosition by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         homeViewModel.refreshBlockedUsers()
     }
@@ -101,36 +97,7 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(lazyListState) {
-        snapshotFlow {
-            lazyListState.firstVisibleItemIndex * 1000 + lazyListState.firstVisibleItemScrollOffset
-        }
-            .distinctUntilChanged() // Chỉ emit khi giá trị thực sự thay đổi
-            .collect { currentScrollPosition ->
-                val isScrollingUp = currentScrollPosition < lastScrollPosition
-                val isAtTop = currentScrollPosition <= 0
-
-                onScrollStateChanged(isScrollingUp, isAtTop)
-                lastScrollPosition = currentScrollPosition
-            }
-    }
-    
-    LaunchedEffect(lazyListState) {
-        snapshotFlow {
-            val layoutInfo = lazyListState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            
-            // Load more khi còn 3 items nữa là đến cuối
-            totalItems > 0 && lastVisibleItem >= totalItems - 3
-        }
-            .distinctUntilChanged()
-            .collect { shouldLoadMore ->
-                if (shouldLoadMore && !uiState.isLoading) {
-                    homeViewModel.loadMorePosts()
-                }
-            }
-    }
+    var isScrolling by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize()) {
         // Tabs lọc danh mục
         FilterTabs(
@@ -205,8 +172,8 @@ fun HomeScreen(
                 }
 
                 else -> {
-                    val filteredPosts =
-                        remember(uiState.posts, uiState.hiddenPostIds, uiState.blockedUserIds) {
+                    val filteredPosts by remember {
+                        derivedStateOf {
                             uiState.posts.filter { post ->
                                 // Loại bỏ hidden posts
                                 post.id !in uiState.hiddenPostIds &&
@@ -214,6 +181,7 @@ fun HomeScreen(
                                         post.userId !in uiState.blockedUserIds
                             }
                         }
+                    }
 
                     if (filteredPosts.isEmpty()) {
                         // 🔸 Empty state - không có posts trong category này
@@ -259,24 +227,7 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp)
                         ) {
                             items(filteredPosts, key = { it.id }) { post ->
-                                // check admin cho từng post owner
-
-                                LaunchedEffect(post.userId) {
-                                    if (adminStatusCache[post.userId] == null) {
-                                        try {
-                                            val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(
-                                                post.userId
-                                            )
-                                            adminStatusCache[post.userId] = isAdmin
-                                        } catch (e: CancellationException) {
-                                            throw e
-                                        } catch (_: Exception) {
-                                            adminStatusCache[post.userId] = false
-                                        }
-                                    } else {
-                                        adminStatusCache[post.userId] ?: false
-                                    }
-                                }
+                                val isPostOwnerAdmin = uiState.adminStatusMap[post.userId] ?: false
 
                                 PostCard(
                                     post = post,
@@ -293,7 +244,9 @@ fun HomeScreen(
                                     onEditClicked = { homeViewModel.onEditPostClicked(post.id) },
                                     currentUserId = uiState.currentUserId,
                                     isCurrentUserAdmin = uiState.isCurrentUserAdmin,
-                                    isUserBanned = uiState.isUserBanned
+                                    isUserBanned = uiState.isUserBanned,
+                                    isPostOwnerAdmin = isPostOwnerAdmin,
+                                    isScrolling = isScrolling
                                 )
                             }
                         }
