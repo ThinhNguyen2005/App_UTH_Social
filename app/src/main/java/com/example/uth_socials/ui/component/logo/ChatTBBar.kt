@@ -28,7 +28,8 @@ import androidx.compose.ui.unit.sp
 fun ChatBottomBar(
     text: String,
     onTextChange: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
 
@@ -36,11 +37,7 @@ fun ChatBottomBar(
         color = surfaceColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        // 👇 Tắt mọi insets tự động như TopAppBar
-        modifier = Modifier
-            .fillMaxWidth()
-            .consumeWindowInsets(WindowInsets.ime) // "ăn" inset của bàn phím để Scaffold không xử lý trùng
-            .imePadding()
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier

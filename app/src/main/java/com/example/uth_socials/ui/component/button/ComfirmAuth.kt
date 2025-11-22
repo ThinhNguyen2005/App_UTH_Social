@@ -2,28 +2,26 @@ package com.example.uth_socials.ui.component.button
 
 
 
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.*
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.unit.*
+
 
 @Composable
 fun ComfirmAuthButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     enabled: Boolean = true
 ) {
     Button(
         onClick = onClick,
-        enabled = enabled,
+        enabled = enabled && !isLoading,
         modifier = modifier
             .fillMaxWidth()
             .height(50.dp),
@@ -34,10 +32,18 @@ fun ComfirmAuthButton(
         ),
         elevation = ButtonDefaults.elevatedButtonElevation(4.dp)
     ) {
-        Text(
-            text = text,
-            fontSize = 18.sp,
-            color = Color.White
-        )
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp,
+                color = Color.White
+            )
+        } else {
+            Text(
+                text = text,
+                fontSize = 18.sp,
+                color = Color.White
+            )
+        }
     }
 }

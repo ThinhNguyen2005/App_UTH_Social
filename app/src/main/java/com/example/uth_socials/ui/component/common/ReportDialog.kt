@@ -114,10 +114,10 @@ fun ReportDialog(
                 if (isReporting) {
                     CircularProgressIndicator(
                         modifier = Modifier
-                            .size(20.dp)
-                            .padding(end = 8.dp),
+                            .size(20.dp),
                         strokeWidth = 2.dp
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text("Gửi báo cáo")
             }

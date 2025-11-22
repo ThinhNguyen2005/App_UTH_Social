@@ -17,9 +17,9 @@ fun RequestNotificationPermission() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            println("✅ Quyền thông báo được cấp")
+            println("Quyền thông báo được cấp")
         } else {
-            println("❌ Người dùng từ chối quyền thông báo")
+            println("Người dùng từ chối quyền thông báo")
         }
     }
 

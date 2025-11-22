@@ -38,6 +38,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
 import com.example.uth_socials.ui.component.common.PageIndicator
+import com.example.uth_socials.ui.component.logo.Logo
 
 
 val UthTeal = Color(0xFF008080)
@@ -183,19 +184,7 @@ fun OnboardingLandscapeLayout(
 }
 // --- CÁC COMPOSABLE PHỤ TRỢ ---
 
-@Composable
-fun Logo() {
-    Text(
-        buildAnnotatedString {
-            withStyle(style = SpanStyle(color = UthTeal, fontSize = 36.sp, fontWeight = FontWeight.Bold)) {
-                append("UTH")
-            }
-            withStyle(style = SpanStyle(color = UthRed, fontSize = 36.sp, fontWeight = FontWeight.Bold)) {
-                append(" Social")
-            }
-        }
-    )
-}
+
 
 
 @Composable

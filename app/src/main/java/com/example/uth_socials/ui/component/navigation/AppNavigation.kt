@@ -29,7 +29,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.uth_socials.LoginScreen
+import com.example.uth_socials.ui.screen.util.LoginScreen
 import com.example.uth_socials.ui.component.logo.HomeTopAppBar
 import com.example.uth_socials.ui.component.logo.LogoTopAppBar
 import com.example.uth_socials.ui.screen.util.RegisterScreen
@@ -144,7 +144,7 @@ fun NavGraphBuilder.authNavGraph(
         composable(Screen.AuthScreen.Register.route) {
             RegisterScreen(
                 viewModel = viewModel,
-                onBackToLogin = { navController.popBackStack() },
+                onBackToLogin = { navController.navigate(Screen.AuthScreen.Login.route) },
                 onGoogleClick = {
                     viewModel.loginWithGoogle(activity = navController.context as Activity) {
                         launcher.launch(it)
@@ -199,15 +199,22 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
     }
 
 
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    
     val showBottomBar = when (currentRoute) {
         Screen.Home.route,
         Screen.Market.route,
         Screen.Add.route,
-        Screen.Notifications.route,
-        Screen.Profile.route -> true
-        //true là gì, là sẽ show là bottomBar fasle ngược lại khỏi
-        // Nói chung là đừng đụng vào
-        else -> false
+        Screen.Notifications.route -> true
+        // Profile: chỉ hiện bottom bar khi xem profile của chính mình
+        else -> {
+            if (currentRoute?.startsWith("profile/") == true) {
+                val profileUserId = navBackStackEntry?.arguments?.getString("userId")
+                profileUserId == currentUserId
+            } else {
+                false
+            }
+        }
     }
 
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -293,6 +300,7 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     onNavigateToProfile = { userId ->
                         navController.navigate(Screen.Profile.createRoute(userId)) {
                             launchSingleTop = true
+                            restoreState = true
                         }
                     },
                     onLogout = onLogout,
@@ -355,13 +363,6 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     }
                 )
             }
-            //Market
-//            composable(Screen.Market.route) { MarketScreen(
-//                navController = navController,
-//                onProductClick = { productId ->
-//                    navController.navigate(Screen.ProductDetail.createRoute(productId))
-//                }
-//            ) }
             composable(Screen.Add.route) {
                 val postViewModel : PostViewModel = viewModel()
                 val productViewModel : ProductViewModel = viewModel()

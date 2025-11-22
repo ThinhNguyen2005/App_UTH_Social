@@ -1,5 +1,7 @@
 package com.example.uth_socials.ui.component.button
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,48 +11,45 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Màu sắc có thể được định nghĩa ở đây hoặc trong file Theme
 
 @Composable
 fun PrimaryButton(
-    buttonColor : ButtonColors,
+    buttonColor: ButtonColors,
     text: String,
-    textColor : Color,
+    textColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        // Modifier này làm cho nút trở nên "responsive"
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .height(50.dp),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-        colors = buttonColor
+            .shadow(
+                elevation = 10.dp,               // độ nổi
+                shape = RoundedCornerShape(12.dp),
+                ambientColor = Color(0x55000000), // bóng nhẹ
+                spotColor = Color(0x55000000)
+            )
     ) {
-        Text(
-            text = text,
-            fontSize = 18.sp,
-            color = textColor
-        )
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = buttonColor,
+            elevation = ButtonDefaults.buttonElevation(0.dp) // bỏ elevation mặc định
+        ) {
+            Text(
+                text = text,
+                fontSize = 18.sp,
+                color = textColor
+            )
+        }
     }
 }
-
-//@Preview(showBackground = true, widthDp = 320)
-//@Composable
-//fun PrimaryButtonPreview() {
-//    PrimaryButton(text = "Bắt đầu", onClick = {})
-//}
-//
-//@Preview(showBackground = true, widthDp = 320)
-//@Composable
-//fun PrimaryButtonDisabledPreview() {
-//    PrimaryButton(text = "Đang tải...", onClick = {}, enabled = false)
-//}
