@@ -13,13 +13,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
 import com.example.uth_socials.data.user.User
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestoreException
+import kotlinx.coroutines.FlowPreview
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.delay
 
 /**
  * PostRepository - Quản lý tất cả thao tác với dữ liệu bài viết (Posts)
@@ -40,6 +44,16 @@ class PostRepository {
     private val postsCollection = db.collection("posts")
     private val reportsCollection = db.collection("reports")
     private val usersCollection = db.collection("users")
+    
+    // ✅ OPTIMIZATION: Cache enriched posts để tránh enrich lại
+    private val enrichedPostsCache = ConcurrentHashMap<String, Post>()
+    
+    companion object {
+        // ✅ OPTIMIZATION: Pagination limit - chỉ load 20 posts đầu tiên
+        private const val POSTS_LIMIT = 20
+        // ✅ OPTIMIZATION: Debounce time để gom nhiều updates (ms)
+        private const val DEBOUNCE_TIME_MS = 300L
+    }
 
     suspend fun uploadPost(
         user : User?, content: String, category: String?, imageUrl : List<String>
@@ -72,41 +86,53 @@ class PostRepository {
 
     /**
      * Lấy danh sách bài viết theo thời gian thực với filtering theo category
+     * 
+     * ✅ OPTIMIZED với:
+     * - Pagination: Chỉ load 20 posts đầu tiên
+     * - Debounce: Gom nhiều updates trong 300ms
+     * - Cache: Tránh enrich lại posts không thay đổi
      *
      * @param categoryId ID của category muốn filter ("all", "latest", hoặc category cụ thể)
      * @return Flow<List<Post>> - Stream dữ liệu real-time
      *
      * Logic:
-     * - Tạo query Firestore dựa trên categoryId
+     * - Tạo query Firestore dựa trên categoryId với limit
      * - Sử dụng callbackFlow để tạo Flow từ SnapshotListener
+     * - Debounce để giảm số lần emit
      * - Process documents trên background thread
-     * - Enrich posts với thông tin user (liked/saved status)
+     * - Enrich posts với thông tin user (liked/saved status) với cache
      *
      * Categories:
      * - "all": Tất cả bài viết
      * - "latest": Bài viết mới nhất (giống "all")
      * - category cụ thể: Chỉ bài viết trong category đó
      */
+    @OptIn(FlowPreview::class)
     fun getPostsFlow(categoryId: String): Flow<List<Post>> = callbackFlow {
-        // --- Category filtering logic (Category Optional) ---
+        // --- Category filtering logic với PAGINATION ---
         val query = when (categoryId) {
             // "all" - show ALL posts (with or without category)
             "all" -> postsCollection
                 .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
 
             // "latest" - show latest posts (same as "all")
             "latest" -> postsCollection
                 .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
 
             // Specific category - only posts with this category
             else -> {
                 if (categoryId.isBlank()) {
                     Log.w("PostRepository", "Empty categoryId provided, showing all posts")
-                    postsCollection.orderBy("timestamp", Query.Direction.DESCENDING)
+                    postsCollection
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
                 } else {
                     postsCollection
                         .whereEqualTo("category", categoryId)
                         .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
                 }
             }
         }
@@ -129,18 +155,41 @@ class PostRepository {
         }
 
         awaitClose { listener.remove() }
-    }.map { documents ->
-        val currentUserId = auth.currentUser?.uid
-        documents.mapNotNull { doc ->
-            try {
-                val post = doc.toObject(Post::class.java)
-                post?.enrich(currentUserId)?.copy(id = doc.id)
-            } catch (e: Exception) {
-                Log.e("PostRepository", "Error mapping post ${doc.id}", e)
-                null
+    }
+        .debounce(DEBOUNCE_TIME_MS) // ✅ DEBOUNCE: Gom nhiều updates trong 300ms
+        .map { documents ->
+            val currentUserId = auth.currentUser?.uid
+            documents.mapNotNull { doc ->
+                try {
+                    val postId = doc.id
+                    val rawPost = doc.toObject(Post::class.java)
+                    
+                    if (rawPost != null) {
+                        // ✅ CACHE CHECK: Chỉ enrich nếu chưa có hoặc có thay đổi
+                        val cachedPost = enrichedPostsCache[postId]
+                        val shouldReEnrich = cachedPost == null || 
+                            cachedPost.timestamp != rawPost.timestamp ||
+                            cachedPost.likes != rawPost.likes ||
+                            cachedPost.saveCount != rawPost.saveCount ||
+                            cachedPost.commentCount != rawPost.commentCount
+                        
+                        if (shouldReEnrich) {
+                            val enriched = rawPost.enrich(currentUserId)?.copy(id = postId)
+                            enriched?.let { enrichedPostsCache[postId] = it }
+                            enriched
+                        } else {
+                            cachedPost // ✅ Sử dụng cache
+                        }
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    Log.e("PostRepository", "Error mapping post ${doc.id}", e)
+                    null
+                }
             }
         }
-    }.flowOn(Dispatchers.IO)
+        .flowOn(Dispatchers.IO)
 
     // ==========================================
     // POST INTERACTION FUNCTIONS (Tương tác bài viết)
@@ -181,6 +230,9 @@ class PostRepository {
                 "likedBy", FieldValue.arrayUnion(currentUserId)
             ).await()
         }
+        
+        // ✅ OPTIMIZATION: Invalidate cache cho post này
+        enrichedPostsCache.remove(postId)
     }
 
     /**
@@ -218,6 +270,9 @@ class PostRepository {
                 "saveCount", FieldValue.increment(1)
             ).await()
         }
+        
+        // ✅ OPTIMIZATION: Invalidate cache cho post này
+        enrichedPostsCache.remove(postId)
     }
 
 
@@ -640,6 +695,91 @@ class PostRepository {
             null -> emptyList()
             else -> emptyList()
         }
+    }
+    
+    /**
+     * ✅ OPTIMIZATION: Load more posts (pagination)
+     * Sử dụng để load thêm posts khi user scroll xuống cuối
+     * 
+     * @param categoryId ID của category
+     * @param lastTimestamp Timestamp của post cuối cùng để làm cursor
+     * @param limit Số posts muốn load (mặc định 20)
+     * @return List<Post> - Danh sách posts mới
+     */
+    suspend fun loadMorePosts(
+        categoryId: String,
+        lastTimestamp: com.google.firebase.Timestamp?,
+        limit: Int = POSTS_LIMIT
+    ): List<Post> {
+        val query = when (categoryId) {
+            "all", "latest" -> {
+                if (lastTimestamp != null) {
+                    postsCollection
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .startAfter(lastTimestamp)
+                        .limit(limit.toLong())
+                } else {
+                    postsCollection
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .limit(limit.toLong())
+                }
+            }
+            else -> {
+                if (lastTimestamp != null) {
+                    postsCollection
+                        .whereEqualTo("category", categoryId)
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .startAfter(lastTimestamp)
+                        .limit(limit.toLong())
+                } else {
+                    postsCollection
+                        .whereEqualTo("category", categoryId)
+                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .limit(limit.toLong())
+                }
+            }
+        }
+        
+        val snapshot = query.get().await()
+        val currentUserId = auth.currentUser?.uid
+        
+        return snapshot.documents.mapNotNull { doc ->
+            try {
+                val postId = doc.id
+                val rawPost = doc.toObject(Post::class.java)
+                
+                if (rawPost != null) {
+                    // Check cache trước
+                    val cachedPost = enrichedPostsCache[postId]
+                    val shouldReEnrich = cachedPost == null || 
+                        cachedPost.timestamp != rawPost.timestamp ||
+                        cachedPost.likes != rawPost.likes ||
+                        cachedPost.saveCount != rawPost.saveCount ||
+                        cachedPost.commentCount != rawPost.commentCount
+                    
+                    if (shouldReEnrich) {
+                        val enriched = rawPost.enrich(currentUserId)?.copy(id = postId)
+                        enriched?.let { enrichedPostsCache[postId] = it }
+                        enriched
+                    } else {
+                        cachedPost
+                    }
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("PostRepository", "Error mapping post ${doc.id}", e)
+                null
+            }
+        }
+    }
+    
+    /**
+     * ✅ OPTIMIZATION: Clear cache khi cần (ví dụ: logout, refresh)
+     */
+    fun clearCache() {
+        enrichedPostsCache.clear()
+        Log.d("PostRepository", "Cache cleared")
     }
 }
 
