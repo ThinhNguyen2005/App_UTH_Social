@@ -23,7 +23,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.FlowPreview
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import kotlinx.coroutines.delay
+import com.example.uth_socials.data.util.FirestoreConstants
 
 /**
  * PostRepository - Quản lý tất cả thao tác với dữ liệu bài viết (Posts)
@@ -41,9 +41,9 @@ import kotlinx.coroutines.delay
 class PostRepository {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    private val postsCollection = db.collection("posts")
-    private val reportsCollection = db.collection("reports")
-    private val usersCollection = db.collection("users")
+    private val postsCollection = db.collection(FirestoreConstants.POSTS_COLLECTION)
+    private val reportsCollection = db.collection(FirestoreConstants.REPORTS_COLLECTION)
+    private val usersCollection = db.collection(FirestoreConstants.USERS_COLLECTION)
     
     // ✅ OPTIMIZATION: Cache enriched posts để tránh enrich lại
     private val enrichedPostsCache = ConcurrentHashMap<String, Post>()
@@ -113,12 +113,12 @@ class PostRepository {
         val query = when (categoryId) {
             // "all" - show ALL posts (with or without category)
             "all" -> postsCollection
-                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
                 .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
 
             // "latest" - show latest posts (same as "all")
             "latest" -> postsCollection
-                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
                 .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
 
             // Specific category - only posts with this category
@@ -126,12 +126,12 @@ class PostRepository {
                 if (categoryId.isBlank()) {
                     Log.w("PostRepository", "Empty categoryId provided, showing all posts")
                     postsCollection
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
                         .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
                 } else {
                     postsCollection
-                        .whereEqualTo("category", categoryId)
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .whereEqualTo(FirestoreConstants.FIELD_CATEGORY, categoryId)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
                         .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
                 }
             }
@@ -220,14 +220,14 @@ class PostRepository {
         if (isCurrentlyLiked) {
             // Nếu đang thích -> Bỏ thích
             postRef.update(
-                "likes", FieldValue.increment(-1),
-                "likedBy", FieldValue.arrayRemove(currentUserId)
+                FirestoreConstants.FIELD_LIKES, FieldValue.increment(-1),
+                FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayRemove(currentUserId)
             ).await()
         } else {
             // Nếu chưa thích -> Thích
             postRef.update(
-                "likes", FieldValue.increment(1),
-                "likedBy", FieldValue.arrayUnion(currentUserId)
+                FirestoreConstants.FIELD_LIKES, FieldValue.increment(1),
+                FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayUnion(currentUserId)
             ).await()
         }
         
@@ -260,14 +260,14 @@ class PostRepository {
         if (isCurrentlySaved) {
             // Nếu đang lưu -> Bỏ lưu
             postRef.update(
-                "savedBy", FieldValue.arrayRemove(userId),
-                "saveCount", FieldValue.increment(-1)
+                FirestoreConstants.FIELD_SAVED_BY, FieldValue.arrayRemove(userId),
+                FirestoreConstants.FIELD_SAVE_COUNT, FieldValue.increment(-1)
             ).await()
         } else {
             // Nếu chưa lưu -> Lưu
             postRef.update(
-                "savedBy", FieldValue.arrayUnion(userId),
-                "saveCount", FieldValue.increment(1)
+                FirestoreConstants.FIELD_SAVED_BY, FieldValue.arrayUnion(userId),
+                FirestoreConstants.FIELD_SAVE_COUNT, FieldValue.increment(1)
             ).await()
         }
         
@@ -293,13 +293,13 @@ class PostRepository {
     fun getPostsForUserFlow(userId: String): Flow<List<Post>> = callbackFlow {
         val query = try {
             postsCollection
-                .whereEqualTo("userId", userId)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .whereEqualTo(FirestoreConstants.FIELD_USER_ID, userId)
+                .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
         } catch (e: Exception) {
             Log.e("PostRepository", "Index issue for getPostsForUserFlow. Using basic query.")
             Log.e("PostRepository", "Error: $e")
             postsCollection
-                .whereEqualTo("userId", userId)
+                .whereEqualTo(FirestoreConstants.FIELD_USER_ID, userId)
         }
 
         val listener = query.addSnapshotListener { snapshot, error ->
@@ -350,8 +350,7 @@ class PostRepository {
      * - Kiểm tra user profile và trạng thái banned
      * - Rate limiting check (client-side)
      * - Tạo comment document với auto-generated ID
-     * - Transaction: Tăng commentCount + set comment data
-     * - Update lastCommentAt timestamp
+     * - Transaction: Tăng commentCount + set comment data + update lastCommentAt
      *
      * Security: Multiple validation layers, rate limiting
      * Transaction: Đảm bảo data consistency
@@ -370,7 +369,9 @@ class PostRepository {
                 throw IllegalStateException("User is banned. Cannot comment.")
             }
             val postRef = postsCollection.document(postId)
-            val newCommentRef = postRef.collection("comments").document()
+            val newCommentRef = postRef.collection(FirestoreConstants.COMMENTS_COLLECTION).document()
+            val userRef = usersCollection.document(currentUserId)
+            
             val commentData = hashMapOf(
                 "id" to newCommentRef.id,
                 "userId" to currentUserId,
@@ -384,18 +385,15 @@ class PostRepository {
 
             Log.d("PostRepository", "Comment data prepared: $commentData")
 
-            // BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
+            // ✅ TRANSACTION: TĂNG COMMENT COUNT + TẠO COMMENT + UPDATE USER STATS
             db.runTransaction { transaction ->
                 Log.d("PostRepository", "Starting transaction")
-                transaction.update(postRef, "commentCount", FieldValue.increment(1))
+                transaction.update(postRef, FirestoreConstants.FIELD_COMMENT_COUNT, FieldValue.increment(1))
                 transaction.set(newCommentRef, commentData)
+                transaction.update(userRef, FirestoreConstants.FIELD_LAST_COMMENT_AT, FieldValue.serverTimestamp())
                 Log.d("PostRepository", "Transaction operations set")
             }.await()
 
-            // BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
-            usersCollection.document(currentUserId)
-                .update("lastCommentAt", FieldValue.serverTimestamp())
-                .await()
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to add comment", e)
@@ -422,8 +420,8 @@ class PostRepository {
      */
     fun getCommentsFlow(postId: String): Flow<List<Comment>> = callbackFlow {
         val listener = postsCollection.document(postId)
-            .collection("comments")
-            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .collection(FirestoreConstants.COMMENTS_COLLECTION)
+            .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
@@ -472,7 +470,7 @@ class PostRepository {
 
         return try {
             userRef.update(
-                "hiddenPosts", FieldValue.arrayUnion(postId)
+                FirestoreConstants.FIELD_HIDDEN_POSTS, FieldValue.arrayUnion(postId)
             ).await()
             true
         } catch (e: Exception) {
@@ -497,7 +495,7 @@ class PostRepository {
         val currentUserId = auth.currentUser?.uid ?: return emptyList()
         return try {
             val snapshot = usersCollection.document(currentUserId).get().await()
-            (snapshot.get("hiddenPosts") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+            (snapshot.get(FirestoreConstants.FIELD_HIDDEN_POSTS) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -538,7 +536,7 @@ class PostRepository {
                 reportedBy = currentUserId,
                 reason = reason,
                 description = description,
-                status = "pending"
+                status = FirestoreConstants.STATUS_PENDING
             )
             reportsCollection.add(report).await()
             Log.d("PostRepository", "Report created successfully for post: $postId")
@@ -572,7 +570,7 @@ class PostRepository {
 
         return try {
             val snapshot = postRef.get().await()
-            val ownerId = snapshot.getString("userId") ?: return false
+            val ownerId = snapshot.getString(FirestoreConstants.FIELD_USER_ID) ?: return false
 
             if (SecurityValidator.canDeletePost(currentUserId, ownerId)) {
                 postRef.delete().await()
@@ -598,12 +596,12 @@ class PostRepository {
                 return Result.failure(IllegalStateException("Post not found"))
             }
             
-            val ownerId = postSnapshot.getString("userId")
+            val ownerId = postSnapshot.getString(FirestoreConstants.FIELD_USER_ID)
             if (ownerId != currentUserId) {
                 return Result.failure(SecurityException("Only post owner can edit"))
             }
             
-            postRef.update("textContent", newContent).await()
+            postRef.update(FirestoreConstants.FIELD_TEXT_CONTENT, newContent).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("PostRepository", "Error updating post content", e)
@@ -621,7 +619,7 @@ class PostRepository {
         try {
             val commentRef = postsCollection
                 .document(postId)
-                .collection("comments")
+                .collection(FirestoreConstants.COMMENTS_COLLECTION)
                 .document(commentId)
 
             val commentSnapshot = commentRef.get().await()
@@ -635,13 +633,13 @@ class PostRepository {
 
             if (isCurrentlyLiked) {
                 commentRef.update(
-                    "likedBy", FieldValue.arrayRemove(currentUserId),
-                    "likes", FieldValue.increment(-1)
+                    FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayRemove(currentUserId),
+                    FirestoreConstants.FIELD_LIKES, FieldValue.increment(-1)
                 ).await()
             } else {
                 commentRef.update(
-                    "likedBy", FieldValue.arrayUnion(currentUserId),
-                    "likes", FieldValue.increment(1)
+                    FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayUnion(currentUserId),
+                    FirestoreConstants.FIELD_LIKES, FieldValue.increment(1)
                 ).await()
             }
         } catch (exception: Exception) {
@@ -659,22 +657,22 @@ class PostRepository {
                 }
                 isValid
             }
-        val likedBy = sanitizeStringList(get("likedBy"))
-        val savedBy = sanitizeStringList(get("savedBy"))
+        val likedBy = sanitizeStringList(get(FirestoreConstants.FIELD_LIKED_BY))
+        val savedBy = sanitizeStringList(get(FirestoreConstants.FIELD_SAVED_BY))
 
         return Post(
-            timestamp = getTimestamp("timestamp"),
+            timestamp = getTimestamp(FirestoreConstants.FIELD_TIMESTAMP),
             id = id,
-            userId = getString("userId") ?: "",
-            username = getString("username") ?: "",
-            userAvatarUrl = getString("userAvatarUrl") ?: "",
-            textContent = getString("textContent") ?: "",
+            userId = getString(FirestoreConstants.FIELD_USER_ID) ?: "",
+            username = getString(FirestoreConstants.FIELD_USERNAME) ?: "",
+            userAvatarUrl = getString(FirestoreConstants.FIELD_AVATAR_URL) ?: "",
+            textContent = getString(FirestoreConstants.FIELD_TEXT_CONTENT) ?: "",
             imageUrls = imageUrls,
-            category = getString("category") ?: "",
-            likes = getLong("likes")?.toInt() ?: 0,
-            commentCount = getLong("commentCount")?.toInt() ?: 0,
+            category = getString(FirestoreConstants.FIELD_CATEGORY) ?: "",
+            likes = getLong(FirestoreConstants.FIELD_LIKES)?.toInt() ?: 0,
+            commentCount = getLong(FirestoreConstants.FIELD_COMMENT_COUNT)?.toInt() ?: 0,
             shareCount = getLong("shareCount")?.toInt() ?: 0,
-            saveCount = getLong("saveCount")?.toInt() ?: 0,
+            saveCount = getLong(FirestoreConstants.FIELD_SAVE_COUNT)?.toInt() ?: 0,
             likedBy = likedBy,
             savedBy = savedBy
         )
@@ -715,26 +713,26 @@ class PostRepository {
             "all", "latest" -> {
                 if (lastTimestamp != null) {
                     postsCollection
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
                         .startAfter(lastTimestamp)
                         .limit(limit.toLong())
                 } else {
                     postsCollection
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
                         .limit(limit.toLong())
                 }
             }
             else -> {
                 if (lastTimestamp != null) {
                     postsCollection
-                        .whereEqualTo("category", categoryId)
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .whereEqualTo(FirestoreConstants.FIELD_CATEGORY, categoryId)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
                         .startAfter(lastTimestamp)
                         .limit(limit.toLong())
                 } else {
                     postsCollection
-                        .whereEqualTo("category", categoryId)
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .whereEqualTo(FirestoreConstants.FIELD_CATEGORY, categoryId)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
                         .limit(limit.toLong())
                 }
             }

@@ -3,6 +3,8 @@ package com.example.uth_socials.ui.component.common
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
@@ -35,6 +37,9 @@ fun PasswordTextField(
         onValueChange = onValueChange,
         label = { Text(label) },
         visualTransformation = if(passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        leadingIcon = {
+            Icon(imageVector = Icons.Default.Lock, contentDescription = "Password Icon")
+        },
         trailingIcon = {
             val icon = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
             IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -66,6 +71,9 @@ fun InputTextField(
         value=value,
         onValueChange=onValueChange,
         label = { Text(label) },
+        leadingIcon = {
+            Icon(imageVector = Icons.Default.Email, contentDescription = "Email Icon")
+        },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         singleLine = true,

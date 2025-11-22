@@ -27,15 +27,6 @@ class AdminDashboardViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(AdminDashboardUiState())
     val uiState: StateFlow<AdminDashboardUiState> = _uiState.asStateFlow()
 
-    init {
-        callSuperAdminIfNeeded()
-    }
-
-    private fun callSuperAdminIfNeeded() {
-        viewModelScope.launch(Dispatchers.IO) {
-            adminRepository.superAdminIfNeeded()
-        }
-    }
     fun loadData() {
         viewModelScope.launch(Dispatchers.IO) {
             Log.d("AdminDashboardViewModel", "Loading data started...")

@@ -68,7 +68,12 @@ data class HomeUiState(
     val editingPostId: String? = null,
     val editingPostContent: String = "",
     val isSavingPost: Boolean = false,
-    val editPostErrorMessage: String? = null
+    val editPostErrorMessage: String? = null,
+    
+    // 🔸 Pagination & New Posts
+    val isLoadingMore: Boolean = false,
+    val canLoadMore: Boolean = true,
+    val hasNewPosts: Boolean = false
 )
 
 class HomeViewModel(
@@ -123,7 +128,10 @@ class HomeViewModel(
                 blockedUserIds = emptySet(),
                 posts = it.posts.map { post ->
                     post.copy(isLiked = false, isSaved = false)
-                }
+                },
+                isLoadingMore = false,
+                canLoadMore = true,
+                hasNewPosts = false
             )
         }
         loadCategoriesAndInitialPosts()
@@ -291,34 +299,100 @@ class HomeViewModel(
     private fun listenToPostChanges(categoryId: String) {
         postsJob?.cancel()
         postsJob = viewModelScope.launch(Dispatchers.IO) {
+            // Reset pagination state when category changes
+            _uiState.update { it.copy(canLoadMore = true, isLoadingMore = false, hasNewPosts = false) }
+            
             postRepository.getPostsFlow(categoryId).collect { newPosts ->
-                val currentPosts = _uiState.value.posts
+                val sortedNewPosts = newPosts.sortedByDescending { it.timestamp?.seconds ?: 0L }
                 
-                // Tạo map để quick lookup
-                val newPostsMap = newPosts.associateBy { it.id }
-                
-                // Update existing posts hoặc giữ nguyên nếu không có trong newPosts
-                val updatedPosts = currentPosts.map { existingPost ->
-                    newPostsMap[existingPost.id] ?: existingPost
+                _uiState.update { currentState ->
+                    val currentPosts = currentState.posts
+                    
+                    // Logic Merge:
+                    // 1. Nếu list hiện tại rỗng -> Đây là lần load đầu tiên -> Thay thế toàn bộ
+                    if (currentPosts.isEmpty()) {
+                        currentState.copy(
+                            posts = sortedNewPosts,
+                            isLoading = false
+                        )
+                    } else {
+                        // 2. Nếu list không rỗng -> Đây là update real-time
+                        // Kiểm tra xem có bài viết mới thực sự không (so sánh ID bài đầu tiên)
+                        val firstCurrentPost = currentPosts.firstOrNull()
+                        val firstNewPost = sortedNewPosts.firstOrNull()
+                        
+                        val hasNew = if (firstCurrentPost != null && firstNewPost != null) {
+                            // Nếu ID khác nhau VÀ timestamp của bài mới lớn hơn bài cũ -> Có bài mới
+                            firstNewPost.id != firstCurrentPost.id && 
+                            (firstNewPost.timestamp?.seconds ?: 0) > (firstCurrentPost.timestamp?.seconds ?: 0)
+                        } else {
+                            false
+                        }
+                        
+                        // Merge logic:
+                        // - Lấy 20 bài mới nhất từ real-time (sortedNewPosts)
+                        // - Lấy các bài cũ từ danh sách hiện tại (trừ những bài đã có trong 20 bài mới)
+                        // - Kết hợp lại
+                        val newPostIds = sortedNewPosts.map { it.id }.toSet()
+                        val olderPosts = currentPosts.filter { !newPostIds.contains(it.id) }
+                        val mergedPosts = sortedNewPosts + olderPosts
+                        
+                        currentState.copy(
+                            posts = mergedPosts,
+                            isLoading = false,
+                            hasNewPosts = currentState.hasNewPosts || hasNew // Giữ trạng thái true nếu đã có bài mới trước đó
+                        )
+                    }
                 }
                 
-                // Thêm posts mới (không có trong currentPosts)
-                val newPostsToAdd = newPosts.filter { it.id !in currentPosts.map { p -> p.id } }
-                
-                // Merge và maintain order (newest first)
-                val mergedPosts = (updatedPosts + newPostsToAdd)
-                    .sortedByDescending { it.timestamp?.seconds ?: 0L }
-                
-                _uiState.update { 
-                    it.copy(
-                        posts = mergedPosts, 
-                        isLoading = false
-                    ) 
-                }
-                
-                loadAdminStatusForPosts(mergedPosts)
+                loadAdminStatusForPosts(sortedNewPosts)
             }
         }
+    }
+    
+    fun loadMorePosts() {
+        val currentState = _uiState.value
+        if (currentState.isLoadingMore || !currentState.canLoadMore) return
+        
+        val categoryId = currentState.selectedCategory?.id ?: "all"
+        val lastPost = currentState.posts.lastOrNull()
+        
+        if (lastPost == null) return
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isLoadingMore = true) }
+            
+            try {
+                val olderPosts = postRepository.loadMorePosts(
+                    categoryId = categoryId,
+                    lastTimestamp = lastPost.timestamp
+                )
+                
+                if (olderPosts.isEmpty()) {
+                    _uiState.update { it.copy(isLoadingMore = false, canLoadMore = false) }
+                } else {
+                    _uiState.update { state ->
+                        // Filter duplicates just in case
+                        val currentIds = state.posts.map { it.id }.toSet()
+                        val uniqueOlderPosts = olderPosts.filter { !currentIds.contains(it.id) }
+                        
+                        state.copy(
+                            posts = state.posts + uniqueOlderPosts,
+                            isLoadingMore = false,
+                            canLoadMore = uniqueOlderPosts.isNotEmpty() // Nếu load về ít hơn limit hoặc rỗng thì hết
+                        )
+                    }
+                    loadAdminStatusForPosts(olderPosts)
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading more posts", e)
+                _uiState.update { it.copy(isLoadingMore = false) }
+            }
+        }
+    }
+    
+    fun clearNewPostsFlag() {
+        _uiState.update { it.copy(hasNewPosts = false) }
     }
 
     private fun loadAdminStatusForPosts(posts: List<Post>) {
@@ -367,7 +441,12 @@ class HomeViewModel(
 
     fun onCategorySelected(category: Category) {
         if (_uiState.value.selectedCategory?.id != category.id) {
-            _uiState.update { it.copy(selectedCategory = category, isLoading = true) }
+            // Reset posts list when changing category
+            _uiState.update { it.copy(
+                selectedCategory = category, 
+                isLoading = true,
+                posts = emptyList() // Clear old posts from previous category
+            ) }
             listenToPostChanges(category.id)
         }
     }
@@ -400,7 +479,7 @@ class HomeViewModel(
                 _uiState.update {
                     it.copy(
                         posts = originalPosts,
-                        error = "Lỗi không thể like bài viết. Vui lòng thử lại sau."
+                        error = "Lỗi không thể like bài viết. Vui lòng thử lại."
                     )
                 }
                 Log.e("HomeViewModel", "Error updating like status", e)
@@ -975,3 +1054,5 @@ class HomeViewModel(
         Log.d("HomeViewModel", "Cleanup completed")
     }
 }
+
+

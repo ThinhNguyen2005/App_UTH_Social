@@ -1,23 +1,15 @@
 package com.example.uth_socials.ui.screen.home
 
 import android.content.Intent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +28,7 @@ import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import com.example.uth_socials.ui.viewmodel.DialogType
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
@@ -51,8 +44,6 @@ fun HomeScreen(
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // Scroll state management for top/bottom bar visibility
     val lazyListState = rememberLazyListState()
     LaunchedEffect(Unit) {
         homeViewModel.refreshBlockedUsers()
@@ -116,7 +107,6 @@ fun HomeScreen(
         ) {
             when {
                 uiState.isLoading -> {
-                    // 🔸 Skeleton Loading - Hiển thị 5-7 skeleton posts
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 16.dp)
@@ -128,7 +118,6 @@ fun HomeScreen(
                 }
 
                 uiState.error != null -> {
-                    // 🔸 Error dialog đẹp hơn với icon và button
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -183,70 +172,172 @@ fun HomeScreen(
                         }
                     }
 
-                    if (filteredPosts.isEmpty()) {
-                        // 🔸 Empty state - không có posts trong category này
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    // 🔸 Pagination Logic
+                    val shouldLoadMore by remember {
+                        derivedStateOf {
+                            val layoutInfo = lazyListState.layoutInfo
+                            val totalItems = layoutInfo.totalItemsCount
+                            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                            // Load more when we are 3 items away from the end
+                            totalItems > 0 && lastVisibleItemIndex >= totalItems - 3
+                        }
+                    }
+
+                    LaunchedEffect(shouldLoadMore) {
+                        if (shouldLoadMore) {
+                            homeViewModel.loadMorePosts()
+                        }
+                    }
+
+                    // 🔸 Scroll to Top Button Logic
+                    var showScrollToTop by remember { mutableStateOf(false) }
+                    var lastScrollIndex by remember { mutableIntStateOf(0) }
+                    
+                    LaunchedEffect(lazyListState.firstVisibleItemIndex, lazyListState.firstVisibleItemScrollOffset) {
+                        val currentIndex = lazyListState.firstVisibleItemIndex
+                        
+                        // Chỉ hiện nút khi:
+                        // 1. Đã scroll xuống (không ở đầu trang)
+                        // 2. Đang scroll LÊN (currentIndex < lastScrollIndex)
+                        if (currentIndex > 0 && currentIndex < lastScrollIndex) {
+                            showScrollToTop = true
+                            
+                            // Tự động ẩn sau 2 giây không scroll
+                            kotlinx.coroutines.delay(2000)
+                            showScrollToTop = false
+                        } else if (currentIndex == 0) {
+                            // Ẩn ngay khi về đầu trang
+                            showScrollToTop = false
+                        }
+                        
+                        lastScrollIndex = currentIndex
+                    }
+                    
+                    val scope = rememberCoroutineScope()
+
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (filteredPosts.isEmpty()) {
+                            // 🔸 Empty state - không có posts trong category này
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Article,
-                                    contentDescription = "No posts",
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = when (uiState.selectedCategory?.id) {
-                                        "all", "latest" -> "Chưa có bài viết nào"
-                                        else -> "Chưa có bài viết trong chủ đề này"
-                                    },
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = when (uiState.selectedCategory?.id) {
-                                        "all", "latest" -> "Hãy là người đầu tiên chia sẻ điều gì đó!"
-                                        else -> "Bài viết trong chủ đề \"${uiState.selectedCategory?.name}\" sẽ xuất hiện ở đây"
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Article,
+                                        contentDescription = "No posts",
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = when (uiState.selectedCategory?.id) {
+                                            "all", "latest" -> "Chưa có bài viết nào"
+                                            else -> "Chưa có bài viết trong chủ đề này"
+                                        },
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = when (uiState.selectedCategory?.id) {
+                                            "all", "latest" -> "Hãy là người đầu tiên chia sẻ điều gì đó!"
+                                            else -> "Bài viết trong chủ đề \"${uiState.selectedCategory?.name}\" sẽ xuất hiện ở đây"
+                                        },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .then(scrollBehavior?.let { Modifier.nestedScroll(it.nestedScrollConnection) } ?: Modifier),
+                                state = lazyListState,
+                                contentPadding = PaddingValues(bottom = 16.dp)
+                            ) {
+                                items(filteredPosts, key = { it.id }) { post ->
+                                    val isPostOwnerAdmin = uiState.adminStatusMap[post.userId] ?: false
+
+                                    PostCard(
+                                        post = post,
+                                        onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
+                                        onCommentClicked = {
+                                            homeViewModel.onCommentClicked(post.id)
+                                        },
+                                        onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
+                                        onShareClicked = { homeViewModel.onShareClicked(post.id) },
+                                        onUserProfileClicked = { onNavigateToProfile(post.userId) },
+                                        onReportClicked = { homeViewModel.onReportClicked(post.id) },
+                                        onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
+                                        onHideClicked = { homeViewModel.onHideClicked(post.id) },
+                                        onEditClicked = { homeViewModel.onEditPostClicked(post.id) },
+                                        currentUserId = uiState.currentUserId,
+                                        isCurrentUserAdmin = uiState.isCurrentUserAdmin,
+                                        isUserBanned = uiState.isUserBanned,
+                                        isPostOwnerAdmin = isPostOwnerAdmin,
+                                        isScrolling = isScrolling
+                                    )
+                                }
+
+                                // 🔸 Loading Indicator at bottom
+                                if (uiState.isLoadingMore) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                        }
+                                    }
+                                }
+                                
+                                // 🔸 End of Posts Indicator
+                                if (!uiState.canLoadMore && !uiState.isLoadingMore && filteredPosts.isNotEmpty()) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Đã hết bài viết",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(scrollBehavior?.let { Modifier.nestedScroll(it.nestedScrollConnection) } ?: Modifier),
-                            state = lazyListState,
-                            contentPadding = PaddingValues(horizontal = 16.dp)
-                        ) {
-                            items(filteredPosts, key = { it.id }) { post ->
-                                val isPostOwnerAdmin = uiState.adminStatusMap[post.userId] ?: false
 
-                                PostCard(
-                                    post = post,
-                                    onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
-                                    onCommentClicked = {
-                                        homeViewModel.onCommentClicked(post.id)
-                                    },
-                                    onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
-                                    onShareClicked = { homeViewModel.onShareClicked(post.id) },
-                                    onUserProfileClicked = { onNavigateToProfile(post.userId) },
-                                    onReportClicked = { homeViewModel.onReportClicked(post.id) },
-                                    onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
-                                    onHideClicked = { homeViewModel.onHideClicked(post.id) },
-                                    onEditClicked = { homeViewModel.onEditPostClicked(post.id) },
-                                    currentUserId = uiState.currentUserId,
-                                    isCurrentUserAdmin = uiState.isCurrentUserAdmin,
-                                    isUserBanned = uiState.isUserBanned,
-                                    isPostOwnerAdmin = isPostOwnerAdmin,
-                                    isScrolling = isScrolling
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showScrollToTop,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 16.dp, bottom = 24.dp),
+                            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
+                            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
+                        ) {
+                            FloatingActionButton(
+                                onClick = {
+                                    scope.launch {
+                                        lazyListState.animateScrollToItem(0)
+                                        homeViewModel.clearNewPostsFlag()
+                                    }
+                                },
+                                containerColor = if (uiState.hasNewPosts) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = if (uiState.hasNewPosts) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowUpward,
+                                    contentDescription = if (uiState.hasNewPosts) "Có bài viết mới" else "Lên đầu trang"
                                 )
                             }
                         }
