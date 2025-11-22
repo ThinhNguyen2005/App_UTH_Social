@@ -24,6 +24,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.uth_socials.data.repository.UserRepository
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 import com.example.uth_socials.ui.theme.UthTeal
@@ -90,10 +91,6 @@ fun HomeBottomNavigation(
     val currentRoute = navBackStackEntry?.destination?.route
 
     if (isVisible) {
-        HorizontalDivider(
-            thickness = 1.dp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-        )
         NavigationBar(
             modifier = Modifier
                 .shadow(elevation = 12.dp)

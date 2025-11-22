@@ -160,9 +160,15 @@ private fun PostHeader(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                onNavigateToUserProfile?.invoke(post.userId) ?: onUserProfileClicked(post.userId)
-            }
+            .then(
+                if (post.userId != currentUserId) {
+                    Modifier.clickable {
+                        onNavigateToUserProfile?.invoke(post.userId) ?: onUserProfileClicked(post.userId)
+                    }
+                } else {
+                    Modifier
+                }
+            )
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)

@@ -59,10 +59,6 @@ fun LoginScreen(
         ) {
             Spacer(modifier = Modifier.height(60.dp))
 
-
-
-            Spacer(modifier = Modifier.height(40.dp))
-
             Text(
                 text = "Đăng nhập",
                 style = MaterialTheme.typography.headlineLarge,
@@ -143,7 +139,6 @@ fun LoginScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(50.dp))
 
             // ViewModel State Handling
             when (state) {

@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uth_socials.ui.component.logo.ChatBottomBar
 import com.example.uth_socials.ui.component.logo.ChatTopAppBar
@@ -21,7 +22,8 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
 
     val otherUserName by viewModel.otherUserName.collectAsState()
     val otherUserAvatar by viewModel.otherUserAvatar.collectAsState()
-
+    
+    var text by remember { mutableStateOf("") }
 
     LaunchedEffect(chatId) {
         viewModel.enterChatRoom(chatId)
@@ -35,37 +37,44 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
                 onBackClick = onBack
             )
         },
-        bottomBar = {
-            var text by remember { mutableStateOf("") }
+        contentWindowInsets = WindowInsets(0),
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        // Sử dụng Column để stack MessageList và ChatBottomBar
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // MessageList chiếm toàn bộ không gian còn lại
+            val listState = rememberLazyListState()
+            LaunchedEffect(messages.size) {
+                if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+            }
+
+            MessageList(
+                messages = messages,
+                currentUserId = currentUserId,
+                otherUserAvatar = otherUserAvatar,
+                listState = listState,
+                modifier = Modifier
+                    .weight(1f) // Chiếm hết không gian còn lại
+            )
+            
+            // ChatBottomBar ở dưới cùng, sẽ nâng lên theo bàn phím
             ChatBottomBar(
                 text = text,
                 onTextChange = { text = it },
                 onSend = {
                     val msg = text.trim()
                     if (msg.isNotEmpty() && currentUserId != null) {
-                        viewModel.sendMessage(chatId,currentUserId, msg)
+                        viewModel.sendMessage(chatId, currentUserId, msg)
                         text = ""
                     }
-                }
+                },
+                modifier = Modifier.imePadding() // Nâng lên theo bàn phím
             )
-        },
-        // 👇 KHÔNG cho Scaffold tự cộng thêm bất kỳ inset nào
-        contentWindowInsets = WindowInsets(0),
-        containerColor = MaterialTheme.colorScheme.background
-    )  { innerPadding ->
-        // Danh sách tin nhắn: chỉ nhận padding từ Scaffold (để chừa TopAppBar)
-        val listState = rememberLazyListState()
-        LaunchedEffect(messages.size) {
-            if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
         }
-
-        MessageList(
-            messages = messages,
-            currentUserId = currentUserId,
-            otherUserAvatar = otherUserAvatar,
-            listState = listState,
-            modifier = Modifier.padding(innerPadding) // Áp dụng padding từ Scaffold
-        )
         
         // Ban dialog
         val showBanDialog by viewModel.showBanDialog.collectAsState()

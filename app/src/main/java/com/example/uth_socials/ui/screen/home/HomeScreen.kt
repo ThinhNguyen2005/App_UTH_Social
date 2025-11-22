@@ -325,20 +325,37 @@ fun HomeScreen(
                             enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
                             exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
                         ) {
-                            FloatingActionButton(
-                                onClick = {
-                                    scope.launch {
-                                        lazyListState.animateScrollToItem(0)
-                                        homeViewModel.clearNewPostsFlag()
-                                    }
-                                },
-                                containerColor = if (uiState.hasNewPosts) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                contentColor = if (uiState.hasNewPosts) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowUpward,
-                                    contentDescription = if (uiState.hasNewPosts) "Có bài viết mới" else "Lên đầu trang"
+                            if (uiState.hasNewPosts) {
+                                // Khi có bài mới: Hiển thị ExtendedFAB với text
+                                ExtendedFloatingActionButton(
+                                    text = { Text("Bài viết mới") },
+                                    icon = { Icon(Icons.Default.ArrowUpward, contentDescription = "Có bài viết mới") },
+                                    onClick = {
+                                        scope.launch {
+                                            lazyListState.animateScrollToItem(0)
+                                            homeViewModel.clearNewPostsFlag()
+                                        }
+                                    },
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
                                 )
+                            } else {
+                                // Khi không có bài mới: Hiển thị FAB nhỏ gọn
+                                FloatingActionButton(
+                                    onClick = {
+                                        scope.launch {
+                                            lazyListState.animateScrollToItem(0)
+                                            homeViewModel.clearNewPostsFlag()
+                                        }
+                                    },
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowUpward,
+                                        contentDescription = "Lên đầu trang"
+                                    )
+                                }
                             }
                         }
                     }

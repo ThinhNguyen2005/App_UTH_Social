@@ -25,7 +25,7 @@ fun MessageList(
         modifier = modifier.fillMaxSize(),
         state = listState,
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-        reverseLayout = false // Hoặc true tùy logic của bạn
+        reverseLayout = false
     ) {
         itemsIndexed(messages) { idx, msg ->
             val prev = messages.getOrNull(idx - 1)
