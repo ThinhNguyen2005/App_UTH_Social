@@ -1,7 +1,3 @@
-# =================================================================
-# File và thư mục được tạo bởi Android Studio và Gradle
-# =================================================================
-
 # Thư mục build chứa các file trung gian và kết quả biên dịch
 /build
 /app/build
@@ -14,10 +10,6 @@
 local.properties
 /local.properties
 
-# =================================================================
-# File và thư mục của IDE (IntelliJ / Android Studio)
-# =================================================================
-
 # Các file module của IntelliJ
 *.iml
 *.ipr
@@ -29,42 +21,16 @@ local.properties
 .idea/
 /.idea
 
-
-# =================================================================
-# Các file build và đóng gói
-# =================================================================
-
 # Các file APK, AAB (Android App Bundle) và JAR
 *.apk
 *.aab
 *.jar
 
-# =================================================================
-# Các file nhạy cảm và chứng chỉ
-# =================================================================
-
-# File dịch vụ của Google (Firebase, Google Maps, v.v.)
 app/google-services.json
-/app/google-services.json
 
 # Các file Keystore chứa khóa để ký ứng dụng, tuyệt đối không đưa lên Git
 *.jks
 *.keystore
-
-# =================================================================
-# Các file và thư mục khác
-# =================================================================
-
 # Thư mục chứa các ảnh chụp màn hình hoặc video từ Emulator
 /captures/
-
-# File hệ thống của macOS
-.DS_Store
-
-# Các file log và báo cáo
-/lint-results-debug.xml
-
-/firestore.indexes.json
-/firestore.rules
-/firebase.json
 *.md
