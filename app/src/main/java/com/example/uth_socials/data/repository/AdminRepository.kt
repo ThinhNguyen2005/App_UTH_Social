@@ -12,11 +12,14 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
 import com.example.uth_socials.data.util.FirestoreConstants
 
-/**
- * Repository for managing admin users and admin operations
- */
+
 class AdminRepository(
     private val userRepository: UserRepository = UserRepository(),
     private val postRepository: PostRepository = PostRepository()
@@ -25,17 +28,10 @@ class AdminRepository(
     private val adminCollection = db.collection(FirestoreConstants.ADMIN_USERS_COLLECTION)
     private val auth = FirebaseAuth.getInstance()
 
-    /**
-     * Check if user is admin (super admin or firestore admin)
-     */
     suspend fun isAdmin(userId: String): Boolean {
         return getAdminStatus(userId).isAdmin
     }
 
-    /**
-     * Check if user is super admin
-     * @deprecated Use getAdminStatus() for better performance when you need both flags
-     */
     suspend fun isSuperAdmin(userId: String): Boolean {
         return getAdminStatus(userId).isSuperAdmin
     }
@@ -54,10 +50,6 @@ class AdminRepository(
         )
     }
 
-
-    /**
-     * Grant admin role to user (only super admin can do this)
-     */
     suspend fun grantAdminRole(
         targetUserId: String,
         role: String,
@@ -80,7 +72,7 @@ class AdminRepository(
         adminCollection.document(targetUserId).set(adminData).await()
 
         Log.d("AdminRepository", "Granted admin role '$role' to user $targetUserId by $grantedBy")
-        1 // Return success code (e.g., 1 for success)
+        1
     }.onFailure { e ->
         Log.e("AdminRepository", "Failed to grant admin role to $targetUserId", e)
     }
@@ -106,11 +98,7 @@ class AdminRepository(
         }
     }
     
-    /**
-     * ✅ OPTIMIZED: Fix N+1 Query issue
-     * Fetches reports first, then collects all user IDs and post IDs.
-     * Uses batch fetching (whereIn) to get all related users and posts in fewer queries.
-     */
+
     suspend fun getPendingReports(): List<AdminReport> {
         return try {
             // 1. Get all pending reports
@@ -147,10 +135,8 @@ class AdminRepository(
                 }
             }
 
-            // 4. Collect User IDs from fetched Posts
             val userIds = postsMap.values.map { it.userId }.distinct().filter { it.isNotEmpty() }
             
-            // 5. Batch fetch Users (chunked by 10)
             val usersMap = mutableMapOf<String, User>()
             userIds.chunked(10).forEach { chunk ->
                  try {
@@ -193,9 +179,7 @@ class AdminRepository(
         }
     }
 
-    /**
-     * Review and take action on a report
-     */
+
     suspend fun reviewReport(
         reportId: String,
         adminId: String,
@@ -268,10 +252,25 @@ class AdminRepository(
         )
         userRef.update(banData).await()
 
-        val updatedUser = userRepository.getUser(userId)
-        val isActuallyBanned = updatedUser?.isBanned == true
+        // Thay vì gọi getUser() có thể trả về dữ liệu cũ do cache
+        var retryCount = 0
+        val maxRetries = 3
+        var isActuallyBanned = false
+        
+        while (retryCount < maxRetries && !isActuallyBanned) {
+            kotlinx.coroutines.delay(100L * (retryCount + 1)) // Tăng delay mỗi lần retry
+            
+            val updatedDoc = userRef.get(com.google.firebase.firestore.Source.SERVER).await()
+            isActuallyBanned = updatedDoc.getBoolean(FirestoreConstants.FIELD_IS_BANNED) == true
+            
+            if (!isActuallyBanned) {
+                retryCount++
+                Log.d("AdminRepository", "Ban verification retry $retryCount/$maxRetries for user $userId")
+            }
+        }
+        
         if (!isActuallyBanned) {
-            throw Exception("Ban verification failed - user state not updated correctly")
+            throw Exception("Ban verification failed - user state not updated correctly after $maxRetries retries")
         }
         Log.d("AdminRepository", "🎉 User $userId banned successfully by admin $adminId for: $reason")
     }
@@ -363,6 +362,49 @@ class AdminRepository(
             emptyList()
         }
     }
+
+    /**
+     * Realtime listener cho danh sách người dùng bị cấm
+     * Tự động cập nhật khi có thay đổi trong Firestore
+     */
+    fun getBannedUsersFlow(): Flow<List<User>> = callbackFlow {
+        val query = db.collection(FirestoreConstants.USERS_COLLECTION)
+            .whereEqualTo(FirestoreConstants.FIELD_IS_BANNED, true)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e("AdminRepository", "Error listening to banned users", error)
+                trySend(emptyList())
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val bannedUsers = snapshot.documents.mapNotNull { doc ->
+                    try {
+                        User(
+                            id = doc.id,
+                            username = doc.getString(FirestoreConstants.FIELD_USERNAME) ?: "",
+                            bannedAt = doc.getTimestamp(FirestoreConstants.FIELD_BANNED_AT),
+                            bannedBy = doc.getString(FirestoreConstants.FIELD_BANNED_BY),
+                            banReason = doc.getString(FirestoreConstants.FIELD_BAN_REASON),
+                            violationCount = doc.getLong(FirestoreConstants.FIELD_VIOLATION_COUNT)?.toInt() ?: 0,
+                            warningCount = doc.getLong(FirestoreConstants.FIELD_WARNING_COUNT)?.toInt() ?: 0
+                        )
+                    } catch (e: Exception) {
+                        Log.e("AdminRepository", "Error parsing banned user ${doc.id}", e)
+                        null
+                    }
+                }
+                Log.d("AdminRepository", "Realtime update: ${bannedUsers.size} banned users")
+                trySend(bannedUsers)
+            }
+        }
+
+        awaitClose { 
+            Log.d("AdminRepository", "Removing banned users listener")
+            listener.remove() 
+        }
+    }.flowOn(Dispatchers.IO)
 
     suspend fun getPostById(postId: String): Post? {
         return try {
