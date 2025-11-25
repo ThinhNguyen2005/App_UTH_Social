@@ -19,9 +19,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.Dispatchers
 import com.example.uth_socials.data.util.FirestoreConstants
 
-/**
- * Repository for managing admin users and admin operations
- */
+
 class AdminRepository(
     private val userRepository: UserRepository = UserRepository(),
     private val postRepository: PostRepository = PostRepository()
@@ -30,17 +28,10 @@ class AdminRepository(
     private val adminCollection = db.collection(FirestoreConstants.ADMIN_USERS_COLLECTION)
     private val auth = FirebaseAuth.getInstance()
 
-    /**
-     * Check if user is admin (super admin or firestore admin)
-     */
     suspend fun isAdmin(userId: String): Boolean {
         return getAdminStatus(userId).isAdmin
     }
 
-    /**
-     * Check if user is super admin
-     * @deprecated Use getAdminStatus() for better performance when you need both flags
-     */
     suspend fun isSuperAdmin(userId: String): Boolean {
         return getAdminStatus(userId).isSuperAdmin
     }
@@ -59,10 +50,6 @@ class AdminRepository(
         )
     }
 
-
-    /**
-     * Grant admin role to user (only super admin can do this)
-     */
     suspend fun grantAdminRole(
         targetUserId: String,
         role: String,
@@ -85,7 +72,7 @@ class AdminRepository(
         adminCollection.document(targetUserId).set(adminData).await()
 
         Log.d("AdminRepository", "Granted admin role '$role' to user $targetUserId by $grantedBy")
-        1 // Return success code (e.g., 1 for success)
+        1
     }.onFailure { e ->
         Log.e("AdminRepository", "Failed to grant admin role to $targetUserId", e)
     }
@@ -111,10 +98,7 @@ class AdminRepository(
         }
     }
     
-    /**
-     * Fetches reports first, then collects all user IDs and post IDs.
-     * Uses batch fetching (whereIn) to get all related users and posts in fewer queries.
-     */
+
     suspend fun getPendingReports(): List<AdminReport> {
         return try {
             // 1. Get all pending reports
@@ -151,10 +135,8 @@ class AdminRepository(
                 }
             }
 
-            // 4. Collect User IDs from fetched Posts
             val userIds = postsMap.values.map { it.userId }.distinct().filter { it.isNotEmpty() }
             
-            // 5. Batch fetch Users (chunked by 10)
             val usersMap = mutableMapOf<String, User>()
             userIds.chunked(10).forEach { chunk ->
                  try {
@@ -197,9 +179,7 @@ class AdminRepository(
         }
     }
 
-    /**
-     * Review and take action on a report
-     */
+
     suspend fun reviewReport(
         reportId: String,
         adminId: String,
