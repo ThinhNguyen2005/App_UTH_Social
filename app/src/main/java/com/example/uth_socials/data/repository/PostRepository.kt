@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
+import com.example.uth_socials.data.market.Product
+import com.example.uth_socials.data.notification.Notification
 import com.example.uth_socials.data.user.User
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -41,13 +43,14 @@ import com.example.uth_socials.data.util.FirestoreConstants
 class PostRepository {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val productsCollection = db.collection("products")
     private val postsCollection = db.collection(FirestoreConstants.POSTS_COLLECTION)
     private val reportsCollection = db.collection(FirestoreConstants.REPORTS_COLLECTION)
     private val usersCollection = db.collection(FirestoreConstants.USERS_COLLECTION)
-    
+
     // ✅ OPTIMIZATION: Cache enriched posts để tránh enrich lại
     private val enrichedPostsCache = ConcurrentHashMap<String, Post>()
-    
+
     companion object {
         // ✅ OPTIMIZATION: Pagination limit - chỉ load 20 posts đầu tiên
         private const val POSTS_LIMIT = 20
@@ -55,7 +58,7 @@ class PostRepository {
         private const val DEBOUNCE_TIME_MS = 300L
     }
 
-    suspend fun uploadPost(
+    suspend fun uploadArticle(
         user : User?, content: String, category: String?, imageUrl : List<String>
     ): Boolean {
         return try {
@@ -80,13 +83,40 @@ class PostRepository {
         }
     }
 
+    suspend fun uploadProduct(
+        user: User?, name: String, description: String, type: String, price: Int, imageUrls : List<String>
+    ): Boolean {
+        return try {
+            // Tạo bài viết
+            val product = Product(
+                id = UUID.randomUUID().toString(),
+                name = name,
+                userId = user?.id ?: "",
+                userName = user?.username ?: "",
+                userAvatar = user?.avatarUrl ?: "",
+                description = description,
+                type = type,
+                price = price,
+                imageUrls = imageUrls
+            )
+
+            // Lưu lên Firestore
+            productsCollection.document(product.id).set(product).await()
+
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
     // ==========================================
     // POST DATA FUNCTIONS (Lấy dữ liệu bài viết)
     // ==========================================
 
     /**
      * Lấy danh sách bài viết theo thời gian thực với filtering theo category
-     * 
+     *
      * ✅ OPTIMIZED với:
      * - Pagination: Chỉ load 20 posts đầu tiên
      * - Debounce: Gom nhiều updates trong 300ms
@@ -163,16 +193,16 @@ class PostRepository {
                 try {
                     val postId = doc.id
                     val rawPost = doc.toObject(Post::class.java)
-                    
+
                     if (rawPost != null) {
                         // ✅ CACHE CHECK: Chỉ enrich nếu chưa có hoặc có thay đổi
                         val cachedPost = enrichedPostsCache[postId]
-                        val shouldReEnrich = cachedPost == null || 
+                        val shouldReEnrich = cachedPost == null ||
                             cachedPost.timestamp != rawPost.timestamp ||
                             cachedPost.likes != rawPost.likes ||
                             cachedPost.saveCount != rawPost.saveCount ||
                             cachedPost.commentCount != rawPost.commentCount
-                        
+
                         if (shouldReEnrich) {
                             val enriched = rawPost.enrich(currentUserId)?.copy(id = postId)
                             enriched?.let { enrichedPostsCache[postId] = it }
@@ -230,7 +260,7 @@ class PostRepository {
                 FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayUnion(currentUserId)
             ).await()
         }
-        
+
         // ✅ OPTIMIZATION: Invalidate cache cho post này
         enrichedPostsCache.remove(postId)
     }
@@ -270,7 +300,7 @@ class PostRepository {
                 FirestoreConstants.FIELD_SAVE_COUNT, FieldValue.increment(1)
             ).await()
         }
-        
+
         // ✅ OPTIMIZATION: Invalidate cache cho post này
         enrichedPostsCache.remove(postId)
     }
@@ -371,7 +401,7 @@ class PostRepository {
             val postRef = postsCollection.document(postId)
             val newCommentRef = postRef.collection(FirestoreConstants.COMMENTS_COLLECTION).document()
             val userRef = usersCollection.document(currentUserId)
-            
+
             val commentData = hashMapOf(
                 "id" to newCommentRef.id,
                 "userId" to currentUserId,
@@ -386,6 +416,59 @@ class PostRepository {
             Log.d("PostRepository", "Comment data prepared: $commentData")
 
             // ✅ TRANSACTION: TĂNG COMMENT COUNT + TẠO COMMENT + UPDATE USER STATS
+            // BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
+            db.runTransaction { transaction ->
+                Log.d("PostRepository", "Starting transaction")
+                transaction.update(postRef, "commentCount", FieldValue.increment(1))
+                transaction.set(newCommentRef, commentData)
+                Log.d("PostRepository", "Transaction operations set")
+            }.await()
+
+            // BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
+            usersCollection.document(currentUserId)
+                .update("lastCommentAt", FieldValue.serverTimestamp())
+                .await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Failed to add comment", e)
+            Result.failure(e)
+        }
+    }
+
+
+    suspend fun addCommentReply(postId: String, commentParentname: String, commentParentId: String, commentText: String): Result<Unit> {
+        return try {
+            Log.d("PostRepository", "Starting addComment for post: $postId")
+
+            val currentUserId = auth.currentUser?.uid
+                ?: throw IllegalStateException("User not logged in")
+            Log.d("PostRepository", "Current user ID: $currentUserId")
+            val userRepository = UserRepository()
+            val user = userRepository.getUser(currentUserId)
+                ?: throw IllegalStateException("User profile not found. Cannot comment.")
+            if (user.isBanned) {
+                throw IllegalStateException("User is banned. Cannot comment.")
+            }
+            val postRef = postsCollection.document(postId)
+            val newCommentRef = postRef.collection("comments").document()
+            val userRef = usersCollection.document(currentUserId)
+
+            val commentData = hashMapOf(
+                "id" to newCommentRef.id,
+                "userId" to currentUserId,
+                "username" to user.username,
+                "userAvatarUrl" to user.avatarUrl,
+                "parentname" to commentParentname,
+                "parentId" to commentParentId,
+                "text" to commentText,
+                "timestamp" to FieldValue.serverTimestamp(),
+                "likedBy" to emptyList<String>(),
+                "likes" to 0
+            )
+
+            Log.d("PostRepository", "Comment data prepared: $commentData")
+
+            // BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
             db.runTransaction { transaction ->
                 Log.d("PostRepository", "Starting transaction")
                 transaction.update(postRef, FirestoreConstants.FIELD_COMMENT_COUNT, FieldValue.increment(1))
@@ -394,12 +477,17 @@ class PostRepository {
                 Log.d("PostRepository", "Transaction operations set")
             }.await()
 
+            // BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
+            usersCollection.document(currentUserId)
+                .update("lastCommentAt", FieldValue.serverTimestamp())
+                .await()
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to add comment", e)
             Result.failure(e)
         }
     }
+
 
     /**
      * Lấy danh sách bình luận theo thời gian thực của một bài viết
@@ -418,6 +506,7 @@ class PostRepository {
      * - Automatic cleanup khi Flow cancelled
      * - Background processing để không block UI
      */
+
     fun getCommentsFlow(postId: String): Flow<List<Comment>> = callbackFlow {
         val listener = postsCollection.document(postId)
             .collection(FirestoreConstants.COMMENTS_COLLECTION)
@@ -694,11 +783,11 @@ class PostRepository {
             else -> emptyList()
         }
     }
-    
+
     /**
      * ✅ OPTIMIZATION: Load more posts (pagination)
      * Sử dụng để load thêm posts khi user scroll xuống cuối
-     * 
+     *
      * @param categoryId ID của category
      * @param lastTimestamp Timestamp của post cuối cùng để làm cursor
      * @param limit Số posts muốn load (mặc định 20)
@@ -737,24 +826,24 @@ class PostRepository {
                 }
             }
         }
-        
+
         val snapshot = query.get().await()
         val currentUserId = auth.currentUser?.uid
-        
+
         return snapshot.documents.mapNotNull { doc ->
             try {
                 val postId = doc.id
                 val rawPost = doc.toObject(Post::class.java)
-                
+
                 if (rawPost != null) {
                     // Check cache trước
                     val cachedPost = enrichedPostsCache[postId]
-                    val shouldReEnrich = cachedPost == null || 
+                    val shouldReEnrich = cachedPost == null ||
                         cachedPost.timestamp != rawPost.timestamp ||
                         cachedPost.likes != rawPost.likes ||
                         cachedPost.saveCount != rawPost.saveCount ||
                         cachedPost.commentCount != rawPost.commentCount
-                    
+
                     if (shouldReEnrich) {
                         val enriched = rawPost.enrich(currentUserId)?.copy(id = postId)
                         enriched?.let { enrichedPostsCache[postId] = it }
@@ -771,7 +860,7 @@ class PostRepository {
             }
         }
     }
-    
+
     /**
      * ✅ OPTIMIZATION: Clear cache khi cần (ví dụ: logout, refresh)
      */

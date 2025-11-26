@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -96,6 +98,8 @@ fun SearchResultScreen(
     val resultsUser by searchViewModel.searchUserResults.collectAsState()
     var visibleUsers by remember { mutableStateOf<List<User>>(emptyList()) }
 
+    val isLoading by searchViewModel.isLoading.collectAsState()
+
     val homeViewModel: HomeViewModel = viewModel()
 
 
@@ -130,116 +134,119 @@ fun SearchResultScreen(
         visibleUsers = resultsUser.take(2)
     }
 
-    Column(
-        modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        // 🔹 Tiêu đề "Mọi người"
-        SectionTitle(title = "Mọi người")
+    if (isLoading) {
+        LoadingScreen()
+    } else {
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            // Tiêu đề "Mọi người"
+            SectionTitle(title = "Mọi người")
 
-        if (resultsUser.isEmpty()) {
-            EmptyMessage("Không tìm thấy người dùng nào")
-        } else {
-            AnimatedVisibility(
-                visible = !isScrolled,
-                enter = expandVertically(
-                    animationSpec = tween(durationMillis = 500)
-                ) + fadeIn(animationSpec = tween(500)),
-                exit = shrinkVertically(
-                    animationSpec = tween(durationMillis = 400)
-                ) + fadeOut(animationSpec = tween(400))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp)
+            if (resultsUser.isEmpty()) {
+                EmptyMessage("Không tìm thấy người dùng nào")
+            } else {
+                AnimatedVisibility(
+                    visible = !isScrolled,
+                    enter = expandVertically(
+                        animationSpec = tween(durationMillis = 500)
+                    ) + fadeIn(animationSpec = tween(500)),
+                    exit = shrinkVertically(
+                        animationSpec = tween(durationMillis = 400)
+                    ) + fadeOut(animationSpec = tween(400))
                 ) {
-                    visibleUsers.forEachIndexed { index, user ->
-                        // Sử dụng AnimatedVisibility để trượt xuống
-                        val visibleState = remember { MutableTransitionState(false) }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    ) {
+                        visibleUsers.forEachIndexed { index, user ->
+                            // Sử dụng AnimatedVisibility để trượt xuống
+                            val visibleState = remember { MutableTransitionState(false) }
 
-                        LaunchedEffect(visibleUsers.size) {
-                            delay(index * 230L)
-                            visibleState.targetState = true
+                            LaunchedEffect(visibleUsers.size) {
+                                delay(index * 230L)
+                                visibleState.targetState = true
+                            }
+
+                            AnimatedVisibility(
+                                visibleState = visibleState,
+                                enter = slideInHorizontally(
+                                    initialOffsetX = { fullWidth -> fullWidth }, // trượt từ trên xuống
+                                    animationSpec = tween(durationMillis = 300)
+                                ) + fadeIn(animationSpec = tween(300)),
+                                exit = slideOutHorizontally(
+                                    targetOffsetX = { fullWidth -> fullWidth },
+                                    animationSpec = tween(300)
+                                ) + fadeOut(animationSpec = tween(300))
+                            ) {
+                                UserCard(user, navController)
+                            }
+                            Spacer(Modifier.height(13.dp))
                         }
 
-                        AnimatedVisibility(
-                            visibleState = visibleState,
-                            enter = slideInHorizontally(
-                                initialOffsetX = { fullWidth -> fullWidth }, // trượt từ trên xuống
-                                animationSpec = tween(durationMillis = 300)
-                            ) + fadeIn(animationSpec = tween(300)),
-                            exit = slideOutHorizontally(
-                                targetOffsetX = { fullWidth -> fullWidth },
-                                animationSpec = tween(300)
-                            ) + fadeOut(animationSpec = tween(300))
-                        ) {
-                            UserCard(user, navController)
-                        }
-                        Spacer(Modifier.height(13.dp))
-                    }
-
-                    // 🔹 Nút "Hiển thị thêm"
-                    if (resultsUser.size > 2) {
-                        MoreButton(
-                            onClick = {
-                                visibleUsers = if (visibleUsers.size < resultsUser.size) {
-                                    // Hiển thị thêm 3 người
-                                    resultsUser.take(
-                                        (visibleUsers.size + 2).coerceAtMost(
-                                            resultsUser.size
+                        //Nút "Hiển thị thêm"
+                        if (resultsUser.size > 2) {
+                            MoreButton(
+                                onClick = {
+                                    visibleUsers = if (visibleUsers.size < resultsUser.size) {
+                                        // Hiển thị thêm 3 người
+                                        resultsUser.take(
+                                            (visibleUsers.size + 2).coerceAtMost(
+                                                resultsUser.size
+                                            )
                                         )
-                                    )
-                                } else {
-                                    // Thu gọn lại chỉ còn 3
-                                    resultsUser.take(2)
-                                }
-                            },
-                            text = if (visibleUsers.size < resultsUser.size)
-                                "Hiển thị thêm"
-                            else
-                                "Thu gọn",
-                            rotateIconDegress = collapseRotate
-                        )
+                                    } else {
+                                        // Thu gọn lại chỉ còn 3
+                                        resultsUser.take(2)
+                                    }
+                                },
+                                text = if (visibleUsers.size < resultsUser.size)
+                                    "Hiển thị thêm"
+                                else
+                                    "Thu gọn",
+                                rotateIconDegress = collapseRotate
+                            )
 
-                        if (visibleUsers.size < resultsUser.size) {
-                            isCollapsed = false
-                        } else {
-                            isCollapsed = true
+                            if (visibleUsers.size < resultsUser.size) {
+                                isCollapsed = false
+                            } else {
+                                isCollapsed = true
+                            }
+
                         }
+                        //Spacer(Modifier.height(5.dp))
 
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
                     }
-                    //Spacer(Modifier.height(5.dp))
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
                 }
             }
-        }
 
-        Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(10.dp))
 
-        // 🔹 Tiêu đề "Bài viết"
-        SectionTitle(title = "Bài viết")
+            // Tiêu đề "Bài viết"
+            SectionTitle(title = "Bài viết")
 
-        if (resultsPost.isEmpty()) {
-            EmptyMessage("Không tìm thấy bài viết nào")
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 800.dp), // Giới hạn chiều cao để scroll
-                contentPadding = PaddingValues(bottom = 80.dp)
-            ) {
-                items(resultsPost) { post ->
-                    val isPostOwnerAdmin by remember(post.userId) {
-                        mutableStateOf(adminStatusCache[post.userId] ?: false)
-                    }
+            if (resultsPost.isEmpty()) {
+                EmptyMessage("Không tìm thấy bài viết nào")
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 800.dp), // Giới hạn chiều cao để scroll
+                    contentPadding = PaddingValues(bottom = 80.dp)
+                ) {
+                    items(resultsPost) { post ->
+                        val isPostOwnerAdmin by remember(post.userId) {
+                            mutableStateOf(adminStatusCache[post.userId] ?: false)
+                        }
 
                     PostCard(
                         post = post,
@@ -255,14 +262,15 @@ fun SearchResultScreen(
                         //isPostOwnerAdmin = isPostOwnerAdmin
                     )
 
-                    HorizontalDivider(
-                        thickness = 0.1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
+                        HorizontalDivider(
+                            thickness = 0.1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
                 }
             }
-        }
 
+        }
     }
 
     LaunchedEffect(uiState.shareContent) {
@@ -298,6 +306,14 @@ fun SearchResultScreen(
                 onAddComment = { commentText ->
                     searchViewModel.addComment(uiState.commentSheetPostId!!, commentText)
                 },
+                onAddCommentReply = { commentParentname, commentParentId, commentText ->
+                    homeViewModel.addCommentReply(
+                        uiState.commentSheetPostId!!,
+                        commentParentname,
+                        commentParentId,
+                        commentText
+                    )
+                },
                 onLikeComment = searchViewModel::onCommentLikeClicked,
                 onUserProfileClick = { },
                 commentPostState = uiState.commentPostState,
@@ -305,7 +321,7 @@ fun SearchResultScreen(
         }
     }
 
-    // --- 🔸 REPORT DIALOG ---
+    // --- REPORT DIALOG ---
     ReportDialog(
         isVisible = uiState.showReportDialog,
         onDismiss = { searchViewModel.onDismissReportDialog() },
@@ -369,5 +385,15 @@ private fun EmptyMessage(message: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 14.sp
         )
+    }
+}
+
+@Composable
+fun LoadingScreen() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
     }
 }

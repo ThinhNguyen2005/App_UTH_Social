@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.uth_socials.ui.component.post.PostCard
 import com.example.uth_socials.ui.component.profile.ProfileHeader
-import com.example.uth_socials.ui.screen.market.ProductItem
+//import com.example.uth_socials.ui.screen.market.ProductItem
 import com.example.uth_socials.ui.viewmodel.ProfileUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -122,26 +122,26 @@ fun ProfileScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         // Product đầu tiên trong row
-                        Box(modifier = Modifier.weight(1f)) {
-                            rowProducts.getOrNull(0)?.let { product ->
-                                val id = product.id
-                                ProductItem(
-                                    product = product,
-                                    onClick = { onProductClick(id) }
-                                )
-                            }
-                        }
-
-                        // Product thứ hai trong row (nếu có)
-                        Box(modifier = Modifier.weight(1f)) {
-                            rowProducts.getOrNull(1)?.let { product ->
-                                val id = product.id
-                                ProductItem(
-                                    product = product,
-                                    onClick = { onProductClick(id) }
-                                )
-                            }
-                        }
+//                        Box(modifier = Modifier.weight(1f)) {
+//                            rowProducts.getOrNull(0)?.let { product ->
+//                                val id = product.id
+//                                ProductItem(
+//                                    product = product,
+//                                    onClick = { onProductClick(id) }
+//                                )
+//                            }
+//                        }
+//
+//                        // Product thứ hai trong row (nếu có)
+//                        Box(modifier = Modifier.weight(1f)) {
+//                            rowProducts.getOrNull(1)?.let { product ->
+//                                val id = product.id
+//                                ProductItem(
+//                                    product = product,
+//                                    onClick = { onProductClick(id) }
+//                                )
+//                            }
+//                        }
                     }
                 }
             }

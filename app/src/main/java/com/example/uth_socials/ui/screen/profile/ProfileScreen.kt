@@ -119,6 +119,9 @@ fun ProfileScreen(
                 onUserProfileClick = onNavigateToProfile,
                 commentPostState = uiState.commentPostState,
                 commentErrorMessage = uiState.commentErrorMessage,
+                onAddCommentReply = {commentParentname, commentParentId, commentText ->
+                    homeViewModel.addCommentReply(uiState.commentSheetPostId!!, commentParentname, commentParentId, commentText)
+                }
             )
         }
     }

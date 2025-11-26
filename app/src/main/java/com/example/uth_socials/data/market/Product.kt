@@ -1,13 +1,13 @@
 package com.example.uth_socials.data.market
 
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ServerTimestamp
+import java.sql.Timestamp
 
 data class Product(
     val id: String = "",
     val name: String = "",
-    val price: Double = 0.0,
-    val imageUrl: String? = null,
+    val price: Int = 0,
+    val imageUrls: List<String> = emptyList(),
     val description: String = "",
     val type: String = "", // "Sách", "Đồ điện tử", etc.
     val userId: String = "",

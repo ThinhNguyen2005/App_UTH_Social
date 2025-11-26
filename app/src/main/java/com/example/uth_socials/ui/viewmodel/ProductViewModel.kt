@@ -6,7 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.uth_socials.data.market.Product
+import com.example.uth_socials.data.repository.ProductRepository
 import com.example.uth_socials.data.repository.UserRepository
+import com.example.uth_socials.data.user.User
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.storage.storage
@@ -15,88 +18,53 @@ import kotlinx.coroutines.tasks.await
 import java.sql.Timestamp
 import java.util.UUID
 
-data class Product(
-    val id: String = "",
-    val userId: String = "",
-    val name: String = "",
-    val imageUrl: String? = null,
-    val description: String = "",
-    val type: String = "",
-    val price: Double = 0.0,
-    val comments: Long = 0,
-    val shares: Long = 0,
-    val saves: Long = 0,
-    val likedBy: List<String> = emptyList(),
-    val savedBy: List<String> = emptyList(),
-    val timestamp: Timestamp = Timestamp(System.currentTimeMillis())
-)
-
 class ProductViewModel : ViewModel() {
     private val db = Firebase.firestore
     private val storage = Firebase.storage
 
-    var name by mutableStateOf("")
-    var description by mutableStateOf("")
-    var type by mutableStateOf("")
-    var price by mutableStateOf(0.0)
-    var imageUri by mutableStateOf<Uri?>(null)
+    private val userRepository: UserRepository = UserRepository()
+    private val productRepository: ProductRepository = ProductRepository()
+
     var isLoading by mutableStateOf(false)
     var success by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
     var showBanDialog by mutableStateOf(false)
 
-    fun postArticle(userId: String) {
+    fun uploadPost(
+        user: User?,
+        name: String,
+        description: String,
+        type: String,
+        price: Int,
+        imageUris: List<Uri>
+    ) {
         viewModelScope.launch {
+            // return try {
+            val userId = userRepository.getCurrentUserId()
             // Check ban status trước khi đăng
             val userRepository = UserRepository()
-            val user = userRepository.getUser(userId)
             if (user?.isBanned == true) {
                 showBanDialog = true
                 return@launch
             }
-            
-            isLoading = true
-            val result = uploadPost(name, description, type, price, imageUri, userId)
-            isLoading = false
 
-            if (result) {
-                success = true
-                name = ""
-                imageUri = null
-            } else {
-                error = "Đăng bài thất bại, vui lòng thử lại."
-            }
-        }
-    }
+            val imageUrls = mutableListOf<String>()
 
-    suspend fun uploadPost(name: String, description: String, type: String, price: Double, imageUri: Uri?, userId: String): Boolean {
-        return try {
-            var imageUrl: String? = null
-
-            // Nếu có ảnh → upload lên Storage
-            if (imageUri != null) {
+            for (uri in imageUris) {
                 val ref = storage.reference.child("posts/${UUID.randomUUID()}.jpg")
-                ref.putFile(imageUri).await()
-                imageUrl = ref.downloadUrl.await().toString()
+                ref.putFile(uri).await()
+                imageUrls.add(uri.toString())
             }
+
+            productRepository.uploadPost(user, name, description, type, price, imageUrls)
 
             // Tạo bài viết
-            val post = Product(
-                id = UUID.randomUUID().toString(),
-                userId = userId,
-                name = name,
-                description = description,
-                type = type,
-                price = price,
-                imageUrl = imageUrl
-            )
 
-            // Lưu lên Firestore
-            db.collection("products").document(post.id).set(post).await()
-            true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
+            // true
+            //  } catch (e: Exception) {
+            // e.printStackTrace()
+            //  false
+            //}
         }
     }
 
