@@ -89,7 +89,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun SearchResultScreen(
     searchViewModel: SearchViewModel,
-    blockedUsersViewModel: BlockedUsersViewModel,
+//    blockedUsersViewModel: BlockedUsersViewModel,
     navController: NavController
 ) {
     val resultsPost by searchViewModel.searchPostResults.collectAsState()
@@ -98,7 +98,10 @@ fun SearchResultScreen(
 
     val homeViewModel: HomeViewModel = viewModel()
 
-    val uiState by homeViewModel.uiState.collectAsState()
+
+    val uiState by searchViewModel.uiState.collectAsState()
+
+
 
     val context = LocalContext.current
 
@@ -240,14 +243,14 @@ fun SearchResultScreen(
 
                     PostCard(
                         post = post,
-                        onLikeClicked = { homeViewModel.onLikeClicked(post.id) },
-                        onCommentClicked = { homeViewModel.onCommentClicked(post.id) },
-                        onSaveClicked = { homeViewModel.onSaveClicked(post.id) },
-                        onShareClicked = { homeViewModel.onShareClicked(post.id) },
+                        onLikeClicked = { searchViewModel.onLikeClicked(post.id) },
+                        onCommentClicked = { searchViewModel.onCommentClicked(post.id) },
+                        onSaveClicked = { searchViewModel.onSaveClicked(post.id) },
+                        onShareClicked = { searchViewModel.onShareClicked(post.id) },
                         onUserProfileClicked = { },
-                        onReportClicked = { homeViewModel.onReportClicked(post.id) },
-                        onDeleteClicked = { homeViewModel.onDeleteClicked(post.id) },
-                        onHideClicked = { homeViewModel.onHideClicked(post.id) },
+                        onReportClicked = { searchViewModel.onReportClicked(post.id) },
+                        onDeleteClicked = { searchViewModel.onDeleteClicked(post.id) },
+                        onHideClicked = { searchViewModel.onHideClicked(post.id) },
                         currentUserId = uiState.currentUserId,
                         //isPostOwnerAdmin = isPostOwnerAdmin
                     )
@@ -271,13 +274,21 @@ fun SearchResultScreen(
             val chooser = Intent.createChooser(intent, "Chia sẻ bài viết qua...")
             context.startActivity(chooser)
 
-            homeViewModel.onShareDialogLaunched()
+            searchViewModel.onShareDialogLaunched()
         }
     }
-
+    LaunchedEffect(uiState.commentSheetPostId) {
+        if (uiState.commentSheetPostId != null) {
+            sheetState.show()
+        } else {
+            if (sheetState.isVisible) {
+                sheetState.hide()
+            }
+        }
+    }
     if (uiState.commentSheetPostId != null) {
         ModalBottomSheet(
-            onDismissRequest = { homeViewModel.onDismissCommentSheet() },
+            onDismissRequest = { searchViewModel.onDismissCommentSheet() },
             sheetState = sheetState
         ) {
             CommentSheetContent(
@@ -285,9 +296,9 @@ fun SearchResultScreen(
                 comments = uiState.commentsForSheet,
                 isLoading = uiState.isSheetLoading,
                 onAddComment = { commentText ->
-                    homeViewModel.addComment(uiState.commentSheetPostId!!, commentText)
+                    searchViewModel.addComment(uiState.commentSheetPostId!!, commentText)
                 },
-                onLikeComment = homeViewModel::onCommentLikeClicked,
+                onLikeComment = searchViewModel::onCommentLikeClicked,
                 onUserProfileClick = { },
                 commentPostState = uiState.commentPostState,
             )
@@ -297,10 +308,10 @@ fun SearchResultScreen(
     // --- 🔸 REPORT DIALOG ---
     ReportDialog(
         isVisible = uiState.showReportDialog,
-        onDismiss = { homeViewModel.onDismissReportDialog() },
-        onReportReasonChanged = { homeViewModel.onReportReasonChanged(it) },
-        onReportDescriptionChanged = { homeViewModel.onReportDescriptionChanged(it) },
-        onSubmit = { homeViewModel.onSubmitReport() },
+        onDismiss = { searchViewModel.onDismissReportDialog() },
+        onReportReasonChanged = { searchViewModel.onReportReasonChanged(it) },
+        onReportDescriptionChanged = { searchViewModel.onReportDescriptionChanged(it) },
+        onSubmit = { searchViewModel.onSubmitReport() },
         reportReason = uiState.reportReason,
         reportDescription = uiState.reportDescription,
         isReporting = uiState.isReporting
@@ -313,8 +324,8 @@ fun SearchResultScreen(
         is DialogType.DeletePost -> {
             ConfirmDialog(
                 isVisible = true,
-                onDismiss = { blockedUsersViewModel.onDismissDialog() },
-                onConfirm = { blockedUsersViewModel.onConfirmDialog() },
+                onDismiss = { searchViewModel.onDismissDialog() },
+                onConfirm = { searchViewModel.onConfirmDialog() },
                 isLoading = uiState.isProcessing,
                 title = "Xóa bài viết",
                 message = "Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.",
@@ -326,8 +337,8 @@ fun SearchResultScreen(
         is DialogType.BlockUser -> {
             ConfirmDialog(
                 isVisible = true,
-                onDismiss = { blockedUsersViewModel.onDismissDialog() },
-                onConfirm = { blockedUsersViewModel.onConfirmDialog() },
+                onDismiss = { searchViewModel.onDismissDialog() },
+                onConfirm = { searchViewModel.onConfirmDialog() },
                 isLoading = uiState.isProcessing,
                 title = "Chặn người dùng",
                 message = "Bạn có chắc chắn muốn chặn người dùng này? Bạn sẽ không thể xem bài viết hoặc tương tác với họ.",

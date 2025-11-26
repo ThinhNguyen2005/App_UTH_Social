@@ -1,4 +1,4 @@
-package com.example.uth_socials.ui.viewmodel
+package com.example.uth_socials.ui.viewmodel.admin
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -14,7 +14,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+
 // Chặn bỏ chặn user, làm mới khi có thay đổi
 // Cấp, thu quyền admin
 // Category load, add, update, delete
@@ -26,15 +29,6 @@ class AdminDashboardViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(AdminDashboardUiState())
     val uiState: StateFlow<AdminDashboardUiState> = _uiState.asStateFlow()
 
-    init {
-        callSuperAdminIfNeeded()
-    }
-
-    private fun callSuperAdminIfNeeded() {
-        viewModelScope.launch(Dispatchers.IO) {
-            adminRepository.superAdminIfNeeded()
-        }
-    }
     fun loadData() {
         viewModelScope.launch(Dispatchers.IO) {
             Log.d("AdminDashboardViewModel", "Loading data started...")
@@ -146,6 +140,24 @@ class AdminDashboardViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             loadBannedUsersBackground()
         }
+    }
+
+    /**
+     * Khởi động realtime listener cho danh sách người dùng bị cấm
+     * Tự động cập nhật UI khi có thay đổi trong Firestore
+     */
+    fun startBannedUsersRealtimeListener() {
+        adminRepository.getBannedUsersFlow()
+            .onEach { bannedUsers ->
+                _uiState.update {
+                    it.copy(
+                        bannedUsers = bannedUsers,
+                        isLoadingUsers = false
+                    )
+                }
+                Log.d("AdminDashboardViewModel", "Realtime update: ${bannedUsers.size} banned users")
+            }
+            .launchIn(viewModelScope)
     }
     //chặn user
     fun banUser(userId: String, reason: String) {

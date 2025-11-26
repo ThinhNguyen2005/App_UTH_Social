@@ -1,35 +1,32 @@
 package com.example.uth_socials.ui.screen.util
 
+import android.app.Activity
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
-import com.example.uth_socials.R
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uth_socials.ui.component.button.ComfirmAuthButton
 import com.example.uth_socials.ui.component.button.GoogleButton
 import com.example.uth_socials.ui.component.common.InputTextField
 import com.example.uth_socials.ui.component.common.PasswordTextField
+import com.example.uth_socials.ui.component.logo.LogoTopAppBar
+import com.example.uth_socials.ui.component.navigation.Graph
 import com.example.uth_socials.ui.component.navigation.Screen
 import com.example.uth_socials.ui.viewmodel.AuthState
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     viewModel: AuthViewModel,
@@ -44,124 +41,137 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    
+    Scaffold(
+        topBar = {
+            LogoTopAppBar()
+        },
+    ) { innerpadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerpadding)
+                .background(MaterialTheme.colorScheme.background)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        ) {
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Spacer(modifier = Modifier.height(60.dp))
+            Text(
+                text = "Tạo tài khoản",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF06635A)
+            )
 
-        Text(
-            text = buildAnnotatedString {
-                withStyle(style = SpanStyle(color = Color(0xFF06635A), fontWeight = FontWeight.Bold, fontSize = 24.sp)) {
-                    append("UTH")
-                }
-                withStyle(style = SpanStyle(color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 24.sp)) {
-                    append(" Social")
-                }
-            },
-            modifier = Modifier.align(Alignment.Start)
-        )
+            Spacer(modifier = Modifier.height(8.dp))
 
-        Spacer(modifier = Modifier.height(40.dp))
+            Text(
+                text = "Tạo tài khoản để kết nối nhiều bạn bè hơn",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.Gray,
+                fontWeight = FontWeight.Medium
+            )
 
-        Text(
-            text = "Tạo tài khoản",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF06635A)
-        )
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
+            InputTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = "Tên người dùng"
+            )
 
-        Text(
-            text = "Tạo tài khoản để kết nối nhiều bạn bè hơn",
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray,
-            fontWeight = FontWeight.Medium
-        )
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(24.dp))
+            InputTextField(
+                value = email,
+                onValueChange = { newEmail ->
+                    email = newEmail.filter{!it.isWhitespace()}
+                },
+                label = "Email"
+            )
 
-        InputTextField(
-            value = username,
-            onValueChange = {username=it},
-            label = "Tên người dùng"
-        )
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
+            PasswordTextField(
+                value = password,
+                onValueChange = { newPassword ->
+                    password = newPassword.filter{!it.isWhitespace()}
+                },
+            )
 
-        InputTextField(
-            value=email,
-            onValueChange = {email=it},
-            label = "Email"
-        )
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
+            PasswordTextField(
+                value = confirmPassword,
+                onValueChange = { newPassword ->
+                    confirmPassword = newPassword.filter{!it.isWhitespace()}
+                },
+                label = "Nhập lại mật khẩu"
+            )
 
-        PasswordTextField(
-            value = password,
-            onValueChange={password=it},
-        )
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
+            ComfirmAuthButton(
+                text = "Đăng kí",
+                onClick = {
+                    when {
+                        email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty() || username.isBlank() ->
+                            Toast.makeText(
+                                context,
+                                "Vui lòng nhập đủ thông tin",
+                                Toast.LENGTH_SHORT
+                            ).show()
 
-        PasswordTextField(
-            value= confirmPassword,
-            onValueChange = {confirmPassword=it},
-            label = "Nhập lại mật khẩu"
-        )
+                        password != confirmPassword ->
+                            Toast.makeText(context, "Mật khẩu không khớp", Toast.LENGTH_SHORT)
+                                .show()
 
-        Spacer(modifier = Modifier.height(24.dp))
+                        else -> { 
+                            viewModel.register(email, password, username)
+                        }
+                    }
+                },
+            )
 
-        ComfirmAuthButton(
-            text = "Đăng kí",
-            onClick = {
-                when {
-                    email.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()||username.isBlank() ->
-                        Toast.makeText(context, "Vui lòng nhập đủ thông tin", Toast.LENGTH_SHORT).show()
-                    password != confirmPassword ->
-                        Toast.makeText(context, "Mật khẩu không khớp", Toast.LENGTH_SHORT).show()
-                    else -> viewModel.register(email, password,username)
-                }
-            },
-        )
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        TextButton(onClick = onBackToLogin) {
-            Text("Bạn đã có tài khoản rồi !", color = Color.Gray, fontWeight = FontWeight.Medium)
-        }
-
-        Spacer(modifier = Modifier.height(100.dp))
-
-        GoogleButton(
-            onClick=onGoogleClick
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        when (state) {
-            is AuthState.Loading ->{
-                CircularProgressIndicator(
-                    modifier = Modifier.padding(bottom=50.dp),
+            TextButton(onClick = onBackToLogin) {
+                Text(
+                    "Bạn đã có tài khoản rồi !",
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
                 )
             }
-            is AuthState.Success -> {
-                Toast.makeText(context, (state as AuthState.Success).message, Toast.LENGTH_SHORT).show()
-                viewModel.resetState()
-                onRegisterSuccess()
 
+            Spacer(modifier = Modifier.weight(1f))
+
+            when (state) {
+                is AuthState.Success -> {
+                    Toast.makeText(
+                        context,
+                        (state as AuthState.Success).message,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    viewModel.resetState()
+                    onRegisterSuccess()
+
+                }
+
+                is AuthState.Error -> {
+                    Toast.makeText(context, (state as AuthState.Error).message, Toast.LENGTH_SHORT)
+                        .show()
+                    viewModel.resetState()
+                }
+
+                else -> {}
             }
-            is AuthState.Error -> {
-                Toast.makeText(context, (state as AuthState.Error).message, Toast.LENGTH_SHORT).show()
-                viewModel.resetState()
-            }
-            else -> {}
+            
+            GoogleButton(
+                onClick = onGoogleClick
+            )
         }
     }
 }

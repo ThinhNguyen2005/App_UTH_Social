@@ -253,6 +253,20 @@ fun HomeTopAppBar(
     )
 }
 
+@Composable
+fun Logo() {
+    Text(
+        buildAnnotatedString {
+            withStyle(style = SpanStyle(color = com.example.uth_socials.ui.screen.util.UthTeal, fontSize = 36.sp, fontWeight = FontWeight.Bold)) {
+                append("UTH")
+            }
+            withStyle(style = SpanStyle(color = UthRed, fontSize = 36.sp, fontWeight = FontWeight.Bold)) {
+                append(" Social")
+            }
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogoTopAppBar(

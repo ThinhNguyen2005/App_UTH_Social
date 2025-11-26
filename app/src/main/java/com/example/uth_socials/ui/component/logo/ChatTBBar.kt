@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,7 +28,8 @@ import androidx.compose.ui.unit.sp
 fun ChatBottomBar(
     text: String,
     onTextChange: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val surfaceColor = MaterialTheme.colorScheme.surface
 
@@ -36,12 +37,7 @@ fun ChatBottomBar(
         color = surfaceColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        // 👇 Tắt mọi insets tự động như TopAppBar
-        modifier = Modifier
-            .fillMaxWidth()
-
-            .consumeWindowInsets(WindowInsets.ime) // "ăn" inset của bàn phím để Scaffold không xử lý trùng
-            .imePadding()
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -55,7 +51,7 @@ fun ChatBottomBar(
                 placeholder = { Text("Nhập tin nhắn...") },
                 modifier = Modifier
                     .weight(1f)
-                    .defaultMinSize(minHeight = 48.dp), //height(48.dp) = ép cứng chiều cao → nếu font + padding bên trong vượt giới hạn → chữ bị cắt.
+                    .defaultMinSize(minHeight = 48.dp),
                 shape = RoundedCornerShape(24.dp),
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
@@ -77,7 +73,7 @@ fun ChatBottomBar(
                 modifier = Modifier.size(44.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Send,
+                    imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = "Gửi",
                     tint = MaterialTheme.colorScheme.primary
                 )

@@ -1,6 +1,6 @@
 package com.example.uth_socials.ui.component.post
 
-import PageIndicator
+import com.example.uth_socials.ui.component.common.PageIndicator
 import androidx.compose.animation.AnimatedVisibility
 import com.example.uth_socials.ui.component.common.formatTimeAgo
 import androidx.compose.foundation.clickable
@@ -52,17 +52,10 @@ import androidx.compose.ui.text.withStyle
 import com.example.uth_socials.data.util.MenuItemData
 import com.example.uth_socials.ui.component.common.ReusablePopupMenu
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.foundation.pager.PagerDefaults
-import androidx.compose.material.icons.rounded.ImageNotSupported
 import androidx.compose.ui.platform.LocalContext
-import coil.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.Dispatchers
-import kotlin.math.abs
 import coil.request.ImageRequest
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.composed
@@ -72,6 +65,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.core.*
 import androidx.compose.ui.tooling.preview.Preview
+import kotlin.random.Random
 
 @Composable
 fun PostCard(
@@ -88,7 +82,9 @@ fun PostCard(
     currentUserId: String? = null,
     isCurrentUserAdmin: Boolean = false,
     isUserBanned: Boolean = false,
-    onNavigateToUserProfile: ((String) -> Unit)? = null
+    onNavigateToUserProfile: ((String) -> Unit)? = null,
+    isPostOwnerAdmin: Boolean = false,
+    isScrolling: Boolean = false
 ) {
     Card(
         modifier = Modifier.padding(vertical = 8.dp),
@@ -105,14 +101,21 @@ fun PostCard(
                     onEditClicked = onEditClicked,
                     currentUserId = currentUserId,
                     isCurrentUserAdmin = isCurrentUserAdmin,
-                    onNavigateToUserProfile = onNavigateToUserProfile
+                    isPostOwnerAdmin = isPostOwnerAdmin,
+                    onNavigateToUserProfile = onNavigateToUserProfile,
+                    isScrolling = isScrolling
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
+                ExpandableText(
+                    text = post.textContent, 
+                    modifier = Modifier.fillMaxWidth(),
+                    isScrolling = isScrolling
+                )
             }
             if (post.imageUrls.isNotEmpty()) {
                 PostMedia(
-                    imageUrls = post.imageUrls
+                    imageUrls = post.imageUrls,
+                    isScrolling = isScrolling
                 )
             }
             // Column này chứa các hành động (actions) và cũng có padding
@@ -150,18 +153,30 @@ private fun PostHeader(
     currentUserId: String? = null,
     isPostOwnerAdmin: Boolean = false,
     isCurrentUserAdmin: Boolean = false,
-    onNavigateToUserProfile: ((String) -> Unit)? = null
+    onNavigateToUserProfile: ((String) -> Unit)? = null,
+    isScrolling: Boolean = false
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                onNavigateToUserProfile?.invoke(post.userId) ?: onUserProfileClicked(post.userId)
-            }
+            .then(
+                if (post.userId != currentUserId) {
+                    Modifier.clickable {
+                        onNavigateToUserProfile?.invoke(post.userId) ?: onUserProfileClicked(post.userId)
+                    }
+                } else {
+                    Modifier
+                }
+            )
     ) {
         AsyncImage(
-            model = post.userAvatarUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(post.userAvatarUrl)
+                .crossfade(!isScrolling)
+                .size(120)
+                .dispatcher(Dispatchers.IO)
+                .build(),
             contentDescription = "User Avatar",
             modifier = Modifier
                 .size(40.dp)
@@ -174,8 +189,11 @@ private fun PostHeader(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            val formattedTime = remember(post.timestamp) {
+                formatTimeAgo(post.timestamp)
+            }
             Text(
-                text = formatTimeAgo(post.timestamp),
+                text = formattedTime,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -202,8 +220,7 @@ private fun PostHeader(
                 )
             )
 
-            // Chỉ thêm "Báo cáo" nếu chủ post KHÔNG phải admin
-            if (!isPostOwnerAdmin) {
+            if (!isPostOwnerAdmin && post.userId != currentUserId) {
                 menuItems.add(
                     MenuItemData(
                         text = "Báo cáo",
@@ -229,7 +246,7 @@ private fun PostHeader(
                     )
                 )
             }
-            
+
             // Hiện tùy chọn xóa nếu là admin và chủ bài viết
             if (post.userId == currentUserId || isCurrentUserAdmin) {
                 menuItems.add(
@@ -258,24 +275,27 @@ private fun PostHeader(
 private fun ExpandableText(
     text: String,
     modifier: Modifier = Modifier,
-    collapsedMaxLines: Int = 2
+    collapsedMaxLines: Int = 2,
+    isScrolling: Boolean = false
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     var isTextOverflow by remember { mutableStateOf(false) }
 
-    val displayText = buildAnnotatedString {
-        append(text)
+    val displayText = remember(isExpanded, text) {
+        buildAnnotatedString {
+            append(text)
 
-        if (isExpanded) {
-            withStyle(
-                style = SpanStyle(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
-                )
-            ) {
-                append("  Thu gọn")
+            if (isExpanded) {
+                withStyle(
+                    style = SpanStyle(
+                        color = Color.Gray,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                ) {
+                    append("  Thu gọn")
+                }
+
             }
-
         }
     }
 
@@ -300,14 +320,166 @@ private fun ExpandableText(
                     isExpanded = !isExpanded
                 }
             }
-            .animateContentSize()
+            .then(
+                if (!isScrolling) Modifier.animateContentSize() else Modifier
+            )
     )
 }
 //Phần hình ảnh và có thể lướt nhiều hình ảnh
+//@OptIn(ExperimentalFoundationApi::class)
+//@Composable
+//fun PostMedia(
+//    imageUrls: List<String>
+//) {
+//    if (imageUrls.isEmpty()) return
+//
+//    val pagerState = rememberPagerState(pageCount = { imageUrls.size })
+//    val context = LocalContext.current
+//
+//    Box(
+//        modifier = Modifier
+//            .clip(RoundedCornerShape(16.dp))
+//            .background(MaterialTheme.colorScheme.surfaceVariant)
+//    ) {
+//        HorizontalPager(
+//            state = pagerState,
+//            pageSpacing = 12.dp,
+//            flingBehavior = PagerDefaults.flingBehavior(
+//                state = pagerState,
+//                snapAnimationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+//            ),
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .pointerInput(Unit) {
+//                    forEachGesture {
+//                        awaitPointerEventScope {
+//                            awaitFirstDown()
+//                            var horizontalDragConsumed = false
+//                            do {
+//                                val event = awaitPointerEvent()
+//                                if (event.changes.any { it.pressed }) {
+//                                    val dragAmount = event.changes.sumOf { it.positionChange().x.toDouble() }.toFloat()
+//                                    if (!horizontalDragConsumed && abs(dragAmount) > 0.5f) {
+//                                        horizontalDragConsumed = true
+//                                        event.changes.forEach {
+//                                            if (it.positionChange() != Offset.Zero) it.consume()
+//                                        }
+//                                    }
+//                                    pagerState.dispatchRawDelta(-dragAmount)
+//                                }
+//                            } while (event.changes.any { it.pressed })
+//                        }
+//                    }
+//                }
+//        ) { page ->
+//
+//            var imageRatio by remember(page) { mutableStateOf<Float?>(null) }
+//
+//            val safeAspectRatio = remember(imageRatio) {
+//                when {
+//                    imageRatio == null -> 1f // Default khi chưa load
+//                    imageRatio!! <= 0f -> 1f // Fallback nếu ratio <= 0
+//                    imageRatio!!.isNaN() -> 1f // Fallback nếu NaN
+//                    imageRatio!! > 3f -> 3f // ảnh quá ngang
+//                    imageRatio!! < 0.3f -> 0.3f // ảnh quá dọc
+//                    else -> imageRatio!!
+//                }
+//            }
+//
+//            // ✅ Sửa: Tự quyết định ContentScale dựa trên tỉ lệ
+//            val scale = remember(safeAspectRatio) {
+//                when {
+//                    safeAspectRatio < 0.7f -> ContentScale.Fit        // ảnh dọc dài
+//                    safeAspectRatio > 1.6f -> ContentScale.FillWidth  // ảnh ngang dài
+//                    else -> ContentScale.Crop                    // gần vuông -> crop nhẹ cho đẹp
+//                }
+//            }
+//
+//            SubcomposeAsyncImage(
+//                model = ImageRequest.Builder(context)
+//                    .data(imageUrls[page])
+//                    .crossfade(true)
+//                    .dispatcher(Dispatchers.IO)
+//                    .allowHardware(true)
+//                    .build(),
+//                contentDescription = "Post image ${page + 1}",
+//
+//                onSuccess = { state ->
+//                    val w = state.result.drawable.intrinsicWidth
+//                    val h = state.result.drawable.intrinsicHeight
+//                    if (w > 0 && h > 0) {
+//                        val ratio = w.toFloat() / h.toFloat()
+//                        if (ratio.isFinite() && ratio > 0f) {
+//                            imageRatio = ratio
+//                        } else {
+//                            imageRatio = 1f // Fallback
+//                        }
+//                    } else {
+//                        imageRatio = 1f // Fallback nếu không lấy được size
+//                    }
+//                },
+//
+//                loading = {
+//                    Box(Modifier.fillMaxSize()) {
+//                        CircularProgressIndicator(
+//                            modifier = Modifier.align(Alignment.Center),
+//                            strokeWidth = 2.dp
+//                        )
+//                    }
+//                },
+//
+//                error = {
+//                    Box(Modifier.fillMaxSize()) {
+//                        Icon(
+//                            imageVector = Icons.Rounded.ImageNotSupported,
+//                            contentDescription = "Image loading failed",
+//                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+//                            modifier = Modifier
+//                                .size(48.dp)
+//                                .align(Alignment.Center)
+//                        )
+//                    }
+//                },
+//
+//                contentScale = scale,
+//
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .aspectRatio(safeAspectRatio)
+//                    .heightIn(max = 520.dp)
+//                    .clip(RoundedCornerShape(16.dp))
+//                    .combinedClickable(
+//                        onClick = { /* TODO: xem ảnh full screen */ },
+//                        onLongClick = { /* TODO: lưu hoặc chia sẻ ảnh */ }
+//                    )
+//            )
+//        }
+//
+//        // Indicator
+//        AnimatedVisibility(
+//            visible = imageUrls.size > 1,
+//            enter = fadeIn(),
+//            exit = fadeOut(),
+//            modifier = Modifier
+//                .align(Alignment.BottomCenter)
+//                .padding(bottom = 12.dp)
+//        ) {
+//            Box(
+//                modifier = Modifier
+//                    .clip(RoundedCornerShape(999.dp))
+//                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+//                    .padding(horizontal = 12.dp, vertical = 6.dp)
+//            ) {
+//                PageIndicator(pageCount = imageUrls.size, currentPage = pagerState.currentPage)
+//            }
+//        }
+//    }
+//}
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PostMedia(
-    imageUrls: List<String>
+    imageUrls: List<String>,
+    isScrolling: Boolean = false
 ) {
     if (imageUrls.isEmpty()) return
 
@@ -322,60 +494,20 @@ fun PostMedia(
         HorizontalPager(
             state = pagerState,
             pageSpacing = 12.dp,
-            // SỬA: Xóa dòng 'beyondBoundsPageCount'
             flingBehavior = PagerDefaults.flingBehavior(
                 state = pagerState,
                 snapAnimationSpec = spring(stiffness = Spring.StiffnessMediumLow)
             ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .pointerInput(Unit) {
-                    forEachGesture {
-                        awaitPointerEventScope {
-                            awaitFirstDown()
-                            var horizontalDragConsumed = false
-                            do {
-                                val event = awaitPointerEvent()
-                                if (event.changes.any { it.pressed }) {
-                                    val dragAmount = event.changes.sumOf { it.positionChange().x.toDouble() }.toFloat()
-                                    if (!horizontalDragConsumed && abs(dragAmount) > 0.5f) {
-                                        horizontalDragConsumed = true
-                                        event.changes.forEach {
-                                            if (it.positionChange() != Offset.Zero) it.consume()
-                                        }
-                                    }
-                                    pagerState.dispatchRawDelta(-dragAmount)
-                                }
-                            } while (event.changes.any { it.pressed })
-                        }
-                    }
-                }
+            modifier = Modifier.fillMaxWidth()
         ) { page ->
-            SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context) // Bây giờ sẽ hoạt động
+            AsyncImage(
+                model = ImageRequest.Builder(context)
                     .data(imageUrls[page])
-                    .crossfade(true)
+                    .crossfade(!isScrolling)
+                    .size(800, 800)
                     .dispatcher(Dispatchers.IO)
                     .build(),
                 contentDescription = "Post image ${page + 1}",
-                loading = {
-                    Box(Modifier.fillMaxSize()) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center),
-                            strokeWidth = 2.dp
-                        )
-                    }
-                },
-                error = {
-                    Icon(
-                        imageVector = Icons.Rounded.ImageNotSupported,
-                        contentDescription = "Image loading failed",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .align(Alignment.Center)
-                    )
-                },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -407,7 +539,6 @@ fun PostMedia(
         }
     }
 }
-
 //Hành động tim, bình luận ....
 // Trong file PostCard.kt
 
@@ -492,17 +623,12 @@ private fun PostActionItem(
     contentDescription: String,
     enabled: Boolean = true
 ) {
-    // Row này để nhóm icon và số đếm, và để tăng vùng nhấn
+    // Row này để nhóm icon và số đếm
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null, // Tắt hiệu ứng gợn sóng để dùng hiệu ứng của IconButton
-            onClick = { if (enabled) onClick() }
-        )
+        verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
-            onClick = onClick,
+            onClick = { if (enabled) onClick() },
             enabled = enabled,
             modifier = Modifier.size(40.dp) // Kích thước vùng nhấn
         ) {
@@ -612,7 +738,7 @@ fun PostCardSkeleton(
             }
 
             // Image skeleton (sometimes show, sometimes not for variety)
-            if (kotlin.random.Random.nextBoolean()) {
+            if (Random.nextBoolean()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
                     modifier = Modifier

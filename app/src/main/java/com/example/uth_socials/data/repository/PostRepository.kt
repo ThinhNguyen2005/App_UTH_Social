@@ -1,6 +1,5 @@
 package com.example.uth_socials.data.repository
 
-import android.net.Uri
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.data.post.Report
@@ -8,21 +7,23 @@ import com.example.uth_socials.data.util.SecurityValidator
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.Dispatchers
 import android.util.Log
 import com.example.uth_socials.data.user.User
-import com.google.firebase.Firebase
-import com.google.firebase.storage.storage
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FirebaseFirestoreException
+import kotlinx.coroutines.FlowPreview
 import java.util.UUID
-import kotlin.collections.mutableListOf
+import java.util.concurrent.ConcurrentHashMap
+import com.example.uth_socials.data.util.FirestoreConstants
 
 /**
  * PostRepository - Quản lý tất cả thao tác với dữ liệu bài viết (Posts)
@@ -39,12 +40,20 @@ import kotlin.collections.mutableListOf
  */
 class PostRepository {
     private val db = FirebaseFirestore.getInstance()
-
-    private val storage = Firebase.storage
     private val auth = FirebaseAuth.getInstance()
-    private val postsCollection = db.collection("posts")
-    private val reportsCollection = db.collection("reports")
-    private val usersCollection = db.collection("users")
+    private val postsCollection = db.collection(FirestoreConstants.POSTS_COLLECTION)
+    private val reportsCollection = db.collection(FirestoreConstants.REPORTS_COLLECTION)
+    private val usersCollection = db.collection(FirestoreConstants.USERS_COLLECTION)
+    
+    // ✅ OPTIMIZATION: Cache enriched posts để tránh enrich lại
+    private val enrichedPostsCache = ConcurrentHashMap<String, Post>()
+    
+    companion object {
+        // ✅ OPTIMIZATION: Pagination limit - chỉ load 20 posts đầu tiên
+        private const val POSTS_LIMIT = 20
+        // ✅ OPTIMIZATION: Debounce time để gom nhiều updates (ms)
+        private const val DEBOUNCE_TIME_MS = 300L
+    }
 
     suspend fun uploadPost(
         user : User?, content: String, category: String?, imageUrl : List<String>
@@ -77,41 +86,53 @@ class PostRepository {
 
     /**
      * Lấy danh sách bài viết theo thời gian thực với filtering theo category
+     * 
+     * ✅ OPTIMIZED với:
+     * - Pagination: Chỉ load 20 posts đầu tiên
+     * - Debounce: Gom nhiều updates trong 300ms
+     * - Cache: Tránh enrich lại posts không thay đổi
      *
      * @param categoryId ID của category muốn filter ("all", "latest", hoặc category cụ thể)
      * @return Flow<List<Post>> - Stream dữ liệu real-time
      *
      * Logic:
-     * - Tạo query Firestore dựa trên categoryId
+     * - Tạo query Firestore dựa trên categoryId với limit
      * - Sử dụng callbackFlow để tạo Flow từ SnapshotListener
+     * - Debounce để giảm số lần emit
      * - Process documents trên background thread
-     * - Enrich posts với thông tin user (liked/saved status)
+     * - Enrich posts với thông tin user (liked/saved status) với cache
      *
      * Categories:
      * - "all": Tất cả bài viết
      * - "latest": Bài viết mới nhất (giống "all")
      * - category cụ thể: Chỉ bài viết trong category đó
      */
+    @OptIn(FlowPreview::class)
     fun getPostsFlow(categoryId: String): Flow<List<Post>> = callbackFlow {
-        // --- Category filtering logic (Category Optional) ---
+        // --- Category filtering logic với PAGINATION ---
         val query = when (categoryId) {
             // "all" - show ALL posts (with or without category)
             "all" -> postsCollection
-                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+                .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
 
             // "latest" - show latest posts (same as "all")
             "latest" -> postsCollection
-                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+                .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
 
             // Specific category - only posts with this category
             else -> {
                 if (categoryId.isBlank()) {
                     Log.w("PostRepository", "Empty categoryId provided, showing all posts")
-                    postsCollection.orderBy("timestamp", Query.Direction.DESCENDING)
+                    postsCollection
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+                        .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
                 } else {
                     postsCollection
-                        .whereEqualTo("category", categoryId)
-                        .orderBy("timestamp", Query.Direction.DESCENDING)
+                        .whereEqualTo(FirestoreConstants.FIELD_CATEGORY, categoryId)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+                        .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
                 }
             }
         }
@@ -119,7 +140,7 @@ class PostRepository {
         // Lắng nghe thay đổi thời gian thực
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
                     Log.w("CategoryRepository", "Permission denied listening to categories. Emitting empty list.")
                     trySend(emptyList()) // Gửi list rỗng thay vì crash
                 } else {
@@ -134,22 +155,41 @@ class PostRepository {
         }
 
         awaitClose { listener.remove() }
-    }.map { documents ->
-        val currentUserId = auth.currentUser?.uid
-        documents.mapNotNull { doc ->
-            try {
-                val post = doc.toObject(Post::class.java)
-                post?.copy(
-                    id = doc.id,
-                    isLiked = currentUserId?.let { post.likedBy.contains(it) } ?: false,
-                    isSaved = currentUserId?.let { post.savedBy.contains(it) } ?: false
-                )
-            } catch (e: Exception) {
-                Log.e("PostRepository", "Error mapping post ${doc.id}", e)
-                null
+    }
+        .debounce(DEBOUNCE_TIME_MS) // ✅ DEBOUNCE: Gom nhiều updates trong 300ms
+        .map { documents ->
+            val currentUserId = auth.currentUser?.uid
+            documents.mapNotNull { doc ->
+                try {
+                    val postId = doc.id
+                    val rawPost = doc.toObject(Post::class.java)
+                    
+                    if (rawPost != null) {
+                        // ✅ CACHE CHECK: Chỉ enrich nếu chưa có hoặc có thay đổi
+                        val cachedPost = enrichedPostsCache[postId]
+                        val shouldReEnrich = cachedPost == null || 
+                            cachedPost.timestamp != rawPost.timestamp ||
+                            cachedPost.likes != rawPost.likes ||
+                            cachedPost.saveCount != rawPost.saveCount ||
+                            cachedPost.commentCount != rawPost.commentCount
+                        
+                        if (shouldReEnrich) {
+                            val enriched = rawPost.enrich(currentUserId)?.copy(id = postId)
+                            enriched?.let { enrichedPostsCache[postId] = it }
+                            enriched
+                        } else {
+                            cachedPost // ✅ Sử dụng cache
+                        }
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    Log.e("PostRepository", "Error mapping post ${doc.id}", e)
+                    null
+                }
             }
         }
-    }.flowOn(Dispatchers.IO)
+        .flowOn(Dispatchers.IO)
 
     // ==========================================
     // POST INTERACTION FUNCTIONS (Tương tác bài viết)
@@ -180,16 +220,19 @@ class PostRepository {
         if (isCurrentlyLiked) {
             // Nếu đang thích -> Bỏ thích
             postRef.update(
-                "likes", FieldValue.increment(-1),
-                "likedBy", FieldValue.arrayRemove(currentUserId)
+                FirestoreConstants.FIELD_LIKES, FieldValue.increment(-1),
+                FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayRemove(currentUserId)
             ).await()
         } else {
             // Nếu chưa thích -> Thích
             postRef.update(
-                "likes", FieldValue.increment(1),
-                "likedBy", FieldValue.arrayUnion(currentUserId)
+                FirestoreConstants.FIELD_LIKES, FieldValue.increment(1),
+                FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayUnion(currentUserId)
             ).await()
         }
+        
+        // ✅ OPTIMIZATION: Invalidate cache cho post này
+        enrichedPostsCache.remove(postId)
     }
 
     /**
@@ -217,62 +260,79 @@ class PostRepository {
         if (isCurrentlySaved) {
             // Nếu đang lưu -> Bỏ lưu
             postRef.update(
-                "savedBy", FieldValue.arrayRemove(userId),
-                "saveCount", FieldValue.increment(-1)
+                FirestoreConstants.FIELD_SAVED_BY, FieldValue.arrayRemove(userId),
+                FirestoreConstants.FIELD_SAVE_COUNT, FieldValue.increment(-1)
             ).await()
         } else {
             // Nếu chưa lưu -> Lưu
             postRef.update(
-                "savedBy", FieldValue.arrayUnion(userId),
-                "saveCount", FieldValue.increment(1)
+                FirestoreConstants.FIELD_SAVED_BY, FieldValue.arrayUnion(userId),
+                FirestoreConstants.FIELD_SAVE_COUNT, FieldValue.increment(1)
             ).await()
         }
+        
+        // ✅ OPTIMIZATION: Invalidate cache cho post này
+        enrichedPostsCache.remove(postId)
     }
 
 
     /**
-     * Lấy danh sách tất cả bài viết của một user cụ thể
+     * Lấy danh sách bài viết theo thời gian thực của một user cụ thể
      *
      * @param userId ID của user muốn lấy posts
-     * @return List<Post> - Danh sách posts của user đó
+     * @return Flow<List<Post>> - Stream real-time posts của user đó
      *
      * Logic:
-     * - Query posts collection với userId filter
+     * - Real-time listener cho posts của user cụ thể
      * - Order by timestamp descending (mới nhất trước)
-     * - Handle Firestore index errors (fallback without order)
+     * - Enrich posts với liked/saved status của current user
+     * - Handle Firestore index errors gracefully
      *
-     * Use case: Hiển thị profile của user với danh sách posts
+     * Use case: Real-time updates cho profile screen
      */
-    suspend fun getPostsForUser(userId: String): List<Post> { // Đổi tên từ getUserPosts
-        return try {
-            val snapshot = postsCollection
-                .whereEqualTo("userId", userId)
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .get()
-                .await()
-
-            snapshot.documents.mapNotNull { doc ->
-                doc.toObject(Post::class.java)?.copy(id = doc.id)
-            }
-        } catch (e: FirebaseFirestoreException) {
-            if (e.code == FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
-                Log.w("PostRepository", "Missing index for getPostsForUser. Falling back without order.")
-                val snapshot = postsCollection
-                    .whereEqualTo("userId", userId)
-                    .get()
-                    .await()
-                snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Post::class.java)?.copy(id = doc.id)
-                }
-            } else {
-                Log.e("PostRepository", "Error fetching user posts", e)
-                emptyList()
-            }
+    fun getPostsForUserFlow(userId: String): Flow<List<Post>> = callbackFlow {
+        val query = try {
+            postsCollection
+                .whereEqualTo(FirestoreConstants.FIELD_USER_ID, userId)
+                .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
         } catch (e: Exception) {
-            Log.e("PostRepository", "Error fetching user posts", e)
-            emptyList()
+            Log.e("PostRepository", "Index issue for getPostsForUserFlow. Using basic query.")
+            Log.e("PostRepository", "Error: $e")
+            postsCollection
+                .whereEqualTo(FirestoreConstants.FIELD_USER_ID, userId)
         }
-    }
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                if (error.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    Log.w("PostRepository", "Permission denied listening to user posts. Emitting empty list.")
+                    trySend(emptyList())
+                } else {
+                    close(error)
+                }
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                trySend(snapshot.documents)
+            }
+        }
+
+        awaitClose { listener.remove() }
+    }.map { documents ->
+        val currentUserId = auth.currentUser?.uid
+        documents.mapNotNull { doc ->
+            try {
+                val post = doc.toObject(Post::class.java)
+                post?.enrich(currentUserId)?.copy(id = doc.id)
+
+            } catch (e: Exception) {
+                Log.e("PostRepository", "Error mapping post ${doc.id}", e)
+                null
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
 
     // ==========================================
     // COMMENT SYSTEM FUNCTIONS (Hệ thống bình luận)
@@ -290,8 +350,7 @@ class PostRepository {
      * - Kiểm tra user profile và trạng thái banned
      * - Rate limiting check (client-side)
      * - Tạo comment document với auto-generated ID
-     * - Transaction: Tăng commentCount + set comment data
-     * - Update lastCommentAt timestamp
+     * - Transaction: Tăng commentCount + set comment data + update lastCommentAt
      *
      * Security: Multiple validation layers, rate limiting
      * Transaction: Đảm bảo data consistency
@@ -310,7 +369,9 @@ class PostRepository {
                 throw IllegalStateException("User is banned. Cannot comment.")
             }
             val postRef = postsCollection.document(postId)
-            val newCommentRef = postRef.collection("comments").document()
+            val newCommentRef = postRef.collection(FirestoreConstants.COMMENTS_COLLECTION).document()
+            val userRef = usersCollection.document(currentUserId)
+            
             val commentData = hashMapOf(
                 "id" to newCommentRef.id,
                 "userId" to currentUserId,
@@ -324,18 +385,15 @@ class PostRepository {
 
             Log.d("PostRepository", "Comment data prepared: $commentData")
 
-            // ✅ BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
+            // ✅ TRANSACTION: TĂNG COMMENT COUNT + TẠO COMMENT + UPDATE USER STATS
             db.runTransaction { transaction ->
                 Log.d("PostRepository", "Starting transaction")
-                transaction.update(postRef, "commentCount", FieldValue.increment(1))
+                transaction.update(postRef, FirestoreConstants.FIELD_COMMENT_COUNT, FieldValue.increment(1))
                 transaction.set(newCommentRef, commentData)
+                transaction.update(userRef, FirestoreConstants.FIELD_LAST_COMMENT_AT, FieldValue.serverTimestamp())
                 Log.d("PostRepository", "Transaction operations set")
             }.await()
 
-            // ✅ BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
-            usersCollection.document(currentUserId)
-                .update("lastCommentAt", FieldValue.serverTimestamp())
-                .await()
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("PostRepository", "Failed to add comment", e)
@@ -362,8 +420,8 @@ class PostRepository {
      */
     fun getCommentsFlow(postId: String): Flow<List<Comment>> = callbackFlow {
         val listener = postsCollection.document(postId)
-            .collection("comments")
-            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .collection(FirestoreConstants.COMMENTS_COLLECTION)
+            .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)
@@ -412,7 +470,7 @@ class PostRepository {
 
         return try {
             userRef.update(
-                "hiddenPosts", FieldValue.arrayUnion(postId)
+                FirestoreConstants.FIELD_HIDDEN_POSTS, FieldValue.arrayUnion(postId)
             ).await()
             true
         } catch (e: Exception) {
@@ -437,7 +495,7 @@ class PostRepository {
         val currentUserId = auth.currentUser?.uid ?: return emptyList()
         return try {
             val snapshot = usersCollection.document(currentUserId).get().await()
-            (snapshot.get("hiddenPosts") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+            (snapshot.get(FirestoreConstants.FIELD_HIDDEN_POSTS) as? List<*>)?.filterIsInstance<String>() ?: emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -467,8 +525,6 @@ class PostRepository {
      */
     suspend fun reportPost(postId: String, reason: String, description: String): Boolean {
         val currentUserId = auth.currentUser?.uid ?: return false
-        
-        // ✅ KIỂM TRA SECURITY: Validate người báo cáo
         if (!SecurityValidator.canCreateReport(currentUserId, currentUserId)) {
             Log.w("PostRepository", "Cannot report: Invalid user")
             return false
@@ -480,7 +536,7 @@ class PostRepository {
                 reportedBy = currentUserId,
                 reason = reason,
                 description = description,
-                status = "pending"
+                status = FirestoreConstants.STATUS_PENDING
             )
             reportsCollection.add(report).await()
             Log.d("PostRepository", "Report created successfully for post: $postId")
@@ -514,7 +570,7 @@ class PostRepository {
 
         return try {
             val snapshot = postRef.get().await()
-            val ownerId = snapshot.getString("userId") ?: return false
+            val ownerId = snapshot.getString(FirestoreConstants.FIELD_USER_ID) ?: return false
 
             if (SecurityValidator.canDeletePost(currentUserId, ownerId)) {
                 postRef.delete().await()
@@ -528,29 +584,6 @@ class PostRepository {
         }
     }
 
-    /**
-     * Toggle trạng thái like/unlike của bình luận
-     *
-     * @param postId ID của bài viết chứa comment
-     * @param commentId ID của comment muốn like/unlike
-     * @param isCurrentlyLiked Trạng thái hiện tại (true = đang like)
-     *
-     * Logic:
-     * - Validate authentication
-     * - Check comment tồn tại
-     * - Nếu đang like: remove userId từ likedBy, giảm likes count
-     * - Nếu chưa like: add userId vào likedBy, tăng likes count
-     * - Atomic operations với FieldValue.increment()
-     *
-     * Similar to post like nhưng cho comments
-     */
-    /**
-     * Cập nhật nội dung text của bài viết
-     * 
-     * @param postId ID của bài viết
-     * @param newContent Nội dung mới
-     * @return Result<Unit> - Thành công hoặc thất bại
-     */
     suspend fun updatePostContent(postId: String, newContent: String): Result<Unit> {
         return try {
             val currentUserId = auth.currentUser?.uid
@@ -563,12 +596,12 @@ class PostRepository {
                 return Result.failure(IllegalStateException("Post not found"))
             }
             
-            val ownerId = postSnapshot.getString("userId")
+            val ownerId = postSnapshot.getString(FirestoreConstants.FIELD_USER_ID)
             if (ownerId != currentUserId) {
                 return Result.failure(SecurityException("Only post owner can edit"))
             }
             
-            postRef.update("textContent", newContent).await()
+            postRef.update(FirestoreConstants.FIELD_TEXT_CONTENT, newContent).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e("PostRepository", "Error updating post content", e)
@@ -586,7 +619,7 @@ class PostRepository {
         try {
             val commentRef = postsCollection
                 .document(postId)
-                .collection("comments")
+                .collection(FirestoreConstants.COMMENTS_COLLECTION)
                 .document(commentId)
 
             val commentSnapshot = commentRef.get().await()
@@ -600,13 +633,13 @@ class PostRepository {
 
             if (isCurrentlyLiked) {
                 commentRef.update(
-                    "likedBy", FieldValue.arrayRemove(currentUserId),
-                    "likes", FieldValue.increment(-1)
+                    FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayRemove(currentUserId),
+                    FirestoreConstants.FIELD_LIKES, FieldValue.increment(-1)
                 ).await()
             } else {
                 commentRef.update(
-                    "likedBy", FieldValue.arrayUnion(currentUserId),
-                    "likes", FieldValue.increment(1)
+                    FirestoreConstants.FIELD_LIKED_BY, FieldValue.arrayUnion(currentUserId),
+                    FirestoreConstants.FIELD_LIKES, FieldValue.increment(1)
                 ).await()
             }
         } catch (exception: Exception) {
@@ -615,44 +648,136 @@ class PostRepository {
         }
     }
 
-////    private fun DocumentSnapshot.toPostOrNull(): Post? {
-////        val imageUrls = sanitizeStringList(get("imageUrls"), treatBlankAsEmpty = true)
-////        val likedBy = sanitizeStringList(get("likedBy"))
-////        val savedBy = sanitizeStringList(get("savedBy"))
-////
-////        return Post(
-////            timestamp = getTimestamp("timestamp"),
-////            id = id,
-////            userId = getString("userId") ?: "",
-////            username = getString("username") ?: "",
-////            userAvatarUrl = getString("userAvatarUrl") ?: "",
-////            textContent = getString("textContent") ?: "",
-////            imageUrls = imageUrls,
-////            category = getString("category") ?: "",
-////            likes = getLong("likes")?.toInt() ?: 0,
-////            commentCount = getLong("commentCount")?.toInt() ?: 0,
-////            shareCount = getLong("shareCount")?.toInt() ?: 0,
-////            saveCount = getLong("saveCount")?.toInt() ?: 0,
-////            likedBy = likedBy,
-////            savedBy = savedBy
-////        )
-////    }
-//
-//    private fun Post.enrich(currentUserId: String?): Post {
-//        val liked = currentUserId?.let { likedBy.contains(it) } ?: false
-//        val saved = currentUserId?.let { savedBy.contains(it) } ?: false
-//        return copy(isLiked = liked, isSaved = saved)
-//    }
-//
-//    private fun sanitizeStringList(raw: Any?, treatBlankAsEmpty: Boolean = false): List<String> {
-//        return when (raw) {
-//            is List<*> -> raw.filterIsInstance<String>()
-//            is String -> {
-//                if (treatBlankAsEmpty && raw.isBlank()) emptyList() else listOf(raw)
-//            }
-//            null -> emptyList()
-//            else -> emptyList()
-//        }
-//    }
+    private fun DocumentSnapshot.toPostOrNull(): Post? {
+        val imageUrls = sanitizeStringList(get("imageUrls"), treatBlankAsEmpty = true)
+            .filter { url ->
+                val isValid = url.startsWith("http://") || url.startsWith("https://")
+                if (!isValid && url.isNotEmpty()) {
+                    Log.w("PostRepository", "Filtered invalid imageUrl: $url (Post ID: $id)")
+                }
+                isValid
+            }
+        val likedBy = sanitizeStringList(get(FirestoreConstants.FIELD_LIKED_BY))
+        val savedBy = sanitizeStringList(get(FirestoreConstants.FIELD_SAVED_BY))
+
+        return Post(
+            timestamp = getTimestamp(FirestoreConstants.FIELD_TIMESTAMP),
+            id = id,
+            userId = getString(FirestoreConstants.FIELD_USER_ID) ?: "",
+            username = getString(FirestoreConstants.FIELD_USERNAME) ?: "",
+            userAvatarUrl = getString(FirestoreConstants.FIELD_AVATAR_URL) ?: "",
+            textContent = getString(FirestoreConstants.FIELD_TEXT_CONTENT) ?: "",
+            imageUrls = imageUrls,
+            category = getString(FirestoreConstants.FIELD_CATEGORY) ?: "",
+            likes = getLong(FirestoreConstants.FIELD_LIKES)?.toInt() ?: 0,
+            commentCount = getLong(FirestoreConstants.FIELD_COMMENT_COUNT)?.toInt() ?: 0,
+            shareCount = getLong("shareCount")?.toInt() ?: 0,
+            saveCount = getLong(FirestoreConstants.FIELD_SAVE_COUNT)?.toInt() ?: 0,
+            likedBy = likedBy,
+            savedBy = savedBy
+        )
+    }
+
+    private fun Post.enrich(currentUserId: String?): Post {
+        val liked = currentUserId?.let { likedBy.contains(it) } ?: false
+        val saved = currentUserId?.let { savedBy.contains(it) } ?: false
+        return copy(isLiked = liked, isSaved = saved)
+    }
+
+    private fun sanitizeStringList(raw: Any?, treatBlankAsEmpty: Boolean = false): List<String> {
+        return when (raw) {
+            is List<*> -> raw.filterIsInstance<String>()
+            is String -> {
+                if (treatBlankAsEmpty && raw.isBlank()) emptyList() else listOf(raw)
+            }
+            null -> emptyList()
+            else -> emptyList()
+        }
+    }
+    
+    /**
+     * ✅ OPTIMIZATION: Load more posts (pagination)
+     * Sử dụng để load thêm posts khi user scroll xuống cuối
+     * 
+     * @param categoryId ID của category
+     * @param lastTimestamp Timestamp của post cuối cùng để làm cursor
+     * @param limit Số posts muốn load (mặc định 20)
+     * @return List<Post> - Danh sách posts mới
+     */
+    suspend fun loadMorePosts(
+        categoryId: String,
+        lastTimestamp: com.google.firebase.Timestamp?,
+        limit: Int = POSTS_LIMIT
+    ): List<Post> {
+        val query = when (categoryId) {
+            "all", "latest" -> {
+                if (lastTimestamp != null) {
+                    postsCollection
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+                        .startAfter(lastTimestamp)
+                        .limit(limit.toLong())
+                } else {
+                    postsCollection
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+                        .limit(limit.toLong())
+                }
+            }
+            else -> {
+                if (lastTimestamp != null) {
+                    postsCollection
+                        .whereEqualTo(FirestoreConstants.FIELD_CATEGORY, categoryId)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+                        .startAfter(lastTimestamp)
+                        .limit(limit.toLong())
+                } else {
+                    postsCollection
+                        .whereEqualTo(FirestoreConstants.FIELD_CATEGORY, categoryId)
+                        .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
+                        .limit(limit.toLong())
+                }
+            }
+        }
+        
+        val snapshot = query.get().await()
+        val currentUserId = auth.currentUser?.uid
+        
+        return snapshot.documents.mapNotNull { doc ->
+            try {
+                val postId = doc.id
+                val rawPost = doc.toObject(Post::class.java)
+                
+                if (rawPost != null) {
+                    // Check cache trước
+                    val cachedPost = enrichedPostsCache[postId]
+                    val shouldReEnrich = cachedPost == null || 
+                        cachedPost.timestamp != rawPost.timestamp ||
+                        cachedPost.likes != rawPost.likes ||
+                        cachedPost.saveCount != rawPost.saveCount ||
+                        cachedPost.commentCount != rawPost.commentCount
+                    
+                    if (shouldReEnrich) {
+                        val enriched = rawPost.enrich(currentUserId)?.copy(id = postId)
+                        enriched?.let { enrichedPostsCache[postId] = it }
+                        enriched
+                    } else {
+                        cachedPost
+                    }
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e("PostRepository", "Error mapping post ${doc.id}", e)
+                null
+            }
+        }
+    }
+    
+    /**
+     * ✅ OPTIMIZATION: Clear cache khi cần (ví dụ: logout, refresh)
+     */
+    fun clearCache() {
+        enrichedPostsCache.clear()
+        Log.d("PostRepository", "Cache cleared")
+    }
 }
 

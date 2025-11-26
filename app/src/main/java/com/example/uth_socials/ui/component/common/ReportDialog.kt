@@ -3,8 +3,6 @@ package com.example.uth_socials.ui.component.common
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -116,10 +114,10 @@ fun ReportDialog(
                 if (isReporting) {
                     CircularProgressIndicator(
                         modifier = Modifier
-                            .size(20.dp)
-                            .padding(end = 8.dp),
+                            .size(20.dp),
                         strokeWidth = 2.dp
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text("Gửi báo cáo")
             }

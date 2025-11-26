@@ -17,11 +17,19 @@ sealed class Screen(val route: String) {
         fun createRoute(userId: String) = "profile/$userId"
     }
     object SearchResult : Screen("search_results/{query}")
+
+    //Thêm product detail
+    object ProductDetail : Screen("productDetail/{productId}") {
+        fun createRoute(productId: String) = "productDetail/$productId"
+    }
+
    //Thêm route màn hình phụ ở đây, ví dụ: Search, messenger
     object AdminDashboard : Screen("admin_dashboard/{tab}") {
         fun createRoute(tab: String = "reports") = "admin_dashboard/$tab"
     }
     sealed class AuthScreen(val route: String) {
+        object HelloUser : AuthScreen("hello_user")
+        object WelcomeUser : AuthScreen("welcome_user")
         object Login : AuthScreen("login")
         object Register : AuthScreen("register")
         object ResetPassword : AuthScreen("reset_password")
@@ -36,4 +44,19 @@ sealed class Screen(val route: String) {
     object Setting : Screen("setting")
     object UserInfoScreen : Screen("user_info")
     object BlockedUsers : Screen("blocked_users")
+    object FollowersList : Screen("followers_list/{userId}") {
+        fun createRoute(userId: String) = "followers_list/$userId"
+    }
+
+    object FollowingList : Screen("following_list/{userId}") {
+        fun createRoute(userId: String) = "following_list/$userId"
+    }
+    object SavedPosts : Screen("saved_posts")
+    object PostDetail : Screen("post_detail/{postId}") {
+        fun createRoute(postId: String) = "post_detail/$postId"
+    }
+    //Comment route
+//    object Comments : Screen("comments/{postId}") {
+//        fun createRoute(postId: String) = "comments/$postId"
+//    }
 }

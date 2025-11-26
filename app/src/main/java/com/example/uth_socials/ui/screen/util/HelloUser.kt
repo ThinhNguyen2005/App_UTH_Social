@@ -1,7 +1,6 @@
 package com.example.uth_socials.ui.screen.util
 
 
-import PageIndicator
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -36,7 +35,10 @@ import kotlinx.coroutines.delay
 import com.example.uth_socials.ui.component.button.PrimaryButton
 import com.example.uth_socials.ui.component.common.ClickablePrivacyPolicyText
 import androidx.compose.ui.res.stringResource
-
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import com.example.uth_socials.ui.component.common.PageIndicator
+import com.example.uth_socials.ui.component.logo.Logo
 
 
 val UthTeal = Color(0xFF008080)
@@ -48,18 +50,18 @@ private val onboardingImages = listOf(
     R.drawable.truong,
     R.drawable.truong1,
 )
-//@Composable
-//fun OnboardingScreen(
-//    helloUserModel: HelloUserModel = viewModel()
-//) {
-//    val uiState by helloUserModel.uiState.collectAsState()
-//
-//    OnboardingContent(
-//        pagerIndex = uiState.pagerIndex,
-//        onPagerIndexChange = { newIndex -> helloUserModel.updatePagerIndex(newIndex) },
-//        onStartClicked = { helloUserModel.onStartClicked() }
-//    )
-//}
+@Composable
+fun HelloUserScreen(
+    onStartClicked: () -> Unit
+) {
+    var pagerIndex by remember { mutableIntStateOf(0) }
+
+    OnboardingContent(
+        pagerIndex = pagerIndex,
+        onPagerIndexChange = { newIndex -> pagerIndex = newIndex },
+        onStartClicked = onStartClicked
+    )
+}
 
 
 @Composable
@@ -182,19 +184,7 @@ fun OnboardingLandscapeLayout(
 }
 // --- CÁC COMPOSABLE PHỤ TRỢ ---
 
-@Composable
-fun Logo() {
-    Text(
-        buildAnnotatedString {
-            withStyle(style = SpanStyle(color = UthTeal, fontSize = 36.sp, fontWeight = FontWeight.Bold)) {
-                append("UTH")
-            }
-            withStyle(style = SpanStyle(color = UthRed, fontSize = 36.sp, fontWeight = FontWeight.Bold)) {
-                append(" Social")
-            }
-        }
-    )
-}
+
 
 
 @Composable

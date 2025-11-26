@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,7 +28,7 @@ import com.example.uth_socials.data.post.Category
 import com.example.uth_socials.data.user.User
 import com.example.uth_socials.data.user.AdminUser
 import com.example.uth_socials.ui.component.logo.OnlyLogo
-import com.example.uth_socials.ui.viewmodel.AdminDashboardViewModel
+import com.example.uth_socials.ui.viewmodel.admin.AdminDashboardViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -56,16 +57,14 @@ fun AdminDashboardScreen(
         }
     }
     val snackbarHostState = remember { SnackbarHostState() }
-    var selectedTab by remember { mutableStateOf(initialTab) }
+    // Sử dụng rememberSaveable để lưu selectedTab qua lifecycle changes (xoay màn hình)
+    var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
     var showActionDialog by remember { mutableStateOf<AdminReport?>(null) }
     var showGrantAdminDialog by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
     var showEditCategoryDialog by remember { mutableStateOf<Category?>(null) }
-    // 🔸 Ban dialog state
     var showBanDialog by remember { mutableStateOf<User?>(null) }
-    // 🔸 Post detail modal state
     var showPostDetail by remember { mutableStateOf<AdminReport?>(null) }
-    // 🔸 Delete category dialog state
     var showDeleteCategoryDialog by remember { mutableStateOf<Category?>(null) }
 
     //load phân loại admin/superAdmin
@@ -78,16 +77,27 @@ fun AdminDashboardScreen(
             viewModel.loadData()
         }
     }
+    // Quản lý lifecycle: Đảm bảo snackbar không bị mất khi xoay màn hình
     LaunchedEffect(uiState.error) {
-        uiState.error?.let {message ->
+        uiState.error?.let { message ->
             snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
             viewModel.clearError()
         }
     }
     LaunchedEffect(uiState.successMessage) {
-        uiState.successMessage?.let {message ->
+        uiState.successMessage?.let { message ->
             snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
             viewModel.clearSuccessMessage()
+            // Sau khi hiển thị thông báo thành công, quay về tab REPORTS (mặc định)
+            delay(500) // Đợi snackbar hiển thị
+            selectedTab = AdminTab.REPORTS
+        }
+    }
+    
+    // Đảm bảo selectedTab được cập nhật khi initialTab thay đổi (từ navigation)
+    LaunchedEffect(initialTab) {
+        if (selectedTab != initialTab) {
+            selectedTab = initialTab
         }
     }
     Scaffold(
@@ -99,17 +109,34 @@ fun AdminDashboardScreen(
             )
         },
         floatingActionButton = {
-            if (selectedTab == AdminTab.CATEGORIES) {
-                FloatingActionButton(
-                    onClick = { showAddCategoryDialog = true },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add Category"
-                    )
+            when (selectedTab) {
+                AdminTab.CATEGORIES -> {
+                    FloatingActionButton(
+                        onClick = { showAddCategoryDialog = true },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Thêm danh mục"
+                        )
+                    }
                 }
+                AdminTab.ADMINS -> {
+                    if (uiState.isCurrentUserAdmin) { // Only Super Admin can add admins
+                        FloatingActionButton(
+                            onClick = { showGrantAdminDialog = true },
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PersonAdd,
+                                contentDescription = "Thêm quản trị viên"
+                            )
+                        }
+                    }
+                }
+                else -> {}
             }
         },
         floatingActionButtonPosition = FabPosition.End
@@ -154,19 +181,26 @@ fun AdminDashboardScreen(
                     onNavigateToUser = onNavigateToUser,
                     modifier = Modifier.weight(1f)
                 )
-                AdminTab.USERS -> UsersTab(
-                    bannedUsers = uiState.bannedUsers,
-                    isLoading = uiState.isLoadingUsers,
-                    onBanUser = { user ->
-                        showBanDialog = user
-                    },
-                    onUnbanUser = { userId ->
-                        viewModel.unbanUser(userId)
-                    },
-                    onRefresh = { viewModel.refreshBannedUsers() },
-                    modifier = Modifier.weight(1f)
-
-                )
+                AdminTab.USERS -> {
+                    // Khởi động realtime listener khi vào tab USERS
+                    LaunchedEffect(selectedTab) {
+                        if (selectedTab == AdminTab.USERS) {
+                            viewModel.startBannedUsersRealtimeListener()
+                        }
+                    }
+                    UsersTab(
+                        bannedUsers = uiState.bannedUsers,
+                        isLoading = uiState.isLoadingUsers,
+                        onBanUser = { user ->
+                            showBanDialog = user
+                        },
+                        onUnbanUser = { userId ->
+                            viewModel.unbanUser(userId)
+                        },
+                        onRefresh = { viewModel.refreshBannedUsers() },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 AdminTab.ADMINS -> AdminsTab(
                     admins = uiState.admins,
                     isLoading = uiState.isLoadingAdmins,
@@ -193,7 +227,6 @@ fun AdminDashboardScreen(
         }
     }
 
-    // Report Action Dialog
     showActionDialog?.let { adminReport ->
         ReportActionDialog(
             adminReport = adminReport,
@@ -207,7 +240,6 @@ fun AdminDashboardScreen(
         )
     }
 
-    // Grant Admin Dialog
     if (showGrantAdminDialog) {
         GrantAdminDialog(
             onDismiss = { showGrantAdminDialog = false },
@@ -220,7 +252,6 @@ fun AdminDashboardScreen(
         )
     }
 
-    // Add Category Dialog
     if (showAddCategoryDialog) {
         AddCategoryDialog(
             onDismiss = { showAddCategoryDialog = false },
@@ -233,7 +264,6 @@ fun AdminDashboardScreen(
         )
     }
 
-    // Edit Category Dialog
     showEditCategoryDialog?.let { category ->
         EditCategoryDialog(
             category = category,
@@ -247,7 +277,6 @@ fun AdminDashboardScreen(
         )
     }
 
-    // Delete Category Dialog
     showDeleteCategoryDialog?.let { category ->
         DeleteCategoryDialog(
             category = category,
@@ -262,7 +291,6 @@ fun AdminDashboardScreen(
         )
     }
 
-    // Ban User Dialog
     showBanDialog?.let { user ->
         BanUserDialog(
             user = user,
@@ -276,7 +304,6 @@ fun AdminDashboardScreen(
         )
     }
 
-    // Post Detail Modal
     showPostDetail?.let { adminReport ->
         PostDetailModal(
             adminReport = adminReport,
@@ -311,7 +338,7 @@ private fun GrantAdminDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Grant Admin Role") },
+        title = { Text("Cấp quyền quản trị") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
@@ -320,14 +347,14 @@ private fun GrantAdminDialog(
                         userId = it
                         showError = null
                     },
-                    label = { Text("User ID") },
-                    placeholder = { Text("Enter user ID") },
+                    label = { Text("ID người dùng") },
+                    placeholder = { Text("Nhập ID người dùng") },
                     modifier = Modifier.fillMaxWidth(),
                     isError = showError != null,
                     supportingText = showError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } }
                 )
 
-                Text("Select Role:", style = MaterialTheme.typography.titleSmall)
+                Text("Chọn vai trò:", style = MaterialTheme.typography.titleSmall)
                 listOf("admin", "super_admin").forEach { role ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -348,29 +375,29 @@ private fun GrantAdminDialog(
             Button(
                 onClick = {
                     if (userId.isBlank()) {
-                        showError = "Please enter a user ID"
+                        showError = "Vui lòng nhập UID"
                     } else {
                         onGrant(userId.trim(), selectedRole)
                     }
                 },
                 enabled = isValid
             ) {
-                Text("Grant Admin")
+                Text("Thêm admin")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Hủy")
             }
         }
     )
 }
 
 enum class AdminTab(val title: String) {
-    REPORTS("Reports"),
-    USERS("Users"),
-    ADMINS("Admins"),
-    CATEGORIES("Categories")
+    REPORTS("Báo cáo"),
+    USERS("Người dùng"),
+    ADMINS("Quản trị viên"),
+    CATEGORIES("Danh mục")
 }
 
 @Composable
@@ -386,7 +413,7 @@ private fun ReportsTab(
             CircularProgressIndicator()
         }
     } else if (reports.isEmpty()) {
-        EmptyState("No pending reports", Icons.Default.Report)
+        EmptyState("Không có báo cáo nào", Icons.Default.Report)
     } else {
         LazyColumn(modifier = modifier) {
             items(reports) { report ->
@@ -410,31 +437,6 @@ private fun UsersTab(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = Modifier) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onRefresh,
-                enabled = !isLoading
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh banned users"
-                    )
-                }
-            }
-        }
-
         // Content
         if (isLoading && bannedUsers.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -473,38 +475,38 @@ private fun ReportCard(
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Report: ${report.report.reason}",
+                    "Báo cáo: ${report.report.reason}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
                 IconButton(onClick = onNavigateToUser) {
-                    Icon(Icons.Default.Person, "View User Profile")
+                    Icon(Icons.Default.Person, "Xem hồ sơ")
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
 
             report.post?.let { post ->
-                Text("Post: ${post.textContent.take(50)}...")
+                Text("Bài viết: ${post.textContent.take(50)}...")
                 Text(
-                    "By: ${report.reportedUser?.username ?: "Unknown User"}",
+                    "Đăng bởi: ${report.reportedUser?.username ?: "Không rõ người dùng"}",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (report.reportedUser?.username == "[Deleted User]") 
                         MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified
                 )
             } ?: run {
-                Text("Post: [Post deleted or not found]", style = MaterialTheme.typography.bodySmall)
+                Text("Bài viết: [Bài viết đã xóa hoặc không tìm thấy]", style = MaterialTheme.typography.bodySmall)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Reported by: ${report.reporter?.username ?: "Unknown User"}",
+                "Báo cáo bởi: ${report.reporter?.username ?: "Không rõ người dùng"}",
                 style = MaterialTheme.typography.bodySmall,
                 color = if (report.reporter?.username == "[Deleted User]")
                     MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified
             )
             Text(
-                "Reason: ${report.report.description}",
+                "Lý do: ${report.report.description}",
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -533,13 +535,13 @@ private fun BannedUserCard(
                     // Violation and warning counts
                     Row {
                         Text(
-                            "Violations: ${user.violationCount}",
+                            "Vi phạm: ${user.violationCount}",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (user.violationCount >= 3) Color.Red else Color.Gray
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            "Warnings: ${user.warningCount}",
+                            "Cảnh báo: ${user.warningCount}",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFFF9800) // Material Design Orange
                         )
@@ -547,7 +549,7 @@ private fun BannedUserCard(
 
                     user.banReason?.let {
                         Text(
-                            "Ban Reason: $it",
+                            "Lý do cấm: $it",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.Red
                         )
@@ -556,20 +558,18 @@ private fun BannedUserCard(
 
                 // Action buttons
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Ban button (edit ban reason)
                     IconButton(onClick = onBan) {
                         Icon(
                             Icons.Default.Edit,
-                            "Edit Ban",
+                            "Chỉnh sửa chặn người dùng",
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
-                    
                     // Unban button
                     IconButton(onClick = onUnban) {
                         Icon(
                             Icons.Default.LockOpen,
-                            "Unban User",
+                            "Gỡ chặn người dùng",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -595,37 +595,13 @@ private fun AdminsTab(
         }
     } else {
         LazyColumn(modifier = modifier) {
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Admin Management",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    // Only SUPER_ADMIN can grant admin roles
-                    if (isSuperAdmin) {
-                        Button(onClick = onGrantAdmin) {
-                            Icon(Icons.Default.PersonAdd, "Add Admin")
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Grant Admin")
-                        }
-                    }
-                }
-            }
-
             items(admins) { admin ->
                 AdminCard(admin, onRevoke = { onRevokeAdmin(admin) })
             }
 
             if (admins.isEmpty()) {
                 item {
-                    EmptyState("No admins found")
+                    EmptyState("Không có quản trị viên nào")
                 }
             }
         }
@@ -646,15 +622,15 @@ private fun CategoriesTab(
         }
     } else {
         LazyColumn(modifier = modifier) {
-            item {
-                // Header chỉ có title
-                Text(
-                    "Category Management",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+//            item {
+//                // Header chỉ có title
+//                Text(
+//                    "Quản lí danh mục",
+//                    style = MaterialTheme.typography.headlineSmall,
+//                    fontWeight = FontWeight.Bold,
+//                    modifier = Modifier.padding(16.dp)
+//                )
+//            }
 
             items(categories) { category ->
                 CategoryCard(category, onEdit = { onEditCategory(category) }, onDelete = { onDeleteCategory(category) })
@@ -662,7 +638,7 @@ private fun CategoriesTab(
 
             if (categories.isEmpty()) {
                 item {
-                    EmptyState("No categories found")
+                    EmptyState("Danh mục rỗng")
                 }
             }
         }
@@ -700,24 +676,24 @@ private fun AdminCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             Icons.Default.Star,
-                            "Super Admin",
+                            "Quản trị viên cấp cao",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
                 Text(
-                    "User ID: ${admin.userId}",
+                    "ID người dùng: ${admin.userId}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
                 Text(
-                    "Granted by: ${admin.grantedBy}",
+                    "Được cấp bởi: ${admin.grantedBy}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
                 admin.grantedAt?.let {
                     Text(
-                        "Granted: ${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(it.toDate())}",
+                        "Được cấp lúc: ${java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault()).format(it.toDate())}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
@@ -729,7 +705,7 @@ private fun AdminCard(
                 IconButton(onClick = onRevoke) {
                     Icon(
                         Icons.Default.Delete,
-                        "Revoke Admin",
+                        "Thu hồi quyền quản trị",
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -781,18 +757,18 @@ private fun ReportActionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Review Report") },
+        title = { Text("Đánh giá báo cáo") },
         text = {
             Column {
-                Text("Report: ${adminReport.report.reason}")
+                Text("Lý do: ${adminReport.report.reason}")
                 adminReport.post?.let { post ->
-                    Text("Post: ${post.textContent.take(100)}...")
+                    Text("Bài viết: ${post.textContent.take(100)}...")
                 }
-                Text("Reported by: ${adminReport.reporter?.username ?: "Unknown"}")
+                Text("Người báo cáo: ${adminReport.reporter?.username ?: "Không rõ"}")
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text("Select Action:", style = MaterialTheme.typography.titleSmall)
+                Text("Chọn hành động", style = MaterialTheme.typography.titleSmall)
                 AdminAction.entries.forEach { action ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -809,10 +785,11 @@ private fun ReportActionDialog(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = adminNotes,
                     onValueChange = { adminNotes = it },
-                    label = { Text("Admin Notes (Optional)") },
+                    label = { Text("Ghi chú của quản trị viên (Tùy chọn)") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3
                 )
@@ -823,12 +800,12 @@ private fun ReportActionDialog(
                 onClick = { onAction(selectedAction, adminNotes.ifBlank { null }) },
                 enabled = selectedAction != AdminAction.NONE
             ) {
-                Text("Execute Action")
+                Text("Thực hiện hành động")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Hủy")
             }
         }
     )
@@ -861,7 +838,7 @@ private fun CategoryCard(
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onEdit) {
-                    Text("Edit")
+                    Text("Chỉnh sửa")
                 }
 
                 if (!Category.DEFAULT_CATEGORIES.any { it.id == category.id }) {
@@ -871,7 +848,7 @@ private fun CategoryCard(
                             contentColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        Text("Delete")
+                        Text("Xóa")
                     }
                 }
             }
@@ -892,7 +869,7 @@ private fun AddCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add New Category") },
+        title = { Text("Thêm danh mục mới") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
@@ -901,8 +878,8 @@ private fun AddCategoryDialog(
                         categoryName = it
                         showError = null
                     },
-                    label = { Text("Category Name") },
-                    placeholder = { Text("Enter category name") },
+                    label = { Text("Tên danh mục") },
+                    placeholder = { Text("Nhập tên danh mục") },
                     modifier = Modifier.fillMaxWidth(),
                     isError = showError != null,
                     supportingText = showError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } }
@@ -913,19 +890,19 @@ private fun AddCategoryDialog(
             Button(
                 onClick = {
                     if (categoryName.trim().length < 2) {
-                        showError = "Category name must be at least 2 characters"
+                        showError = "Tên danh mục phải có ít nhất 2 ký tự"
                     } else {
                         onAdd(categoryName.trim())
                     }
                 },
                 enabled = isValid
             ) {
-                Text("Add Category")
+                Text("Thêm danh mục")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Hủy")
             }
         }
     )
@@ -945,7 +922,7 @@ private fun EditCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Category") },
+        title = { Text("Chỉnh sửa danh mục") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
@@ -954,8 +931,8 @@ private fun EditCategoryDialog(
                         categoryName = it
                         showError = null
                     },
-                    label = { Text("Category Name") },
-                    placeholder = { Text("Enter category name") },
+                    label = { Text("Tên danh mục") },
+                    placeholder = { Text("Nhập tên danh mục") },
                     modifier = Modifier.fillMaxWidth(),
                     isError = showError != null,
                     supportingText = showError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } }
@@ -972,19 +949,19 @@ private fun EditCategoryDialog(
             Button(
                 onClick = {
                     if (categoryName.trim().length < 2) {
-                        showError = "Category name must be at least 2 characters"
+                        showError = "Tên danh mục phải có ít nhất 2 ký tự"
                     } else {
                         onEdit(category.id, categoryName.trim())
                     }
                 },
                 enabled = isValid
             ) {
-                Text("Update Category")
+                Text("Cập nhật danh mục")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Hủy")
             }
         }
     )
@@ -1027,7 +1004,7 @@ private fun PostDetailModal(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Report Details",
+                        "Chi tiết báo cáo",
                         style = MaterialTheme.typography.headlineSmall,
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold
@@ -1035,7 +1012,7 @@ private fun PostDetailModal(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             Icons.Default.Close,
-                            "Close",
+                            "Đóng",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
@@ -1048,7 +1025,6 @@ private fun PostDetailModal(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // 📋 Report Info
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -1058,22 +1034,22 @@ private fun PostDetailModal(
                         ) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    "Report Information",
+                                    "Thông tin báo cáo",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "Reason: ${adminReport.report.reason}",
+                                    "Lý do: ${adminReport.report.reason}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 Text(
-                                    "Description: ${adminReport.report.description}",
+                                    "Lí do chi tiết: ${adminReport.report.description}",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "Reported by: ${adminReport.reporter?.username ?: "Unknown"}",
+                                    "Người báo cáo: ${adminReport.reporter?.username ?: "Không rõ"}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -1081,7 +1057,6 @@ private fun PostDetailModal(
                         }
                     }
 
-                    // 👤 Reported User Info
                     item {
                         Card(
                             modifier = Modifier
@@ -1101,7 +1076,7 @@ private fun PostDetailModal(
                                 // Avatar
                                 AsyncImage(
                                     model = adminReport.reportedUser?.avatarUrl,
-                                    contentDescription = "User Avatar",
+                                    contentDescription = "Avatar người dùng",
                                     modifier = Modifier
                                         .size(48.dp)
                                         .background(
@@ -1113,7 +1088,7 @@ private fun PostDetailModal(
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        adminReport.reportedUser?.username ?: "Unknown User",
+                                        adminReport.reportedUser?.username ?: "Người dùng không xác định",
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1126,14 +1101,13 @@ private fun PostDetailModal(
 
                                 Icon(
                                     Icons.AutoMirrored.Filled.ArrowForward,
-                                    "View Profile",
+                                    "Xem hồ sơ",
                                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                         }
                     }
 
-                    // 📝 Post Content
                     adminReport.post?.let { post ->
                         item {
                             Card(
@@ -1141,7 +1115,7 @@ private fun PostDetailModal(
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Text(
-                                        "Reported Post",
+                                        "Bài viết bị báo cáo",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -1158,7 +1132,7 @@ private fun PostDetailModal(
                                             items(post.imageUrls.take(3)) { imageUrl ->
                                                 AsyncImage(
                                                     model = imageUrl,
-                                                    contentDescription = "Post Image",
+                                                    contentDescription = "Đăng hình ảnh",
                                                     modifier = Modifier
                                                         .fillMaxWidth()
                                                         .height(200.dp)
@@ -1172,7 +1146,7 @@ private fun PostDetailModal(
 
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        "Category: ${post.category?.ifEmpty { "Uncategorized" }}",
+                                        "Danh mục: ${post.category?.ifEmpty { "Chưa phân loại" }}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -1181,10 +1155,9 @@ private fun PostDetailModal(
                         }
                     }
 
-                    // ⚡ Action Buttons
                     item {
                         Text(
-                            "Admin Actions",
+                            "Hành động quản trị",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -1193,15 +1166,15 @@ private fun PostDetailModal(
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             // Delete Post Button
                             Button(
-                                onClick = { onAction(AdminAction.DELETE_POST, "Post deleted by admin") },
+                                onClick = { onAction(AdminAction.DELETE_POST, "Bài viết đã bị xóa bởi quản trị viên") },
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFD32F2F)
                                 )
                             ) {
-                                Icon(Icons.Default.Delete, "Delete Post")
+                                Icon(Icons.Default.Delete, "Xóa bài viết")
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Delete Post")
+                                Text("Xóa bài viết")
                             }
 
                             // Ban User Button
@@ -1212,19 +1185,19 @@ private fun PostDetailModal(
                                     containerColor = Color(0xFFF57C00)
                                 )
                             ) {
-                                Icon(Icons.Default.Block, "Ban User")
+                                Icon(Icons.Default.Block, "Cấm người dùng")
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Ban User")
+                                Text("Cấm người dùng")
                             }
 
                             // Dismiss Report Button
                             OutlinedButton(
-                                onClick = { onAction(AdminAction.DISMISS, "Report dismissed") },
+                                onClick = { onAction(AdminAction.DISMISS, "Bỏ qua báo cáo") },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Default.Check, "Dismiss")
+                                Icon(Icons.Default.Check, "Bỏ qua")
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Dismiss Report")
+                                Text("Bỏ qua báo cáo")
                             }
                         }
                     }
@@ -1250,11 +1223,11 @@ private fun DeleteCategoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete Category") },
+        title = { Text("Xóa danh mục") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    "Category: ${category.name}",
+                    "Danh mục: ${category.name}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -1267,7 +1240,7 @@ private fun DeleteCategoryDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    "⚠️ Warning: Deleting this category will affect posts using it.",
+                    "Cảnh báo: Xóa danh mục này sẽ ảnh hưởng đến các bài đăng sử dụng danh mục đó.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -1275,7 +1248,7 @@ private fun DeleteCategoryDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (migrationOptions.isNotEmpty()) {
-                    Text("Choose where to move existing posts:", style = MaterialTheme.typography.titleSmall)
+                    Text("Chọn nơi di chuyển các bài đăng hiện có:", style = MaterialTheme.typography.titleSmall)
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         // Option to move to uncategorized
@@ -1289,7 +1262,7 @@ private fun DeleteCategoryDialog(
                                 selected = selectedMigrationCategory == "",
                                 onClick = { selectedMigrationCategory = "" }
                             )
-                            Text("Move to 'Uncategorized'")
+                            Text("Di chuyển đến 'Chưa phân loại'")
                         }
 
                         // Options to move to other categories
@@ -1304,13 +1277,13 @@ private fun DeleteCategoryDialog(
                                     selected = selectedMigrationCategory == cat.id,
                                     onClick = { selectedMigrationCategory = cat.id }
                                 )
-                                Text("Move to '${cat.name}'")
+                                Text("Chuyển đến '${cat.name}'")
                             }
                         }
                     }
                 } else {
                     Text(
-                        "Posts will be moved to 'Uncategorized'",
+                        "Bài viết sẽ được chuyển đến mục 'Chưa phân loại'",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
@@ -1334,13 +1307,13 @@ private fun DeleteCategoryDialog(
                         color = MaterialTheme.colorScheme.onError
                     )
                 } else {
-                    Text("Delete Category")
+                        Text("Xóa danh mục")
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !isLoading) {
-                Text("Cancel")
+                Text("Hủy")
             }
         }
     )
@@ -1360,16 +1333,16 @@ private fun BanUserDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Ban User") },
+        title = { Text("Cấm người dùng") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(
-                    "Username: ${user.username}",
+                    "Tên người dùng: ${user.username}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "User ID: ${user.id}",
+                    "ID người dùng: ${user.id}",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
@@ -1382,8 +1355,8 @@ private fun BanUserDialog(
                         banReason = it
                         showError = null
                     },
-                    label = { Text("Ban Reason") },
-                    placeholder = { Text("Enter ban reason (min 5 characters)") },
+                    label = { Text("Lý do cấm") },
+                    placeholder = { Text("Nhập lý do cấm (tối thiểu 5 ký tự)") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
                     isError = showError != null,
@@ -1395,19 +1368,19 @@ private fun BanUserDialog(
             Button(
                 onClick = {
                     if (banReason.trim().length < 5) {
-                        showError = "Ban reason must be at least 5 characters"
+                        showError = "Lý do cấm phải có ít nhất 5 ký tự"
                     } else {
                         onBan(banReason.trim())
                     }
                 },
                 enabled = isValid
             ) {
-                Text("Ban User")
+                Text("Cấm người dùng")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Hủy")
             }
         }
     )
@@ -1416,9 +1389,9 @@ private fun BanUserDialog(
 // Extension properties for display names
 val AdminAction.displayName: String
     get() = when (this) {
-        AdminAction.NONE -> "No Action"
-        AdminAction.DISMISS -> "Dismiss Report"
-        AdminAction.DELETE_POST -> "Delete Post"
-        AdminAction.BAN_USER -> "Ban User"
+        AdminAction.NONE -> "Không hành động"
+        AdminAction.DISMISS -> "Bỏ qua báo cáo"
+        AdminAction.DELETE_POST -> "Xóa bài viết"
+        AdminAction.BAN_USER -> "Cấm người dùng"
     }
 
