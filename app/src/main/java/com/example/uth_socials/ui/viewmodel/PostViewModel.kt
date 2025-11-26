@@ -72,7 +72,8 @@ class PostViewModel : ViewModel() {
             for (uri in imageUris) {
                 val ref = storage.reference.child("posts/${UUID.randomUUID()}.jpg")
                 ref.putFile(uri).await()
-                imageUrls.add(uri.toString())
+                val url = ref.downloadUrl.await().toString()
+                imageUrls.add(url)
             }
 
             PostRepository.uploadArticle(user, content, category, imageUrls)
@@ -90,7 +91,8 @@ class PostViewModel : ViewModel() {
             for (uri in imageUris) {
                 val ref = storage.reference.child("products/${UUID.randomUUID()}.jpg")
                 ref.putFile(uri).await()
-                imageUrls.add(uri.toString())
+                val url = ref.downloadUrl.await().toString()
+                imageUrls.add(url)
             }
 
             PostRepository.uploadProduct(user, name, description, type, price, imageUrls)
