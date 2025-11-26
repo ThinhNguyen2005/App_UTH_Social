@@ -47,6 +47,8 @@ import com.example.uth_socials.R
 import com.example.uth_socials.data.market.Product
 import com.example.uth_socials.data.user.User
 import com.example.uth_socials.ui.component.common.CallConfirmDialog
+import com.example.uth_socials.ui.component.common.formatTimeAgo
+import com.example.uth_socials.ui.component.common.formatVND
 import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
 @Composable
@@ -182,7 +184,7 @@ fun ProductDetailContent(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Đăng ${getRelativeTimeString(product.timestamp)}",
+                            text = "Đăng ${formatTimeAgo(product.timestamp)}",
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
