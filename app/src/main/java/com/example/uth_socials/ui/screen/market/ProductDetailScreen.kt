@@ -305,7 +305,7 @@ fun SellerInfoSection(seller: User?) {
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .border(2.dp, Color(0xFF0E9397), CircleShape),
+                        .border(3.dp, Color(0xFF0E9397), CircleShape),
                     contentScale = ContentScale.Crop,
                     placeholder = painterResource(id = R.drawable.default_image),
                     error = painterResource(id = R.drawable.default_image)

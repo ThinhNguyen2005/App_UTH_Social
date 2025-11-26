@@ -1,19 +1,12 @@
 package com.example.uth_socials.ui.screen.home
 
 import android.content.Intent
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material3.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
@@ -34,16 +27,16 @@ import com.example.uth_socials.ui.component.common.EditPostDialog
 import com.example.uth_socials.ui.viewmodel.HomeViewModel
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import com.example.uth_socials.ui.viewmodel.DialogType
-import com.example.uth_socials.data.util.SecurityValidator
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.snapshotFlow
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun HomeScreen(
     onNavigateToProfile: (String) -> Unit = {},
     onLogout: () -> Unit,
-    onScrollStateChanged: (isScrollingUp: Boolean, isAtTop: Boolean) -> Unit = { _, _ -> },
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     val homeViewModel: HomeViewModel = viewModel()
@@ -52,12 +45,8 @@ fun HomeScreen(
     val banStatus by banStatusViewModel.banStatus.collectAsState()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val adminStatusCache = remember { mutableStateMapOf<String, Boolean>() }
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // Scroll state management for top/bottom bar visibility
     val lazyListState = rememberLazyListState()
-    var lastScrollPosition by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         homeViewModel.refreshBlockedUsers()
     }
@@ -101,21 +90,8 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(lazyListState) {
-        snapshotFlow {
-            lazyListState.firstVisibleItemIndex * 1000 + lazyListState.firstVisibleItemScrollOffset
-        }
-            .distinctUntilChanged() // Chỉ emit khi giá trị thực sự thay đổi
-            .collect { currentScrollPosition ->
-                val isScrollingUp = currentScrollPosition < lastScrollPosition
-                val isAtTop = currentScrollPosition <= 0
-
-                onScrollStateChanged(isScrollingUp, isAtTop)
-                lastScrollPosition = currentScrollPosition
-            }
-    }
+    val isScrolling by remember { derivedStateOf { lazyListState.isScrollInProgress } }
     Column(modifier = Modifier.fillMaxSize()) {
-        // Tabs lọc danh mục
         FilterTabs(
             categories = uiState.categories,
             selectedCategory = uiState.selectedCategory,
@@ -132,19 +108,16 @@ fun HomeScreen(
         ) {
             when {
                 uiState.isLoading -> {
-                    // 🔸 Skeleton Loading - Hiển thị 5-7 skeleton posts
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 16.dp)
                     ) {
-                        items(6) { // Hiển thị 6 skeleton posts
-                            PostCardSkeleton()
+                        items(6) {
                         }
                     }
                 }
 
                 uiState.error != null -> {
-                    // 🔸 Error dialog đẹp hơn với icon và button
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -188,15 +161,54 @@ fun HomeScreen(
                 }
 
                 else -> {
-                    val filteredPosts =
-                        remember(uiState.posts, uiState.hiddenPostIds, uiState.blockedUserIds) {
+                    val filteredPosts by remember {
+                        derivedStateOf {
                             uiState.posts.filter { post ->
-                                // Loại bỏ hidden posts
                                 post.id !in uiState.hiddenPostIds &&
-                                        // Loại bỏ posts của blocked users
                                         post.userId !in uiState.blockedUserIds
                             }
                         }
+                    }
+
+                    val shouldLoadMore by remember {
+                        derivedStateOf {
+                            val layoutInfo = lazyListState.layoutInfo
+                            val totalItems = layoutInfo.totalItemsCount
+                            val lastVisibleItemIndex =
+                                layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                            // Load more when we are 3 items away from the end
+                            totalItems > 0 && lastVisibleItemIndex >= totalItems - 3
+                        }
+                    }
+
+                    LaunchedEffect(shouldLoadMore) {
+                        if (shouldLoadMore) {
+                            homeViewModel.loadMorePosts()
+                        }
+                    }
+
+                    // Scroll to Top Button Logic
+                    var showScrollToTop by remember { mutableStateOf(false) }
+                    var lastScrollIndex by remember { mutableIntStateOf(0) }
+
+                    LaunchedEffect(lazyListState) {
+                        snapshotFlow { lazyListState.firstVisibleItemIndex }
+                            .collectLatest { currentIndex ->
+                                val isScrollingUp =
+                                    currentIndex > 0 && currentIndex < lastScrollIndex
+                                lastScrollIndex = currentIndex
+
+                                if (isScrollingUp) {
+                                    showScrollToTop = true
+                                    kotlinx.coroutines.delay(2000)
+                                    showScrollToTop = false
+                                } else if (currentIndex == 0) {
+                                    showScrollToTop = false
+                                }
+                            }
+                    }
+
+                    val scope = rememberCoroutineScope()
 
                     if (filteredPosts.isEmpty()) {
                         // 🔸 Empty state - không có posts trong category này
@@ -237,29 +249,13 @@ fun HomeScreen(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .then(scrollBehavior?.let { Modifier.nestedScroll(it.nestedScrollConnection) } ?: Modifier),
+                                .then(scrollBehavior?.let { Modifier.nestedScroll(it.nestedScrollConnection) }
+                                    ?: Modifier),
                             state = lazyListState,
-                            contentPadding = PaddingValues(horizontal = 16.dp)
+                            contentPadding = PaddingValues(bottom = 16.dp)
                         ) {
                             items(filteredPosts, key = { it.id }) { post ->
-                                // check admin cho từng post owner
-
-                                LaunchedEffect(post.userId) {
-                                    if (adminStatusCache[post.userId] == null) {
-                                        try {
-                                            val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(
-                                                post.userId
-                                            )
-                                            adminStatusCache[post.userId] = isAdmin
-                                        } catch (e: CancellationException) {
-                                            throw e
-                                        } catch (_: Exception) {
-                                            adminStatusCache[post.userId] = false
-                                        }
-                                    } else {
-                                        adminStatusCache[post.userId] ?: false
-                                    }
-                                }
+                                val isPostOwnerAdmin = uiState.adminStatusMap[post.userId] ?: false
 
                                 PostCard(
                                     post = post,
@@ -276,7 +272,86 @@ fun HomeScreen(
                                     onEditClicked = { homeViewModel.onEditPostClicked(post.id) },
                                     currentUserId = uiState.currentUserId,
                                     isCurrentUserAdmin = uiState.isCurrentUserAdmin,
-                                    isUserBanned = uiState.isUserBanned
+                                    isUserBanned = uiState.isUserBanned,
+                                    isPostOwnerAdmin = isPostOwnerAdmin,
+                                    isScrolling = isScrolling
+                                )
+                            }
+
+                            if (uiState.isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    }
+                                }
+                            }
+
+                            if (!uiState.canLoadMore && !uiState.isLoadingMore && filteredPosts.isNotEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 24.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Đã hết bài viết",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showScrollToTop,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 24.dp),
+                        enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
+                        exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut()
+                    ) {
+                        if (uiState.hasNewPosts) {
+                            // Khi có bài mới: Hiển thị ExtendedFAB với text
+                            ExtendedFloatingActionButton(
+                                text = { Text("Bài viết mới") },
+                                icon = {
+                                    Icon(
+                                        Icons.Default.ArrowUpward,
+                                        contentDescription = "Có bài viết mới"
+                                    )
+                                },
+                                onClick = {
+                                    scope.launch {
+                                        lazyListState.animateScrollToItem(0)
+                                        homeViewModel.clearNewPostsFlag()
+                                    }
+                                },
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            // Khi không có bài mới: Hiển thị FAB nhỏ gọn
+                            FloatingActionButton(
+                                onClick = {
+                                    scope.launch {
+                                        lazyListState.animateScrollToItem(0)
+                                        homeViewModel.clearNewPostsFlag()
+                                    }
+                                },
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowUpward,
+                                    contentDescription = "Lên đầu trang"
                                 )
                             }
                         }
@@ -284,83 +359,83 @@ fun HomeScreen(
                 }
             }
         }
-
-
-        if (uiState.commentSheetPostId != null) {
-            ModalBottomSheet(
-                onDismissRequest = { homeViewModel.onDismissCommentSheet() },
-                sheetState = sheetState
-            ) {
-                CommentSheetContent(
-                    postId = uiState.commentSheetPostId!!,
-                    comments = uiState.commentsForSheet,
-                    isLoading = uiState.isSheetLoading,
-                    onAddComment = { commentText ->
-                        homeViewModel.addComment(uiState.commentSheetPostId!!, commentText)
-                    },
-                    onLikeComment = homeViewModel::onCommentLikeClicked,
-                    onUserProfileClick = onNavigateToProfile,
-                    commentPostState = uiState.commentPostState,
-                    commentErrorMessage = uiState.commentErrorMessage,
-                )
-            }
-        }
-
-        ReportDialog(
-            isVisible = uiState.showReportDialog,
-            onDismiss = { homeViewModel.onDismissReportDialog() },
-            onReportReasonChanged = { homeViewModel.onReportReasonChanged(it) },
-            onReportDescriptionChanged = { homeViewModel.onReportDescriptionChanged(it) },
-            onSubmit = { homeViewModel.onSubmitReport() },
-            reportReason = uiState.reportReason,
-            reportDescription = uiState.reportDescription,
-            isReporting = uiState.isReporting,
-            reportErrorMessage = uiState.reportErrorMessage
-        )
-
-        when (uiState.dialogType) {
-            is DialogType.DeletePost -> {
-                ConfirmDialog(
-                    isVisible = true,
-                    onDismiss = { homeViewModel.onDismissDialog() },
-                    onConfirm = { homeViewModel.onConfirmDialog() },
-                    isLoading = uiState.isProcessing,
-                    title = if (uiState.isCurrentUserAdmin) "Xóa bài viết (Admin)" else "Xóa bài viết",
-                    message = if (uiState.isCurrentUserAdmin)
-                        "Bạn đang xóa bài viết này với quyền Admin. Người đăng bài sẽ bị cấm tự động. Hành động này không thể hoàn tác."
-                    else
-                        "Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.",
-                    confirmButtonText = "Xóa",
-                    confirmButtonColor = MaterialTheme.colorScheme.error,
-                    isCurrentUserAdmin = uiState.isCurrentUserAdmin
-                )
-            }
-
-            is DialogType.None -> {}
-            is DialogType.BlockUser -> {}
-            is DialogType.UnblockUser -> {}
-        }
-
-        BannedUserDialog(
-            isVisible = uiState.showBanDialog,
-            banReason = banStatus.banReason,
-            onDismiss = { homeViewModel.onDismissBanDialog() },
-            onLogout = {
-                homeViewModel.cleanupOnLogout()
-                homeViewModel.onDismissBanDialog()
-                onLogout()
-            }
-        )
-
-        EditPostDialog(
-            isVisible = uiState.showEditPostDialog,
-            currentContent = uiState.editingPostContent,
-            isLoading = uiState.isSavingPost,
-            errorMessage = uiState.editPostErrorMessage,
-            onDismiss = { homeViewModel.onDismissEditDialog() },
-            onSave = { homeViewModel.onSaveEditedPost() },
-            onContentChange = { homeViewModel.onUpdatePostContent(it) }
-        )
-
     }
+
+    if (uiState.commentSheetPostId != null) {
+        ModalBottomSheet(
+            onDismissRequest = { homeViewModel.onDismissCommentSheet() },
+            sheetState = sheetState
+        ) {
+            CommentSheetContent(
+                postId = uiState.commentSheetPostId!!,
+                comments = uiState.commentsForSheet,
+                isLoading = uiState.isSheetLoading,
+                onAddComment = { commentText ->
+                    homeViewModel.addComment(uiState.commentSheetPostId!!, commentText)
+                },
+                onLikeComment = homeViewModel::onCommentLikeClicked,
+                onUserProfileClick = onNavigateToProfile,
+                commentPostState = uiState.commentPostState,
+                commentErrorMessage = uiState.commentErrorMessage,
+            )
+        }
+    }
+
+    ReportDialog(
+        isVisible = uiState.showReportDialog,
+        onDismiss = { homeViewModel.onDismissReportDialog() },
+        onReportReasonChanged = { homeViewModel.onReportReasonChanged(it) },
+        onReportDescriptionChanged = { homeViewModel.onReportDescriptionChanged(it) },
+        onSubmit = { homeViewModel.onSubmitReport() },
+        reportReason = uiState.reportReason,
+        reportDescription = uiState.reportDescription,
+        isReporting = uiState.isReporting,
+        reportErrorMessage = uiState.reportErrorMessage
+    )
+
+    when (uiState.dialogType) {
+        is DialogType.DeletePost -> {
+            ConfirmDialog(
+                isVisible = true,
+                onDismiss = { homeViewModel.onDismissDialog() },
+                onConfirm = { homeViewModel.onConfirmDialog() },
+                isLoading = uiState.isProcessing,
+                title = if (uiState.isCurrentUserAdmin) "Xóa bài viết (Admin)" else "Xóa bài viết",
+                message = if (uiState.isCurrentUserAdmin)
+                    "Bạn đang xóa bài viết này với quyền Admin. Người đăng bài sẽ bị cấm tự động. Hành động này không thể hoàn tác."
+                else
+                    "Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.",
+                confirmButtonText = "Xóa",
+                confirmButtonColor = MaterialTheme.colorScheme.error,
+                isCurrentUserAdmin = uiState.isCurrentUserAdmin
+            )
+        }
+
+        is DialogType.None -> {}
+        is DialogType.BlockUser -> {}
+        is DialogType.UnblockUser -> {}
+    }
+
+    BannedUserDialog(
+        isVisible = uiState.showBanDialog,
+        banReason = banStatus.banReason,
+        onDismiss = { homeViewModel.onDismissBanDialog() },
+        onLogout = {
+            homeViewModel.cleanupOnLogout()
+            homeViewModel.onDismissBanDialog()
+            onLogout()
+        }
+    )
+
+    EditPostDialog(
+        isVisible = uiState.showEditPostDialog,
+        currentContent = uiState.editingPostContent,
+        isLoading = uiState.isSavingPost,
+        errorMessage = uiState.editPostErrorMessage,
+        onDismiss = { homeViewModel.onDismissEditDialog() },
+        onSave = { homeViewModel.onSaveEditedPost() },
+        onContentChange = { homeViewModel.onUpdatePostContent(it) }
+    )
+
 }
+

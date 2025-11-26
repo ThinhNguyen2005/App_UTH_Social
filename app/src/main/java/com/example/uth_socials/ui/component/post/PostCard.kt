@@ -65,6 +65,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.core.*
 import androidx.compose.ui.tooling.preview.Preview
+import kotlin.random.Random
 
 @Composable
 fun PostCard(
@@ -81,7 +82,9 @@ fun PostCard(
     currentUserId: String? = null,
     isCurrentUserAdmin: Boolean = false,
     isUserBanned: Boolean = false,
-    onNavigateToUserProfile: ((String) -> Unit)? = null
+    onNavigateToUserProfile: ((String) -> Unit)? = null,
+    isPostOwnerAdmin: Boolean = false,
+    isScrolling: Boolean = false
 ) {
     Card(
         modifier = Modifier.padding(vertical = 8.dp),
@@ -98,14 +101,21 @@ fun PostCard(
                     onEditClicked = onEditClicked,
                     currentUserId = currentUserId,
                     isCurrentUserAdmin = isCurrentUserAdmin,
-                    onNavigateToUserProfile = onNavigateToUserProfile
+                    isPostOwnerAdmin = isPostOwnerAdmin,
+                    onNavigateToUserProfile = onNavigateToUserProfile,
+                    isScrolling = isScrolling
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                ExpandableText(text = post.textContent, modifier = Modifier.fillMaxWidth())
+                ExpandableText(
+                    text = post.textContent, 
+                    modifier = Modifier.fillMaxWidth(),
+                    isScrolling = isScrolling
+                )
             }
             if (post.imageUrls.isNotEmpty()) {
                 PostMedia(
-                    imageUrls = post.imageUrls
+                    imageUrls = post.imageUrls,
+                    isScrolling = isScrolling
                 )
             }
             // Column này chứa các hành động (actions) và cũng có padding
@@ -143,18 +153,30 @@ private fun PostHeader(
     currentUserId: String? = null,
     isPostOwnerAdmin: Boolean = false,
     isCurrentUserAdmin: Boolean = false,
-    onNavigateToUserProfile: ((String) -> Unit)? = null
+    onNavigateToUserProfile: ((String) -> Unit)? = null,
+    isScrolling: Boolean = false
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                onNavigateToUserProfile?.invoke(post.userId) ?: onUserProfileClicked(post.userId)
-            }
+            .then(
+                if (post.userId != currentUserId) {
+                    Modifier.clickable {
+                        onNavigateToUserProfile?.invoke(post.userId) ?: onUserProfileClicked(post.userId)
+                    }
+                } else {
+                    Modifier
+                }
+            )
     ) {
         AsyncImage(
-            model = post.userAvatarUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(post.userAvatarUrl)
+                .crossfade(!isScrolling)
+                .size(120)
+                .dispatcher(Dispatchers.IO)
+                .build(),
             contentDescription = "User Avatar",
             modifier = Modifier
                 .size(40.dp)
@@ -167,8 +189,11 @@ private fun PostHeader(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            val formattedTime = remember(post.timestamp) {
+                formatTimeAgo(post.timestamp)
+            }
             Text(
-                text = formatTimeAgo(post.timestamp),
+                text = formattedTime,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -250,24 +275,27 @@ private fun PostHeader(
 private fun ExpandableText(
     text: String,
     modifier: Modifier = Modifier,
-    collapsedMaxLines: Int = 2
+    collapsedMaxLines: Int = 2,
+    isScrolling: Boolean = false
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     var isTextOverflow by remember { mutableStateOf(false) }
 
-    val displayText = buildAnnotatedString {
-        append(text)
+    val displayText = remember(isExpanded, text) {
+        buildAnnotatedString {
+            append(text)
 
-        if (isExpanded) {
-            withStyle(
-                style = SpanStyle(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
-                )
-            ) {
-                append("  Thu gọn")
+            if (isExpanded) {
+                withStyle(
+                    style = SpanStyle(
+                        color = Color.Gray,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                ) {
+                    append("  Thu gọn")
+                }
+
             }
-
         }
     }
 
@@ -292,7 +320,9 @@ private fun ExpandableText(
                     isExpanded = !isExpanded
                 }
             }
-            .animateContentSize()
+            .then(
+                if (!isScrolling) Modifier.animateContentSize() else Modifier
+            )
     )
 }
 //Phần hình ảnh và có thể lướt nhiều hình ảnh
@@ -448,7 +478,8 @@ private fun ExpandableText(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PostMedia(
-    imageUrls: List<String>
+    imageUrls: List<String>,
+    isScrolling: Boolean = false
 ) {
     if (imageUrls.isEmpty()) return
 
@@ -472,7 +503,8 @@ fun PostMedia(
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(imageUrls[page])
-                    .crossfade(true)
+                    .crossfade(!isScrolling)
+                    .size(800, 800)
                     .dispatcher(Dispatchers.IO)
                     .build(),
                 contentDescription = "Post image ${page + 1}",
@@ -591,17 +623,12 @@ private fun PostActionItem(
     contentDescription: String,
     enabled: Boolean = true
 ) {
-    // Row này để nhóm icon và số đếm, và để tăng vùng nhấn
+    // Row này để nhóm icon và số đếm
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null, // Tắt hiệu ứng gợn sóng để dùng hiệu ứng của IconButton
-            onClick = { if (enabled) onClick() }
-        )
+        verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
-            onClick = onClick,
+            onClick = { if (enabled) onClick() },
             enabled = enabled,
             modifier = Modifier.size(40.dp) // Kích thước vùng nhấn
         ) {
@@ -711,7 +738,7 @@ fun PostCardSkeleton(
             }
 
             // Image skeleton (sometimes show, sometimes not for variety)
-            if (kotlin.random.Random.nextBoolean()) {
+            if (Random.nextBoolean()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
                     modifier = Modifier

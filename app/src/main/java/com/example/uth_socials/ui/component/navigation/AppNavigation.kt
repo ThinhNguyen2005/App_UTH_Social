@@ -29,7 +29,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.uth_socials.LoginScreen
+import com.example.uth_socials.ui.screen.util.LoginScreen
 import com.example.uth_socials.ui.component.logo.HomeTopAppBar
 import com.example.uth_socials.ui.component.logo.LogoTopAppBar
 import com.example.uth_socials.ui.screen.util.RegisterScreen
@@ -144,7 +144,7 @@ fun NavGraphBuilder.authNavGraph(
         composable(Screen.AuthScreen.Register.route) {
             RegisterScreen(
                 viewModel = viewModel,
-                onBackToLogin = { navController.popBackStack() },
+                onBackToLogin = { navController.navigate(Screen.AuthScreen.Login.route) },
                 onGoogleClick = {
                     viewModel.loginWithGoogle(activity = navController.context as Activity) {
                         launcher.launch(it)
@@ -190,42 +190,35 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
-    // Scroll state for top/bottom bar visibility
-    var isScrollingUp by remember { mutableStateOf(false) }
-    var isAtTop by remember { mutableStateOf(true) }
-
     val onLogout: () -> Unit = {
         FirebaseAuth.getInstance().signOut()
         rootNavController.navigate(Graph.AUTH) {
-            popUpTo(Graph.MAIN) { inclusive = true } // Xóa toàn bộ backstack của MAIN
+            popUpTo(Graph.MAIN) { inclusive = true }
         }
         Log.d("AppNavigation", "Logout triggered! Navigating to AUTH graph.")
     }
 
-   // val notificationViewModel : NotificationViewModel = viewModel()
 
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    
     val showBottomBar = when (currentRoute) {
         Screen.Home.route,
         Screen.Market.route,
         Screen.Add.route,
-        Screen.Notifications.route,
-        Screen.Profile.route -> true
-
-        Screen.AdminDashboard.route,
-//        Screen.Categories.route -> false // Hide bottom bar for admin dashboard and categories
-        Screen.ProductDetail.route -> false  // THÊM: Ẩn bottom bar cho ProductDetail
-        //true là gì, là sẽ show là bottomBar fasle ngược lại khỏi
-        // Nói chung là đừng đụng vào
-        else -> false
+        Screen.Notifications.route -> true
+        // Profile: chỉ hiện bottom bar khi xem profile của chính mình
+        else -> {
+            if (currentRoute?.startsWith("profile/") == true) {
+                val profileUserId = navBackStackEntry?.arguments?.getString("userId")
+                profileUserId == currentUserId
+            } else {
+                false
+            }
+        }
     }
 
-    // Top app bar scroll behavior for collapsing/expanding
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-
-    // Determine if bottom bar should be visible based on scroll state (only for Home screen)
-    val shouldShowBottomBar = showBottomBar && (currentRoute != Screen.Home.route || isAtTop || isScrollingUp)
-
+    val shouldShowBottomBar = showBottomBar
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
@@ -264,21 +257,19 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
             }
         },
         bottomBar = {
-            //Cái này coi tao show cái này ở những trang nào, định nghĩa ở trên
             if (shouldShowBottomBar) {
+
                 var showBanDialog by remember { mutableStateOf(false) }
                 val banStatusViewModel: BanStatusViewModel = viewModel()
                 val banStatus by banStatusViewModel.banStatus.collectAsState()
 
-                // Show ban dialog when ban status changes
                 LaunchedEffect(banStatus.isBanned) {
                     if (banStatus.isBanned && currentRoute != Screen.Home.route) {
                         showBanDialog = true
                     }
                 }
 
-                val notificationViewModel : NotificationViewModel = viewModel()
-
+                val notificationViewModel: NotificationViewModel = viewModel()
 
                 HomeBottomNavigation(
                     navController = navController,
@@ -287,7 +278,6 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     isVisible = true
                 )
 
-                // Ban dialog for navigation
                 BannedUserDialog(
                     isVisible = showBanDialog,
                     banReason = banStatus.banReason,
@@ -310,13 +300,10 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     onNavigateToProfile = { userId ->
                         navController.navigate(Screen.Profile.createRoute(userId)) {
                             launchSingleTop = true
+                            restoreState = true
                         }
                     },
                     onLogout = onLogout,
-                    onScrollStateChanged = { isScrollingUpState, isAtTopState ->
-                        isScrollingUp = isScrollingUpState
-                        isAtTop = isAtTopState
-                    },
                     scrollBehavior = scrollBehavior
                 )
             }
@@ -376,13 +363,6 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     }
                 )
             }
-            //Market
-//            composable(Screen.Market.route) { MarketScreen(
-//                navController = navController,
-//                onProductClick = { productId ->
-//                    navController.navigate(Screen.ProductDetail.createRoute(productId))
-//                }
-//            ) }
             composable(Screen.Add.route) {
                 val postViewModel : PostViewModel = viewModel()
                 val productViewModel : ProductViewModel = viewModel()
@@ -605,10 +585,6 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                             launchSingleTop = true
                         }
                     },
-                    //Navigate to comments from grid
-//                    onCommentClicked = { postId ->
-//                        navController.navigate(Screen.Comments.createRoute(postId))
-//                    }
                 )
             }
             composable(
@@ -626,25 +602,10 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                             launchSingleTop = true
                         }
                     },
-                    //Navigate to comments from detail
-//                    onCommentClicked = { postId ->
-//                        navController.navigate(Screen.Comments.createRoute(postId))
-//                    }
+
                 )
             }
-            //Comment composable
-//            composable(
-//                route = Screen.Comments.route,
-//                arguments = listOf(
-//                    navArgument("postId") { type = NavType.StringType }
-//                )
-//            ) { backStackEntry ->
-//                val postId = backStackEntry.arguments?.getString("postId") ?: ""
-//                CommentsScreen(
-//                    postId = postId,
-//                    onBackClicked = { navController.popBackStack() }
-//                )
-//            }
+
         }
     }
 }

@@ -46,8 +46,7 @@ data class HomeUiState(
     val reportReason: String = "",
     val reportDescription: String = "",
     val isReporting: Boolean = false,
-    val reportErrorMessage: String? = null,  // 🔸 Thêm error message cho report
-    // ✅ Sử dụng DialogType thay vì các boolean flags riêng lẻ
+    val reportErrorMessage: String? = null,
     val dialogType: DialogType = DialogType.None,
     val isProcessing: Boolean = false,
     val currentUserId: String? = null,
@@ -57,6 +56,7 @@ data class HomeUiState(
     // 🔸 Admin state
     val isCurrentUserAdmin: Boolean = false,
     val currentUserRole: String? = null,
+    val adminStatusMap: Map<String, Boolean> = emptyMap(),
     // 🔸 Generic confirmation dialog
     val showGenericDialog: Boolean = false,
     val genericDialogAction: (() -> Unit)? = null,
@@ -68,7 +68,12 @@ data class HomeUiState(
     val editingPostId: String? = null,
     val editingPostContent: String = "",
     val isSavingPost: Boolean = false,
-    val editPostErrorMessage: String? = null
+    val editPostErrorMessage: String? = null,
+    
+    // 🔸 Pagination & New Posts
+    val isLoadingMore: Boolean = false,
+    val canLoadMore: Boolean = true,
+    val hasNewPosts: Boolean = false
 )
 
 class HomeViewModel(
@@ -120,10 +125,13 @@ class HomeViewModel(
                 currentUserRole = null,
                 isUserBanned = false,
                 hiddenPostIds = emptySet(),
-                blockedUserIds = emptySet(), // ✅ Clear blocked users on logout
+                blockedUserIds = emptySet(),
                 posts = it.posts.map { post ->
                     post.copy(isLiked = false, isSaved = false)
-                }
+                },
+                isLoadingMore = false,
+                canLoadMore = true,
+                hasNewPosts = false
             )
         }
         loadCategoriesAndInitialPosts()
@@ -134,9 +142,9 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             loadCategoriesAndInitialPosts()
             loadHiddenPosts()
-            loadBlockedUsers() // ✅ Load blocked users
+            loadBlockedUsers()
             loadBanStatus()
-            checkAccout() // Kiểm tra admin
+            checkAccout()
         }
     }
 
@@ -168,10 +176,8 @@ class HomeViewModel(
         categoriesJob = viewModelScope.launch(Dispatchers.IO) {
             categoryRepository.getCategoriesFlow().collect { categories ->
                 if (categories.isEmpty()) {
-                    // Nếu chưa có categories, thử tạo mặc định
                     categoriesIfNeeded()
                 } else {
-                    // Cập nhật categories và chọn category đầu tiên nếu chưa có selectedCategory
                     _uiState.update { currentState ->
                         val newSelectedCategory = currentState.selectedCategory
                             ?: categories.firstOrNull()
@@ -293,15 +299,154 @@ class HomeViewModel(
     private fun listenToPostChanges(categoryId: String) {
         postsJob?.cancel()
         postsJob = viewModelScope.launch(Dispatchers.IO) {
-            postRepository.getPostsFlow(categoryId).collect { posts ->
-                _uiState.update { it.copy(posts = posts, isLoading = false) }
+            // Reset pagination state when category changes
+            _uiState.update { it.copy(canLoadMore = true, isLoadingMore = false, hasNewPosts = false) }
+            
+            postRepository.getPostsFlow(categoryId).collect { newPosts ->
+                val sortedNewPosts = newPosts.sortedByDescending { it.timestamp?.seconds ?: 0L }
+                
+                _uiState.update { currentState ->
+                    val currentPosts = currentState.posts
+                    
+                    // Logic Merge:
+                    // 1. Nếu list hiện tại rỗng -> Đây là lần load đầu tiên -> Thay thế toàn bộ
+                    if (currentPosts.isEmpty()) {
+                        currentState.copy(
+                            posts = sortedNewPosts,
+                            isLoading = false
+                        )
+                    } else {
+                        // 2. Nếu list không rỗng -> Đây là update real-time
+                        // Kiểm tra xem có bài viết mới thực sự không (so sánh ID bài đầu tiên)
+                        val firstCurrentPost = currentPosts.firstOrNull()
+                        val firstNewPost = sortedNewPosts.firstOrNull()
+                        
+                        val hasNew = if (firstCurrentPost != null && firstNewPost != null) {
+                            // Nếu ID khác nhau VÀ timestamp của bài mới lớn hơn bài cũ -> Có bài mới
+                            firstNewPost.id != firstCurrentPost.id && 
+                            (firstNewPost.timestamp?.seconds ?: 0) > (firstCurrentPost.timestamp?.seconds ?: 0)
+                        } else {
+                            false
+                        }
+                        
+                        // Merge logic:
+                        // - Lấy 20 bài mới nhất từ real-time (sortedNewPosts)
+                        // - Lấy các bài cũ từ danh sách hiện tại (trừ những bài đã có trong 20 bài mới)
+                        // - Kết hợp lại
+                        val newPostIds = sortedNewPosts.map { it.id }.toSet()
+                        val olderPosts = currentPosts.filter { !newPostIds.contains(it.id) }
+                        val mergedPosts = sortedNewPosts + olderPosts
+                        
+                        currentState.copy(
+                            posts = mergedPosts,
+                            isLoading = false,
+                            hasNewPosts = currentState.hasNewPosts || hasNew // Giữ trạng thái true nếu đã có bài mới trước đó
+                        )
+                    }
+                }
+                
+                loadAdminStatusForPosts(sortedNewPosts)
+            }
+        }
+    }
+    
+    fun loadMorePosts() {
+        val currentState = _uiState.value
+        if (currentState.isLoadingMore || !currentState.canLoadMore) return
+        
+        val categoryId = currentState.selectedCategory?.id ?: "all"
+        val lastPost = currentState.posts.lastOrNull()
+        
+        if (lastPost == null) return
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isLoadingMore = true) }
+            
+            try {
+                val olderPosts = postRepository.loadMorePosts(
+                    categoryId = categoryId,
+                    lastTimestamp = lastPost.timestamp
+                )
+                
+                if (olderPosts.isEmpty()) {
+                    _uiState.update { it.copy(isLoadingMore = false, canLoadMore = false) }
+                } else {
+                    _uiState.update { state ->
+                        // Filter duplicates just in case
+                        val currentIds = state.posts.map { it.id }.toSet()
+                        val uniqueOlderPosts = olderPosts.filter { !currentIds.contains(it.id) }
+                        
+                        state.copy(
+                            posts = state.posts + uniqueOlderPosts,
+                            isLoadingMore = false,
+                            canLoadMore = uniqueOlderPosts.isNotEmpty() // Nếu load về ít hơn limit hoặc rỗng thì hết
+                        )
+                    }
+                    loadAdminStatusForPosts(olderPosts)
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading more posts", e)
+                _uiState.update { it.copy(isLoadingMore = false) }
+            }
+        }
+    }
+    
+    fun clearNewPostsFlag() {
+        _uiState.update { it.copy(hasNewPosts = false) }
+    }
+
+    private fun loadAdminStatusForPosts(posts: List<Post>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Extract unique user IDs from posts
+                val uniqueUserIds = posts.map { it.userId }.distinct()
+                
+                // Get current admin status map to avoid reloading
+                val currentAdminMap = _uiState.value.adminStatusMap
+                
+                // Find user IDs that need to be checked (not in cache)
+                val userIdsToCheck = uniqueUserIds.filter { userId ->
+                    userId.isNotBlank() && !currentAdminMap.containsKey(userId)
+                }
+                
+                if (userIdsToCheck.isEmpty()) {
+                    return@launch // All admin statuses already cached
+                }
+                
+                // Batch load admin status for all users
+                val newAdminMap = mutableMapOf<String, Boolean>()
+                userIdsToCheck.forEach { userId ->
+                    try {
+                        val (isAdmin, _) = SecurityValidator.getCachedAdminStatus(userId)
+                        newAdminMap[userId] = isAdmin
+                    } catch (e: Exception) {
+                        Log.e("HomeViewModel", "Error loading admin status for $userId", e)
+                        newAdminMap[userId] = false
+                    }
+                }
+                
+                // Merge with existing map
+                val updatedAdminMap = currentAdminMap + newAdminMap
+                
+                _uiState.update { 
+                    it.copy(adminStatusMap = updatedAdminMap)
+                }
+                
+                Log.d("HomeViewModel", "Loaded admin status for ${newAdminMap.size} users")
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "Error loading admin status for posts", e)
             }
         }
     }
 
     fun onCategorySelected(category: Category) {
         if (_uiState.value.selectedCategory?.id != category.id) {
-            _uiState.update { it.copy(selectedCategory = category, isLoading = true) }
+            // Reset posts list when changing category
+            _uiState.update { it.copy(
+                selectedCategory = category, 
+                isLoading = true,
+                posts = emptyList() // Clear old posts from previous category
+            ) }
             listenToPostChanges(category.id)
         }
     }
@@ -334,7 +479,7 @@ class HomeViewModel(
                 _uiState.update {
                     it.copy(
                         posts = originalPosts,
-                        error = "Lỗi không thể like bài viết. Vui lòng thử lại sau."
+                        error = "Lỗi không thể like bài viết. Vui lòng thử lại."
                     )
                 }
                 Log.e("HomeViewModel", "Error updating like status", e)
@@ -535,7 +680,6 @@ class HomeViewModel(
             try {
                 val success = postRepository.hidePost(postId)
                 if (success) {
-                    // Cập nhật UI: thêm postId vào hiddenPostIds
                     _uiState.update {
                         it.copy(hiddenPostIds = it.hiddenPostIds + postId)
                     }
@@ -901,9 +1045,14 @@ class HomeViewModel(
         commentsJob = null
         postsJob = null
         clearCache()
+        
+        postRepository.clearCache()
+        
         // Reset state
         _uiState.update { HomeUiState() }
 
         Log.d("HomeViewModel", "Cleanup completed")
     }
 }
+
+
