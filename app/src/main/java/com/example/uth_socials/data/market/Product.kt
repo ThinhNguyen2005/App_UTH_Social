@@ -1,9 +1,13 @@
 package com.example.uth_socials.data.market
 
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ServerTimestamp
-import java.sql.Timestamp
 
 data class Product(
+    // Timestamp
+    @ServerTimestamp
+    val timestamp: Timestamp? = null,
+
     val id: String = "",
     val name: String = "",
     val price: Int = 0,
@@ -17,10 +21,6 @@ data class Product(
     val savedBy: List<String> = emptyList(),
     val saves: Long = 0,
     val shares: Long = 0,
-
-    // Timestamp
-    @ServerTimestamp
-    val timestamp: Timestamp? = null,
 
     val campus: String? = null,
     val userName: String? = null,

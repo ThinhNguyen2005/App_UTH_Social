@@ -43,7 +43,7 @@ import com.example.uth_socials.data.util.FirestoreConstants
 class PostRepository {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    private val productsCollection = db.collection("products")
+    private val productsCollection = db.collection(FirestoreConstants.PRODUCTS_COLLECTION)
     private val postsCollection = db.collection(FirestoreConstants.POSTS_COLLECTION)
     private val reportsCollection = db.collection(FirestoreConstants.REPORTS_COLLECTION)
     private val usersCollection = db.collection(FirestoreConstants.USERS_COLLECTION)
