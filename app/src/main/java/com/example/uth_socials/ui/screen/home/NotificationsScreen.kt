@@ -374,8 +374,8 @@ private fun UndoButton(
                 onClick()
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), // nền nhạt
-                contentColor = MaterialTheme.colorScheme.primary // màu text
+                containerColor = MaterialTheme.colorScheme.surfaceVariant, // nền nhạt
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant // màu text
             ),
             shape = RoundedCornerShape(16.dp), // bo góc
             elevation = ButtonDefaults.buttonElevation(
@@ -404,7 +404,8 @@ private fun NotificationCard(
         "post" -> "đã đăng một bài viết"
         "product" -> "đã thêm một sản phẩm mới"
         "like" -> "đã thích bài viết của bạn"
-        "comment" -> "đã bình luận vào bài viết của bạn"
+        "comment" -> "đã bình luận bài viết của bạn"
+        "chat" -> "đã nhắn tin cho bạn"
         else -> ""
     }
 
@@ -442,7 +443,7 @@ private fun NotificationCard(
                         ) {
                             append(notification.username)
                         }
-                        append(" ")
+                        append(" \n")
                         withStyle(
                             SpanStyle(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -15,6 +15,8 @@ import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.Source
 import com.google.firebase.storage.FirebaseStorage
 import androidx.core.net.toUri
+import com.example.uth_socials.data.util.removeVietnameseAccent
+
 import com.example.uth_socials.data.util.FirestoreConstants
 
 class UserRepository {
@@ -36,7 +38,7 @@ class UserRepository {
             id = firebaseUser.uid,
             userId = firebaseUser.uid,
 
-            usernameFormat = firebaseUser.displayName.toString().trim().lowercase(),
+            usernameFormat = removeVietnameseAccent(firebaseUser.displayName ?: "người dùng mới"),
 
             username = username?:firebaseUser.displayName ?: "User",
             avatarUrl = firebaseUser.photoUrl?.toString() ?:"https://firebasestorage.googleapis.com/v0/b/uthsocial-a2f90.firebasestorage.app/o/avatarDef.jpg?alt=media&token=b6363023-1c54-4370-a2f1-09127c4673da",

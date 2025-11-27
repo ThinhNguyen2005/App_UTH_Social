@@ -373,6 +373,9 @@ fun HomeScreen(
                 onAddComment = { commentText ->
                     homeViewModel.addComment(uiState.commentSheetPostId!!, commentText)
                 },
+                onAddCommentReply = {commentParentname, commentParentId, commentText ->
+                    homeViewModel.addCommentReply(uiState.commentSheetPostId!!, commentParentname, commentParentId, commentText)
+                },
                 onLikeComment = homeViewModel::onCommentLikeClicked,
                 onUserProfileClick = onNavigateToProfile,
                 commentPostState = uiState.commentPostState,
