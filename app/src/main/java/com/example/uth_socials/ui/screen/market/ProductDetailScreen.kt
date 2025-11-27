@@ -1,11 +1,14 @@
 package com.example.uth_socials.ui.screen.market
 
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -152,15 +155,7 @@ fun ProductDetailContent(
         ) {
             //Image product
             item {
-                AsyncImage(
-                    model = product.imageUrl ?: R.drawable.default_image,
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(360.dp)
-                        .background(Color(0xFF262525))
-                )
+                ImageCarousel(imageUrls = product.imageUrls)
             }
 
             //Detail product
@@ -282,6 +277,74 @@ fun ProductDetailContent(
                     }
                 }
             )
+        }
+    }
+}
+//Image Carousel
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ImageCarousel(imageUrls: List<String>) {
+    // Nếu không có ảnh, hiển thị ảnh mặc định
+    val images = imageUrls.ifEmpty { listOf("") }
+    val pagerState = rememberPagerState(pageCount = { images.size })
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(360.dp)
+            .background(Color(0xFF262525))
+    ) {
+        //HorizontalPager để vuốt ngang ảnh
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            AsyncImage(
+                model = images[page].ifEmpty { R.drawable.default_image },
+                contentDescription = "Product image ${page + 1}",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        //Nếu có nhiều hơn 1 ảnh
+        if (images.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                repeat(images.size) { index ->
+                    Surface(
+                        modifier = Modifier.size(8.dp),
+                        shape = CircleShape,
+                        color = if (pagerState.currentPage == index)
+                            Color.White
+                        else
+                            Color.White.copy(alpha = 0.4f)
+                    ) {}
+                }
+            }
+        }
+
+        //Số thứ tự ảnh (vd: 1/5)
+        if (images.size > 1) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = Color.Black.copy(alpha = 0.6f)
+            ) {
+                Text(
+                    text = "${pagerState.currentPage + 1}/${images.size}",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }

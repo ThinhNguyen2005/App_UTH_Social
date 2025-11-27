@@ -29,7 +29,8 @@ fun ProductItem(
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             AsyncImage(
-                model = product.imageUrl ?: R.drawable.default_image,
+                //Lấy ảnh đầu, hoặc dùng ảnh mặc định nếu list rỗng
+                model = product.imageUrls.firstOrNull() ?: R.drawable.default_image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
