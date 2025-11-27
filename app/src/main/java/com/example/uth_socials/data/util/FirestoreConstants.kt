@@ -2,6 +2,7 @@ package com.example.uth_socials.data.util
 
 object FirestoreConstants {
     // Collections
+    const val PRODUCTS_COLLECTION = "products"
     const val USERS_COLLECTION = "users"
     const val POSTS_COLLECTION = "posts"
     const val REPORTS_COLLECTION = "reports"

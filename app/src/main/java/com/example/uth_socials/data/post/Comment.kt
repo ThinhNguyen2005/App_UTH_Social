@@ -8,6 +8,8 @@ data class Comment(
     val userId: String = "",
     val username: String = "",
     val userAvatarUrl: String = "",
+    val parentname: String = "",
+    val parentId: String = "",
     val text: String = "",
     val timestamp: Timestamp? = null,
     val likedBy: List<String> = emptyList(),
