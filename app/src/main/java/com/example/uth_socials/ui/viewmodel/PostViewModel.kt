@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.post.Category
@@ -27,6 +28,7 @@ import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.ProductRepository
 import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.data.user.User
+import com.example.uth_socials.data.util.compressUriToByteArray
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 
@@ -61,7 +63,7 @@ class PostViewModel : ViewModel() {
     }
 
     fun uploadArticle(
-        content: String, imageUris: List<Uri>, category: String?,
+        context: Context, content: String, imageUris: List<Uri>, category: String?,
     ) {
         viewModelScope.launch {
             val userId = userRepository.getCurrentUserId()
@@ -70,8 +72,9 @@ class PostViewModel : ViewModel() {
             val imageUrls = mutableListOf<String>()
 
             for (uri in imageUris) {
+                val byteUri = compressUriToByteArray(context,uri)
                 val ref = storage.reference.child("posts/${UUID.randomUUID()}.jpg")
-                ref.putFile(uri).await()
+                ref.putBytes(byteUri).await()
                 val url = ref.downloadUrl.await().toString()
                 imageUrls.add(url)
             }
@@ -80,7 +83,7 @@ class PostViewModel : ViewModel() {
         }
     }
 
-    fun uploadProduct(name: String, description: String, type: String, price: Int, imageUris: List<Uri>) {
+    fun uploadProduct(context : Context, name: String, description: String, type: String, price: Int, imageUris: List<Uri>) {
         viewModelScope.launch {
             // return try {
             val userId = userRepository.getCurrentUserId()
@@ -89,21 +92,15 @@ class PostViewModel : ViewModel() {
             val imageUrls = mutableListOf<String>()
 
             for (uri in imageUris) {
+                val byteUri = compressUriToByteArray(context,uri)
                 val ref = storage.reference.child("products/${UUID.randomUUID()}.jpg")
-                ref.putFile(uri).await()
+                ref.putBytes(byteUri).await()
                 val url = ref.downloadUrl.await().toString()
                 imageUrls.add(url)
             }
 
             PostRepository.uploadProduct(user, name, description, type, price, imageUrls)
 
-            // Tạo bài viết
-
-            // true
-            //  } catch (e: Exception) {
-            // e.printStackTrace()
-            //  false
-            //}
         }
     }
 
