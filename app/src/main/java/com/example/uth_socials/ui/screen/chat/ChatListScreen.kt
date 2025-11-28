@@ -46,7 +46,7 @@ fun ChatListScreen(
     val viewModel: ChatViewModel = viewModel()
     val chats by viewModel.chats.collectAsState()
     val isLoading by viewModel.isListLoading.collectAsState()
-    val currentUserId = viewModel.currentUserId
+
 
 
 
@@ -60,7 +60,6 @@ fun ChatListScreen(
     ) { padding ->
 
         when {
-            // ⏳ Loading (và chưa có dữ liệu)
             isLoading  -> {
                 Box(
                     modifier = Modifier
@@ -71,8 +70,6 @@ fun ChatListScreen(
                     CircularProgressIndicator()
                 }
             }
-
-            // ❌ Không có đoạn chat nào
             chats.isEmpty() -> {
                 Box(
                     modifier = Modifier
@@ -100,7 +97,6 @@ fun ChatListScreen(
                 }
             }
 
-            // ✅ Có danh sách chat → hiện list
             else -> {
                 LazyColumn(contentPadding = padding) {
                     items(chats) { chat ->

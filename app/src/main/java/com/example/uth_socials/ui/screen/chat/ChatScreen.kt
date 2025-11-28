@@ -22,7 +22,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
 
     val otherUserName by viewModel.otherUserName.collectAsState()
     val otherUserAvatar by viewModel.otherUserAvatar.collectAsState()
-    
+    val reversedMessages = remember(messages) { messages.reversed() }
     var text by remember { mutableStateOf("") }
 
     LaunchedEffect(chatId) {
@@ -49,11 +49,13 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
             // MessageList chiếm toàn bộ không gian còn lại
             val listState = rememberLazyListState()
             LaunchedEffect(messages.size) {
-                if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+                if (messages.isNotEmpty()) {
+                    listState.animateScrollToItem(0)
+                }
             }
 
             MessageList(
-                messages = messages,
+                messages = reversedMessages,
                 currentUserId = currentUserId,
                 otherUserAvatar = otherUserAvatar,
                 listState = listState,

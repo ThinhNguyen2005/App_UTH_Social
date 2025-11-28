@@ -25,24 +25,27 @@ fun MessageList(
         modifier = modifier.fillMaxSize(),
         state = listState,
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-        reverseLayout = false
+        reverseLayout = true
     ) {
         itemsIndexed(messages) { idx, msg ->
-            val prev = messages.getOrNull(idx - 1)
+            val prev = messages.getOrNull(idx + 1)
             val currTime = msg.timestamp?.toDate()?.time ?: 0L
             val prevTime = prev?.timestamp?.toDate()?.time ?: 0L
 
             val showHeader = prev == null || DateUtils.shouldShowTimeHeader(prevTime, currTime)
 
-            if (showHeader) {
-                TimeHeader(timestamp = currTime)
-            }
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (showHeader) {
+                    TimeHeader(timestamp = currTime)
+                }
 
-            Message(
-                message = msg,
-                currentUserId = currentUserId,
-                otherUserAvatar = otherUserAvatar
-            )
+                //Di chuyển Message vào trong Column này
+                Message(
+                    message = msg,
+                    currentUserId = currentUserId,
+                    otherUserAvatar = otherUserAvatar
+                )
+            }
         }
     }
 }
