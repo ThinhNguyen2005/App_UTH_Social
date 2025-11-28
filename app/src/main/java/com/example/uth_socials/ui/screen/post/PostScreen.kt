@@ -185,6 +185,7 @@ fun PostScreen(
                             return@PrimaryButton
                         }
                         postViewModel.uploadArticle(
+                            context,
                             articleContent.trim(),
                             selectedImageUris,
                             articleCategoryId
@@ -209,6 +210,7 @@ fun PostScreen(
                             return@PrimaryButton
                         }
                         postViewModel.uploadProduct(
+                            context,
                             productName.trim(),
                             productDescription.trim(),
                             productType,
