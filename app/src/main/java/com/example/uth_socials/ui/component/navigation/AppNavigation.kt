@@ -54,6 +54,7 @@ import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import com.example.uth_socials.ui.component.logo.MarketTopbar
 import com.example.uth_socials.ui.screen.UserInfoScreen
 import com.example.uth_socials.ui.screen.setting.UserSettingScreen
 import com.example.uth_socials.ui.viewmodel.SearchViewModel
@@ -221,39 +222,71 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
     val shouldShowBottomBar = showBottomBar
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+//        topBar = {
+//            // Nếu đang ở Market -> không vẽ topBar
+//            if (currentRoute != Screen.Market.route) {
+//                when (currentRoute) {
+//                    Screen.Home.route -> HomeTopAppBar(
+//                        onSearchClick = { query ->
+//                            navController.navigate("search_results/$query")
+//                        },
+//                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+//                        onAdminClick = {
+//                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+//                                launchSingleTop = true
+//                            }
+//                        },
+//                        scrollBehavior = scrollBehavior
+//                    )
+//                    Screen.Add.route -> LogoTopAppBar()
+//                    Screen.Notifications.route -> LogoTopAppBar()
+//                    Screen.SearchResult.route -> HomeTopAppBar(
+//                        onSearchClick = { query ->
+//                            navController.navigate("search_results/$query")
+//                        },
+//                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+//                        onAdminClick = {
+//                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+//                                launchSingleTop = true
+//                            }
+//                        },
+//                        scrollBehavior = scrollBehavior
+//                    )
+//                    else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
+//                }
+//                // else: nothing -> Market không có topBar
+//            }
+//        },
         topBar = {
-            // Nếu đang ở Market -> không vẽ topBar
-            if (currentRoute != Screen.Market.route) {
-                when (currentRoute) {
-                    Screen.Home.route -> HomeTopAppBar(
-                        onSearchClick = { query ->
-                            navController.navigate("search_results/$query")
-                        },
-                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                        onAdminClick = {
-                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                                launchSingleTop = true
-                            }
-                        },
-                        scrollBehavior = scrollBehavior
-                    )
-                    Screen.Add.route -> LogoTopAppBar()
-                    Screen.Notifications.route -> LogoTopAppBar()
-                    Screen.SearchResult.route -> HomeTopAppBar(
-                        onSearchClick = { query ->
-                            navController.navigate("search_results/$query")
-                        },
-                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                        onAdminClick = {
-                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                                launchSingleTop = true
-                            }
-                        },
-                        scrollBehavior = scrollBehavior
-                    )
-                    else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
-                }
-                // else: nothing -> Market không có topBar
+            when (currentRoute) {
+                Screen.Home.route -> HomeTopAppBar(
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
+                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+                Screen.Market.route -> MarketTopbar()
+                Screen.Add.route -> LogoTopAppBar()
+                Screen.Notifications.route -> LogoTopAppBar()
+                Screen.SearchResult.route -> HomeTopAppBar(
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
+                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+                else -> { /* no app bar */ }
             }
         },
         bottomBar = {

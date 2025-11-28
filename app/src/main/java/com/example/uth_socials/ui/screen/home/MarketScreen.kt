@@ -50,83 +50,103 @@ fun MarketScreen(
             .fillMaxSize()
     ) {
         //Header with gradient background
-        Box(
-            Modifier
-                .height(239.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFB6FDFF),
-                            Color(0xFF00F8FF)
-                        )
-                    )
-                )
-        ) {
-            //Logo
-            Image(
-                painter = painterResource(R.drawable.lg_uth),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(width = 160.dp, height = 38.dp)
-                    .offset(x = 17.dp, y = 40.dp)
-            )
-
-            // Title + Subtitle
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 106.dp)
-            ) {
-                Text(
-                    text = "Trang bán hàng",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-                Text(
-                    text = "Mua thì hời, bán thì lời",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.W400,
-                    color = Color.DarkGray.copy(alpha = 0.6f)
-                )
-            }
-        }
+//        Box(
+//            Modifier
+//                .height(239.dp)
+//                .fillMaxWidth()
+//                .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+//                .background(
+//                    brush = Brush.verticalGradient(
+//                        colors = listOf(
+//                            Color(0xFFB6FDFF),
+//                            Color(0xFF00F8FF)
+//                        )
+//                    )
+//                )
+//        ) {
+//            //Logo
+//            Image(
+//                painter = painterResource(R.drawable.lg_uth),
+//                contentDescription = null,
+//                modifier = Modifier
+//                    .size(width = 160.dp, height = 38.dp)
+//                    .offset(x = 17.dp, y = 40.dp)
+//            )
+//
+//            // Title + Subtitle
+//            Column(
+//                horizontalAlignment = Alignment.CenterHorizontally,
+//                modifier = Modifier
+//                    .fillMaxWidth()
+//                    .padding(top = 106.dp)
+//            ) {
+//                Text(
+//                    text = "Trang bán hàng",
+//                    fontSize = 24.sp,
+//                    fontWeight = FontWeight.Bold,
+//                    color = Color.Black
+//                )
+//                Text(
+//                    text = "Mua thì hời, bán thì lời",
+//                    fontSize = 20.sp,
+//                    fontWeight = FontWeight.W400,
+//                    color = Color.DarkGray.copy(alpha = 0.6f)
+//                )
+//            }
+//        }
 
         // 2. Search Bar - KẾT NỐI VỚI VIEWMODEL
+//        Box(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .offset(y = (-24).dp)
+//        ) {
+//            SearchBar(
+//                modifier = Modifier.align(Alignment.TopCenter),
+//                query = listUiState.searchQuery, // Lấy query từ state
+//                hint = "Tìm sản phẩm...",
+//                onQueryChange = { query ->
+//                    // Cập nhật query trong ViewModel (real-time search)
+//                    viewModel.updateSearchQuery(query)
+//                },
+//                onSearch = { query ->
+//                    // Optional: có thể thêm analytics hoặc log
+//                    // Search đã được thực hiện real-time ở onQueryChange
+//                },
+//                onClear = {
+//                    // Xóa search query
+//                    viewModel.clearSearch()
+//                }
+//            )
+//        }
+
+        // Search Bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset(y = (-24).dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             SearchBar(
-                modifier = Modifier.align(Alignment.TopCenter),
-                query = listUiState.searchQuery, // Lấy query từ state
+                modifier = Modifier.align(Alignment.Center),
+                query = listUiState.searchQuery,
                 hint = "Tìm sản phẩm...",
                 onQueryChange = { query ->
-                    // Cập nhật query trong ViewModel (real-time search)
                     viewModel.updateSearchQuery(query)
                 },
                 onSearch = { query ->
-                    // Optional: có thể thêm analytics hoặc log
-                    // Search đã được thực hiện real-time ở onQueryChange
                 },
                 onClear = {
-                    // Xóa search query
                     viewModel.clearSearch()
                 }
             )
         }
-
         // 3. Hiển thị thông tin search
         if (listUiState.searchQuery.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .offset(y = (-25).dp)
-                    .padding(horizontal = 20.dp),
+//                    .offset(y = (-25).dp)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
