@@ -54,6 +54,7 @@ import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import com.example.uth_socials.ui.component.logo.MarketTopbar
 import com.example.uth_socials.ui.screen.UserInfoScreen
 import com.example.uth_socials.ui.screen.setting.UserSettingScreen
 import com.example.uth_socials.ui.viewmodel.SearchViewModel
@@ -226,42 +227,71 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
     val shouldShowBottomBar = showBottomBar
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+//        topBar = {
+//            // Nếu đang ở Market -> không vẽ topBar
+//            if (currentRoute != Screen.Market.route) {
+//                when (currentRoute) {
+//                    Screen.Home.route -> HomeTopAppBar(
+//                        onSearchClick = { query ->
+//                            navController.navigate("search_results/$query")
+//                        },
+//                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+//                        onAdminClick = {
+//                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+//                                launchSingleTop = true
+//                            }
+//                        },
+//                        scrollBehavior = scrollBehavior
+//                    )
+//                    Screen.Add.route -> LogoTopAppBar()
+//                    Screen.Notifications.route -> LogoTopAppBar()
+//                    Screen.SearchResult.route -> HomeTopAppBar(
+//                        onSearchClick = { query ->
+//                            navController.navigate("search_results/$query")
+//                        },
+//                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+//                        onAdminClick = {
+//                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+//                                launchSingleTop = true
+//                            }
+//                        },
+//                        scrollBehavior = scrollBehavior
+//                    )
+//                    else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
+//                }
+//                // else: nothing -> Market không có topBar
+//            }
+//        },
         topBar = {
-            // Nếu đang ở Market -> không vẽ topBar
-            if (currentRoute != Screen.Market.route) {
-                when (currentRoute) {
-                    Screen.Home.route -> HomeTopAppBar(
-                        onSearchClick = { query ->
-                            navController.navigate("search_results/$query")
-                        },
-                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                        onAdminClick = {
-                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                                launchSingleTop = true
-                            }
-                        },
-                        scrollBehavior = scrollBehavior
-                    )
-
-                    Screen.Add.route -> LogoTopAppBar()
-                    Screen.Notifications.route -> LogoTopAppBar()
-                    Screen.SearchResult.route -> HomeTopAppBar(
-                        onSearchClick = { query ->
-                            navController.navigate("search_results/$query")
-                        },
-                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                        onAdminClick = {
-                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                                launchSingleTop = true
-                            }
-                        },
-                        scrollBehavior = scrollBehavior
-                    )
-
-                    else -> { /* no app bar */
-                    } // mấy trang không được định nghĩa thì không có logo UTH
-                }
-                // else: nothing -> Market không có topBar
+            when (currentRoute) {
+                Screen.Home.route -> HomeTopAppBar(
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
+                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+                Screen.Market.route -> MarketTopbar()
+                Screen.Add.route -> LogoTopAppBar()
+                Screen.Notifications.route -> LogoTopAppBar()
+                Screen.SearchResult.route -> HomeTopAppBar(
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
+                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+                else -> { /* no app bar */ }
             }
         },
         bottomBar = {
@@ -344,12 +374,12 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     ) + fadeIn(animationSpec = tween(durationMillis = 300))
                 }
             ) {
-//                MarketScreen(
-//                    navController = navController,
-//                    onProductClick = { productId ->
-//                        navController.navigate(Screen.ProductDetail.createRoute(productId))
-//                    }
-//                )
+                MarketScreen(
+                    navController = navController,
+                    onProductClick = { productId ->
+                        navController.navigate(Screen.ProductDetail.createRoute(productId))
+                    }
+                )
             }
 
             // ===== THÊM ProductDetailScreen =====
@@ -371,18 +401,21 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     ) + fadeOut(animationSpec = tween(durationMillis = 300))
                 }
             ) { backStackEntry ->
-//                val productId = backStackEntry.arguments?.getString("productId")
-//                val marketViewModel: MarketViewModel = viewModel()
-//                ProductDetailScreen(
-//                    productId = productId,
-//                    onBack = { navController.popBackStack() },
-//                    onShare = { /* TODO: Implement share functionality */ },
-//                    onCall = { },
-//                    onMessage = { sellerId ->
-//
-//                    }
-//                )
+                val productId = backStackEntry.arguments?.getString("productId")
+                val marketViewModel: MarketViewModel = viewModel()
+                ProductDetailScreen(
+                    productId = productId,
+                    onBack = { navController.popBackStack() },
+                    onShare = { /* TODO: Implement share functionality */ },
+                    onCall = { },
+                    onMessage = { sellerId ->
+                        marketViewModel.openChatWithSeller(sellerId) { chatId ->
+                            navController.navigate(Screen.ChatDetail.createRoute(chatId))
+                        }
+                    }
+                )
             }
+
             composable(
                 Screen.Add.route,
                 enterTransition = {
@@ -422,6 +455,7 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     backStackEntry = backStackEntry
                 )
             }
+
             //Notifications                 - Trang test
             composable(
                 Screen.Notifications.route,
