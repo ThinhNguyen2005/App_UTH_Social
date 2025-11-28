@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.collections.filter
 
 /**
  * MarketViewModel:
@@ -68,12 +69,14 @@ class MarketViewModel: ViewModel() {
                 val matchesName = product.name.contains(query, ignoreCase = true)
 
                 // Tìm kiếm theo giá (nếu query là số)
-                val matchesPrice = try {
-                    val searchPrice = query.toDoubleOrNull()
+                val matchesPriceRange = try {
+                    val searchPrice = query.toIntOrNull()
                     if (searchPrice != null) {
-                        // Tìm sản phẩm có giá gần đúng (± 10%)
-                        val lowerBound = searchPrice * 0.9
-                        val upperBound = searchPrice * 1.1
+                        // Dùng 10% nhưng làm tròn về Int
+                        val tolerance = (searchPrice * 0.1).toInt()
+                        val lowerBound = searchPrice - tolerance
+                        val upperBound = searchPrice + tolerance
+
                         product.price in lowerBound..upperBound
                     } else {
                         false
@@ -82,7 +85,7 @@ class MarketViewModel: ViewModel() {
                     false
                 }
 
-                matchesName || matchesPrice
+                matchesName || matchesPriceRange
             }
         }
 
@@ -237,6 +240,68 @@ class MarketViewModel: ViewModel() {
                         seller = null,
                         error = "Có lỗi xảy ra: ${e.message}"
                     )
+                }
+            }
+        }
+    }
+
+    /**
+     * Xóa product
+     */
+    fun deleteProduct(productId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val success = repository.deleteProduct(productId)
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        onSuccess()
+                    } else {
+                        onError("Không thể xóa sản phẩm")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onError("Lỗi: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Cập nhật thông tin product
+     */
+    fun updateProduct(
+        productId: String,
+        name: String,
+        price: Int,
+        description: String,
+        type: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val updates = mapOf(
+                    "name" to name,
+                    "price" to price,
+                    "description" to description,
+                    "type" to type
+                )
+
+                val success = repository.updateProduct(productId, updates)
+
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        // Refresh lại data
+                        getProductById(productId)
+                        onSuccess()
+                    } else {
+                        onError("Không thể cập nhật sản phẩm")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onError("Lỗi: ${e.message}")
                 }
             }
         }

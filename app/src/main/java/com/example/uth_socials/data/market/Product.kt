@@ -6,7 +6,7 @@ import com.google.firebase.firestore.ServerTimestamp
 data class Product(
     val id: String = "",
     val name: String = "",
-    val price: Double = 0.0,
+    val price: Int = 0,
     val imageUrls: List<String> = emptyList(),
     val description: String = "",
     val type: String = "", // "Sách", "Đồ điện tử", etc.
