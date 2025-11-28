@@ -649,7 +649,8 @@ fun ProductPost(
             ),
             singleLine = true,
             keyboardOptions = KeyboardOptions(
-                imeAction = ImeAction.Done
+                imeAction = ImeAction.Done,
+                keyboardType = KeyboardType.Number
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
