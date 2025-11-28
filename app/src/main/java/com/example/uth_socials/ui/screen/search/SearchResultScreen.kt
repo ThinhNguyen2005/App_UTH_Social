@@ -102,10 +102,7 @@ fun SearchResultScreen(
 
     val homeViewModel: HomeViewModel = viewModel()
 
-
     val uiState by searchViewModel.uiState.collectAsState()
-
-
 
     val context = LocalContext.current
 
@@ -130,8 +127,11 @@ fun SearchResultScreen(
         derivedStateOf { scrollOffset > 0 }
     }
 
+    val originUserItemValue = 3
+    val moreUserItemValue = 3
+
     LaunchedEffect(resultsUser) {
-        visibleUsers = resultsUser.take(2)
+        visibleUsers = resultsUser.take(originUserItemValue)
     }
 
     if (isLoading) {
@@ -146,7 +146,17 @@ fun SearchResultScreen(
             SectionTitle(title = "Mọi người")
 
             if (resultsUser.isEmpty()) {
-                EmptyMessage("Không tìm thấy người dùng nào")
+                AnimatedVisibility(
+                    visible = !isScrolled,
+                    enter = expandVertically(
+                        animationSpec = tween(durationMillis = 500)
+                    ) + fadeIn(animationSpec = tween(500)),
+                    exit = shrinkVertically(
+                        animationSpec = tween(durationMillis = 400)
+                    ) + fadeOut(animationSpec = tween(400))
+                ) {
+                    EmptyMessage("Không tìm thấy người dùng nào")
+                }
             } else {
                 AnimatedVisibility(
                     visible = !isScrolled,
@@ -188,19 +198,19 @@ fun SearchResultScreen(
                         }
 
                         //Nút "Hiển thị thêm"
-                        if (resultsUser.size > 2) {
+                        if (resultsUser.size > visibleUsers.size) {
                             MoreButton(
                                 onClick = {
                                     visibleUsers = if (visibleUsers.size < resultsUser.size) {
                                         // Hiển thị thêm 3 người
                                         resultsUser.take(
-                                            (visibleUsers.size + 2).coerceAtMost(
+                                            (visibleUsers.size + moreUserItemValue).coerceAtMost(
                                                 resultsUser.size
                                             )
                                         )
                                     } else {
                                         // Thu gọn lại chỉ còn 3
-                                        resultsUser.take(2)
+                                        resultsUser.take(originUserItemValue)
                                     }
                                 },
                                 text = if (visibleUsers.size < resultsUser.size)

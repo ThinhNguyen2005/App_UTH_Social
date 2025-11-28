@@ -77,7 +77,6 @@ import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.data.user.User
 import com.example.uth_socials.ui.component.button.PrimaryButton
 import com.example.uth_socials.ui.viewmodel.PostViewModel
-import com.example.uth_socials.ui.viewmodel.ProductViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.google.firebase.auth.FirebaseAuth

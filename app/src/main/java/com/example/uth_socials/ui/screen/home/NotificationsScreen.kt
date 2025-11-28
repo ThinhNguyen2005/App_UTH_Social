@@ -120,7 +120,7 @@ fun NotificationsScreen(
         animationSpec = tween(800)
     )
 
-    val originItemValue = 10
+    val originItemValue = 5
     val moreItemValue = notifications.size
 
     LaunchedEffect(notifications) {

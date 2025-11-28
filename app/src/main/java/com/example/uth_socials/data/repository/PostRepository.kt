@@ -677,19 +677,19 @@ class PostRepository {
         return try {
             val currentUserId = auth.currentUser?.uid
                 ?: return Result.failure(IllegalStateException("User not logged in"))
-            
+
             val postRef = postsCollection.document(postId)
             val postSnapshot = postRef.get().await()
-            
+
             if (!postSnapshot.exists()) {
                 return Result.failure(IllegalStateException("Post not found"))
             }
-            
+
             val ownerId = postSnapshot.getString(FirestoreConstants.FIELD_USER_ID)
             if (ownerId != currentUserId) {
                 return Result.failure(SecurityException("Only post owner can edit"))
             }
-            
+
             postRef.update(FirestoreConstants.FIELD_TEXT_CONTENT, newContent).await()
             Result.success(Unit)
         } catch (e: Exception) {

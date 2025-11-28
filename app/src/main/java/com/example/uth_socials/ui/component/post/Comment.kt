@@ -42,6 +42,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -161,6 +162,7 @@ fun CommentSheetContent(
                                                 onUserClick = onUserProfileClick,
                                                 onLikeClick = { onLikeComment(postId, it) },
                                                 onReplyClick = {
+                                                    countToReset = 1
                                                     userReplyToText = "@${commentParent.username} "
                                                     focusRequester.requestFocus()
                                                     isReplying = true
@@ -378,8 +380,8 @@ fun CommentSheetContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(focusRequester)
-                            .onKeyEvent { event ->
-                                if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace) {
+                            .onPreviewKeyEvent() { event ->
+                                if (event.type == KeyEventType.KeyUp && event.key == Key.Backspace) {
                                     if (commentText.isEmpty() && isReplying) {
                                         countToReset += 1
                                         if (countToReset >= 2) {

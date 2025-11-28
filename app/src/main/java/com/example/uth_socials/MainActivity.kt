@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
             .requestIdToken(getString(R.string.default_web_client_id))
             .requestEmail()
             .build()
-        val googleClient = GoogleSignIn.getClient(this, gso)
+        val googleClient = GoogleSignIn.getClient(this, gso)    
 
         val userRepository = UserRepository()
 
