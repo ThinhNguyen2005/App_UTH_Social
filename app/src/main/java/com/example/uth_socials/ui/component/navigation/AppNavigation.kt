@@ -56,6 +56,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
 import com.example.uth_socials.ui.component.logo.MarketTopbar
 import com.example.uth_socials.ui.screen.UserInfoScreen
+import com.example.uth_socials.ui.screen.home.MarketScreen
+import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.setting.UserSettingScreen
 import com.example.uth_socials.ui.viewmodel.SearchViewModel
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
@@ -69,6 +71,7 @@ import com.example.uth_socials.ui.viewmodel.FollowListViewModel
 import com.example.uth_socials.ui.viewmodel.FollowListViewModelFactory
 import com.example.uth_socials.ui.screen.util.HelloUserScreen
 import com.example.uth_socials.ui.screen.util.WelcomeScreen
+import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
 //import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
