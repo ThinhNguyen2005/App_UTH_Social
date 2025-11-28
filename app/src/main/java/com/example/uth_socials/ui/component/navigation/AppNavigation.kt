@@ -365,8 +365,7 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
             }
             composable(Screen.Add.route) {
                 val postViewModel : PostViewModel = viewModel()
-                val productViewModel : ProductViewModel = viewModel()
-                PostScreen(postViewModel,productViewModel,navController = navController)
+                PostScreen(postViewModel,navController = navController)
             }
             composable(Screen.Notifications.route) {
                 val notificationViewModel : NotificationViewModel = viewModel()
@@ -385,12 +384,6 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     },
                     backStackEntry = backStackEntry
                 )
-            }
-            //Create post - product
-            composable(Screen.Add.route) {
-                val postViewModel : PostViewModel = viewModel()
-                val productViewModel : ProductViewModel = viewModel()
-                PostScreen(postViewModel,productViewModel,navController = navController)
             }
             //Notifications                 - Trang test
             composable(Screen.Notifications.route) {
