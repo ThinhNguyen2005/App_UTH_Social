@@ -9,28 +9,40 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,9 +52,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -72,8 +86,15 @@ fun ProductDetailScreen(
 
     val detailState by viewModel.detailState.collectAsState()
 
-    //State để hiển thị dialog gọi điện
+    //State để hiển thị dialog
     var showCallDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val currentUserId = remember {
+        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    }
+    val isOwner = currentUserId == detailState.product?.userId
 
     when {
         detailState.isLoading -> {
@@ -103,6 +124,7 @@ fun ProductDetailScreen(
             ProductDetailContent(
                 product = detailState.product!!,
                 seller = detailState.seller,
+                isOwner = isOwner,
                 onBack = onBack,
                 onShare = onShare,
                 onCall = {
@@ -119,6 +141,8 @@ fun ProductDetailScreen(
                     }
                 },
                 onMessage = onMessage,
+                onEdit = { showEditDialog = true },
+                onDelete = { showDeleteDialog = true },
                 viewModel = viewModel
             )
             //Hiển thị dialog xác nhận gọi điện
@@ -128,6 +152,50 @@ fun ProductDetailScreen(
                 sellerName = detailState.seller?.username ?: "Người bán",
                 onDismiss = { showCallDialog = false }
             )
+            //Dialog chỉnh sửa
+            if (showEditDialog) {
+                EditProductDialog(
+                    product = detailState.product!!,
+                    onDismiss = { showEditDialog = false },
+                    onConfirm = { name, price, description, type ->
+                        viewModel.updateProduct(
+                            productId = detailState.product!!.id,
+                            name = name,
+                            price = price,
+                            description = description,
+                            type = type,
+                            onSuccess = {
+                                showEditDialog = false
+                                Toast.makeText(context, "Cập nhật thành công", Toast.LENGTH_SHORT).show()
+                            },
+                            onError = { error ->
+                                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                )
+            }
+            //Dialog xóa
+            if (showDeleteDialog) {
+                DeleteConfirmDialog(
+                    productName = detailState.product!!.name,
+                    onDismiss = { showDeleteDialog = false },
+                    onConfirm = {
+                        viewModel.deleteProduct(
+                            productId = detailState.product!!.id,
+                            onSuccess = {
+                                showDeleteDialog = false
+                                Toast.makeText(context, "Xóa thành công", Toast.LENGTH_SHORT).show()
+                                onBack() //Quay lại màn hình trước
+                            },
+                            onError = { error ->
+                                showDeleteDialog = false
+                                Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                )
+            }
         }
     }
 }
@@ -136,12 +204,16 @@ fun ProductDetailScreen(
 fun ProductDetailContent(
     product: Product,
     seller: User?,
+    isOwner: Boolean,
     onBack: () -> Unit,
     onShare: () -> Unit = {},
     onCall: () -> Unit = {},
     onMessage: (String) -> Unit = {},
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
     viewModel: MarketViewModel
 ) {
+    var showMenu by remember { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -241,7 +313,7 @@ fun ProductDetailContent(
                 )
             }
 
-            //Right: Share & Favorite icon
+            //Right: Share & Menu icon
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -259,6 +331,55 @@ fun ProductDetailContent(
                         tint = Color.Black,
                         modifier = Modifier.size(26.dp)
                     )
+                }
+                // Hiển thị menu nếu là chủ sản phẩm
+                if (isOwner) {
+                    Box {
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier
+                                .background(Color.White.copy(alpha = 0.7f), CircleShape)
+                                .padding(4.dp)
+                                .size(26.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = Color.Black,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Chỉnh sửa") },
+                                onClick = {
+                                    showMenu = false
+                                    onEdit()
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Xóa", color = Color.Red) },
+                                onClick = {
+                                    showMenu = false
+                                    onDelete()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = Color.Red
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -332,7 +453,7 @@ fun ImageCarousel(imageUrls: List<String>) {
         if (images.size > 1) {
             Surface(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
+                    .align(Alignment.BottomEnd)
                     .padding(16.dp),
                 shape = RoundedCornerShape(12.dp),
                 color = Color.Black.copy(alpha = 0.6f)
@@ -547,4 +668,198 @@ fun Call_Chat(
             }
         }
     }
+}
+@Composable
+fun EditProductDialog(
+    product: Product,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, price: Int, description: String, type: String) -> Unit
+) {
+    var name by remember { mutableStateOf(product.name) }
+    var priceText by remember { mutableStateOf(product.price.toString()) }
+    var description by remember { mutableStateOf(product.description) }
+    var type by remember { mutableStateOf(product.type) }
+
+    var nameError by remember { mutableStateOf(false) }
+    var priceError by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // Header
+                Text(
+                    text = "Chỉnh sửa sản phẩm",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1C1B1F)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Tên sản phẩm
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = {
+                        name = it
+                        nameError = it.isBlank()
+                    },
+                    label = { Text("Tên sản phẩm", color = Color(0xFF49454F)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = nameError,
+                    supportingText = {
+                        if (nameError) {
+                            Text("Tên không được để trống")
+                        }
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color(0xFF1C1B1F), // ✅ Màu text tối hơn
+                        unfocusedTextColor = Color(0xFF1C1B1F)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Giá
+                OutlinedTextField(
+                    value = priceText,
+                    onValueChange = {
+                        priceText = it
+                        priceError = it.toIntOrNull() == null || it.toIntOrNull()!! <= 0
+                    },
+                    label = { Text("Giá (VNĐ)", color = Color(0xFF49454F)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = priceError,
+                    supportingText = {
+                        if (priceError) {
+                            Text("Giá phải là số dương")
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color(0xFF1C1B1F),
+                        unfocusedTextColor = Color(0xFF1C1B1F)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Mô tả
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Mô tả", color = Color(0xFF49454F)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    maxLines = 5,
+                    placeholder = { Text("Nhập mô tả chi tiết...", color = Color(0xFF79747E)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color(0xFF1C1B1F),
+                        unfocusedTextColor = Color(0xFF1C1B1F)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = type,
+                    onValueChange = { type = it },
+                    label = { Text("Loại sản phẩm", color = Color(0xFF49454F)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Sách | Quần áo | Đồ điện tử | Khác", color = Color(0xFF79747E)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color(0xFF1C1B1F),
+                        unfocusedTextColor = Color(0xFF1C1B1F)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Cancel
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Hủy", color = Color(0xFF1C1B1F))
+                    }
+
+                    // Confirm
+                    Button(
+                        onClick = {
+                            if (name.isNotBlank() && priceText.toIntOrNull() != null && priceText.toInt() > 0) {
+                                onConfirm(name, priceText.toInt(), description, type)
+                            } else {
+                                nameError = name.isBlank()
+                                priceError = priceText.toIntOrNull() == null || priceText.toIntOrNull()!! <= 0
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF0E9397)
+                        )
+                    ) {
+                        Text("Lưu", color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DeleteConfirmDialog(
+    productName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Xác nhận xóa",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1C1B1F)
+            )
+        },
+        text = {
+            Text("Bạn có chắc chắn muốn xóa sản phẩm \"$productName\"? Hành động này không thể hoàn tác.")
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFD32F2F)
+                )
+            ) {
+                Text("Xóa", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy")
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(16.dp)
+    )
 }
