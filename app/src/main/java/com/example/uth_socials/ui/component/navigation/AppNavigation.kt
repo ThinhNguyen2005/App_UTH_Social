@@ -38,15 +38,14 @@ import com.example.uth_socials.ui.screen.util.AdminDashboardScreen
 import com.example.uth_socials.ui.screen.chat.ChatListScreen
 import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
-import com.example.uth_socials.ui.screen.home.MarketScreen
+//import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.profile.ProfileScreen
-import com.example.uth_socials.ui.screen.market.ProductDetailScreen
+//import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
 //import com.example.uth_socials.ui.screen.search.SearchScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 import com.example.uth_socials.ui.viewmodel.PostViewModel
-import com.example.uth_socials.ui.viewmodel.ProductViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModelFactory
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
@@ -54,7 +53,10 @@ import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.runtime.*
 import androidx.compose.runtime.collectAsState
+import com.example.uth_socials.ui.component.logo.MarketTopbar
 import com.example.uth_socials.ui.screen.UserInfoScreen
+import com.example.uth_socials.ui.screen.home.MarketScreen
+import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.setting.UserSettingScreen
 import com.example.uth_socials.ui.viewmodel.SearchViewModel
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
@@ -69,6 +71,8 @@ import com.example.uth_socials.ui.viewmodel.FollowListViewModelFactory
 import com.example.uth_socials.ui.screen.util.HelloUserScreen
 import com.example.uth_socials.ui.screen.util.WelcomeScreen
 import com.example.uth_socials.ui.viewmodel.MarketViewModel
+
+//import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
 @Composable
 fun AppNavGraph(
@@ -92,7 +96,7 @@ fun AppNavGraph(
         )
 
         // Đồ thị cho luồng chính của ứng dụng (Home, Profile, ...)
-        mainNavGraph(navController = navController,authViewModel=viewModel)
+        mainNavGraph(navController = navController, authViewModel = viewModel)
     }
 }
 
@@ -105,7 +109,7 @@ fun NavGraphBuilder.authNavGraph(
         startDestination = Screen.AuthScreen.HelloUser.route,
         route = Graph.AUTH
     ) {
-        composable (Screen.AuthScreen.HelloUser.route){
+        composable(Screen.AuthScreen.HelloUser.route) {
             HelloUserScreen(
                 onStartClicked = {
                     navController.navigate(Screen.AuthScreen.WelcomeUser.route) {
@@ -172,21 +176,25 @@ fun NavGraphBuilder.authNavGraph(
 }
 
 // Điều hướng chính, tất cả đều hướng chỉ nên thay đổi và cập nhật trong MainScreen
-fun NavGraphBuilder.mainNavGraph(navController: NavHostController,authViewModel: AuthViewModel) {
+fun NavGraphBuilder.mainNavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
     navigation(
         startDestination = Screen.Home.route,
         route = Graph.MAIN
     ) {
         composable(Screen.Home.route) {
 
-            MainScreen(rootNavController = navController,authViewModel=authViewModel) // <-- THAY ĐỔI Ở ĐÂY
+            MainScreen(
+                rootNavController = navController,
+                authViewModel = authViewModel
+            ) // <-- THAY ĐỔI Ở ĐÂY
 
-        }    }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel) {
+fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -200,7 +208,7 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
 
 
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-    
+
     val showBottomBar = when (currentRoute) {
         Screen.Home.route,
         Screen.Market.route,
@@ -221,39 +229,71 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
     val shouldShowBottomBar = showBottomBar
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+//        topBar = {
+//            // Nếu đang ở Market -> không vẽ topBar
+//            if (currentRoute != Screen.Market.route) {
+//                when (currentRoute) {
+//                    Screen.Home.route -> HomeTopAppBar(
+//                        onSearchClick = { query ->
+//                            navController.navigate("search_results/$query")
+//                        },
+//                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+//                        onAdminClick = {
+//                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+//                                launchSingleTop = true
+//                            }
+//                        },
+//                        scrollBehavior = scrollBehavior
+//                    )
+//                    Screen.Add.route -> LogoTopAppBar()
+//                    Screen.Notifications.route -> LogoTopAppBar()
+//                    Screen.SearchResult.route -> HomeTopAppBar(
+//                        onSearchClick = { query ->
+//                            navController.navigate("search_results/$query")
+//                        },
+//                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+//                        onAdminClick = {
+//                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+//                                launchSingleTop = true
+//                            }
+//                        },
+//                        scrollBehavior = scrollBehavior
+//                    )
+//                    else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
+//                }
+//                // else: nothing -> Market không có topBar
+//            }
+//        },
         topBar = {
-            // Nếu đang ở Market -> không vẽ topBar
-            if (currentRoute != Screen.Market.route) {
-                when (currentRoute) {
-                    Screen.Home.route -> HomeTopAppBar(
-                        onSearchClick = { query ->
-                            navController.navigate("search_results/$query")
-                        },
-                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                        onAdminClick = {
-                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                                launchSingleTop = true
-                            }
-                        },
-                        scrollBehavior = scrollBehavior
-                    )
-                    Screen.Add.route -> LogoTopAppBar()
-                    Screen.Notifications.route -> LogoTopAppBar()
-                    Screen.SearchResult.route -> HomeTopAppBar(
-                        onSearchClick = { query ->
-                            navController.navigate("search_results/$query")
-                        },
-                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-                        onAdminClick = {
-                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-                                launchSingleTop = true
-                            }
-                        },
-                        scrollBehavior = scrollBehavior
-                    )
-                    else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
-                }
-                // else: nothing -> Market không có topBar
+            when (currentRoute) {
+                Screen.Home.route -> HomeTopAppBar(
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
+                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+                Screen.Market.route -> MarketTopbar()
+                Screen.Add.route -> LogoTopAppBar()
+                Screen.Notifications.route -> LogoTopAppBar()
+                Screen.SearchResult.route -> HomeTopAppBar(
+                    onSearchClick = { query ->
+                        navController.navigate("search_results/$query")
+                    },
+                    onMessagesClick = { navController.navigate(Screen.ChatList.route) },
+                    onAdminClick = {
+                        navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
+                            launchSingleTop = true
+                        }
+                    },
+                    scrollBehavior = scrollBehavior
+                )
+                else -> { /* no app bar */ }
             }
         },
         bottomBar = {
@@ -295,7 +335,21 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
 
             //Hướng dẫn sử dụng nha tạo route, rồi
             //Home nav này chuyển đến trang profile của người dùng khi nhấn vào tên
-            composable(Screen.Home.route) {
+            composable(
+                Screen.Home.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+                ) {
                 HomeScreen(
                     onNavigateToProfile = { userId ->
                         navController.navigate(Screen.Profile.createRoute(userId)) {
@@ -363,18 +417,34 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     }
                 )
             }
-            composable(Screen.Add.route) {
-                val postViewModel : PostViewModel = viewModel()
-                val productViewModel : ProductViewModel = viewModel()
-                PostScreen(postViewModel,productViewModel,navController = navController)
+
+            composable(
+                Screen.Add.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) {
+                val postViewModel: PostViewModel = viewModel()
+                PostScreen(postViewModel, navController = navController)
             }
             composable(Screen.Notifications.route) {
-                val notificationViewModel : NotificationViewModel = viewModel()
-                NotificationsScreen(notificationViewModel,navController)
+                val notificationViewModel: NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel, navController)
             }
             composable(
                 route = Screen.AdminDashboard.route,
-                arguments = listOf(navArgument("tab") { type = NavType.StringType; defaultValue = "reports" })
+                arguments = listOf(navArgument("tab") {
+                    type = NavType.StringType; defaultValue = "reports"
+                })
             ) { backStackEntry ->
                 AdminDashboardScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -386,22 +456,43 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     backStackEntry = backStackEntry
                 )
             }
-            //Create post - product
-            composable(Screen.Add.route) {
-                val postViewModel : PostViewModel = viewModel()
-                val productViewModel : ProductViewModel = viewModel()
-                PostScreen(postViewModel,productViewModel,navController = navController)
-            }
+
             //Notifications                 - Trang test
-            composable(Screen.Notifications.route) {
-                val notificationViewModel : NotificationViewModel = viewModel()
-                NotificationsScreen(notificationViewModel,navController)
+            composable(
+                Screen.Notifications.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) {
+                val notificationViewModel: NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel, navController)
             }
 
             //Profile
             composable(
                 route = Screen.Profile.route,
-                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+                arguments = listOf(navArgument("userId") { type = NavType.StringType }),
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
             ) { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId")
                 if (userId != null) {
@@ -433,9 +524,23 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                 }
             }
 
-            composable(Screen.SearchResult.route) { backStackEntry ->
+            composable(
+                Screen.SearchResult.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) { backStackEntry ->
                 val query = backStackEntry.arguments?.getString("query") ?: ""
-                val searchViewModel : SearchViewModel = viewModel()
+                val searchViewModel: SearchViewModel = viewModel()
                 searchViewModel.searchPosts(query)
                 searchViewModel.searchUsers(query)
                 SearchResultScreen(searchViewModel, navController)
@@ -474,13 +579,16 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                     FirebaseAuth.getInstance().currentUser?.uid ?: ""
                 }
                 UserSettingScreen(
-                    authViewModel=authViewModel,
+                    authViewModel = authViewModel,
                     onBackClicked = { navController.popBackStack() },
                     onNavigateToUserInfo = {
                         navController.navigate(Screen.UserInfoScreen.route)
                     },
                     onNavigateToBlockedUsers = {
-                        Log.d("AppNavigation", "Navigating to BlockedUsers: ${Screen.BlockedUsers.route}")
+                        Log.d(
+                            "AppNavigation",
+                            "Navigating to BlockedUsers: ${Screen.BlockedUsers.route}"
+                        )
                         try {
                             navController.navigate(Screen.BlockedUsers.route) {
                                 launchSingleTop = true
@@ -603,7 +711,7 @@ fun MainScreen(rootNavController: NavHostController,authViewModel: AuthViewModel
                         }
                     },
 
-                )
+                    )
             }
 
         }

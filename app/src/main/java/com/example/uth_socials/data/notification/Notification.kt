@@ -10,17 +10,17 @@ import com.google.firebase.firestore.ServerTimestamp
 data class Notification(
     val id: String = "",
 
-    var category: String = "",
-    var userId : String = "",
-    var username : String = "",
-    var avatarUrl: String = "",
+    val category: String = "",
+    val userId : String = "",
+    val username : String = "",
+    val avatarUrl: String = "",
+    val receiverId: String = "",
 
-    var title : String = "",
-    var body : String = "",
+    val title : String = "",
+    val body : String = "",
 
-    var isRead : Boolean = false,
+    val isRead : Boolean = false,
 
     @ServerTimestamp
-    val timestamp: Timestamp? = null,
-    //val timestampMillis: Long = System.currentTimeMillis()
+    val timestamp: Timestamp? = null
 )

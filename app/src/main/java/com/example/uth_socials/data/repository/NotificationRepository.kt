@@ -23,11 +23,14 @@ class NotificationRepository {
     private val storage = Firebase.storage
     private val auth = FirebaseAuth.getInstance()
 
+    private val userRepository : UserRepository = UserRepository()
+
     private val notificationsCollection = db.collection("notifications")
 
     fun listenNotificationsChanged(): Flow<List<Notification>> = callbackFlow {
 
         val snapshot = notificationsCollection
+            .whereEqualTo("receiverId", userRepository.getCurrentUserId() ?: "")
             .orderBy("timestamp", Query.Direction.DESCENDING)
 
         // Lắng nghe thay đổi thời gian thực
@@ -80,7 +83,9 @@ class NotificationRepository {
 
     suspend fun getNotReadNotification() : List<Notification> {
         return try {
-            val snapshot = notificationsCollection.whereEqualTo("isRead", false).get().await()
+            val snapshot = notificationsCollection
+                .whereEqualTo("receiverId", userRepository.getCurrentUserId() ?: "")
+                .whereEqualTo("isRead", false).get().await()
             snapshot.documents.mapNotNull { doc ->
                 doc.toObject(Notification::class.java)
             }

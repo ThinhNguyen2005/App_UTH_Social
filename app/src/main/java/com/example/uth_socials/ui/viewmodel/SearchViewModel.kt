@@ -61,6 +61,9 @@ class SearchViewModel(
     private val _searchUserResults = MutableStateFlow<List<User>>(emptyList())
     val searchUserResults: StateFlow<List<User>> = _searchUserResults
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading = _isLoading
+
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState
 
@@ -80,11 +83,15 @@ class SearchViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val formatQuery = query.trim().lowercase()
             val snapshot = Firebase.firestore.collection("posts")
-                .whereGreaterThanOrEqualTo("textContentFormat", formatQuery)
-                .whereLessThanOrEqualTo("textContentFormat", formatQuery + "\uf8ff")
+                .orderBy("textContentFormat")
+                .startAt(formatQuery)
+                .endAt(formatQuery + "\uf8ff")
                 .get()
                 .await()
 
+            _searchPostResults.value =
+                snapshot.documents.mapNotNull { it.toObject(Post::class.java) }
+            _isLoading.value = false
             val currentUserId = _uiState.value.currentUserId ?: userRepository.getCurrentUserId()
             if (currentUserId != null && _uiState.value.currentUserId == null) {
                 _uiState.update { it.copy(currentUserId = currentUserId) }
@@ -110,13 +117,15 @@ class SearchViewModel(
         viewModelScope.launch {
             val formatQuery = query.trim().lowercase()
             val snapshot = Firebase.firestore.collection("users")
-                .whereGreaterThanOrEqualTo("usernameFormat", formatQuery)
-                .whereLessThanOrEqualTo("usernameFormat", formatQuery + "\uf8ff")
+                .orderBy("usernameFormat")
+                .startAt(formatQuery)
+                .endAt(formatQuery + "\uf8ff")
                 .get()
                 .await()
 
             _searchUserResults.value =
                 snapshot.documents.mapNotNull { it.toObject(User::class.java) }
+            _isLoading.value = false
         }
     }
 

@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uth_socials.data.post.Category
@@ -26,6 +27,7 @@ import com.example.uth_socials.data.repository.CategoryRepository
 import com.example.uth_socials.data.repository.PostRepository
 import com.example.uth_socials.data.repository.UserRepository
 import com.example.uth_socials.data.user.User
+import com.example.uth_socials.data.util.compressUriToByteArray
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.StateFlow
 
@@ -35,7 +37,7 @@ class PostViewModel : ViewModel() {
 
     private val PostRepository = PostRepository()
     private val userRepository: UserRepository = UserRepository()
-    private val CategoryRepository : CategoryRepository = CategoryRepository()
+    private val CategoryRepository: CategoryRepository = CategoryRepository()
 
     var showBanDialog by mutableStateOf(false)
 
@@ -52,50 +54,52 @@ class PostViewModel : ViewModel() {
         loadCategories()
     }
 
-    private fun loadCategories(){
+    private fun loadCategories() {
         viewModelScope.launch {
             _categories.value = CategoryRepository.getCategories()
         }
     }
 
-//    fun postArticle(userId: String,content: String, imageUris: List<Uri>, category: String?) {
-//        viewModelScope.launch {
-//            isLoading = true
-//            val result = uploadPost(content, imageUris, category,userId)
-//            isLoading = false
-//
-//            if (result) {
-//                success = true
-//            } else {
-//                error = "Đăng bài thất bại, vui lòng thử lại."
-//            }
-//        }
-//    }
-
-    fun uploadPost(
-        content: String, imageUris: List<Uri>, category: String?,
-    ){
+    fun uploadArticle(
+        context: Context, content: String, imageUris: List<Uri>, category: String?,
+    ) {
         viewModelScope.launch {
-            try {
-                val userId = userRepository.getCurrentUserId()
-                val user =  userRepository.getUser(userId ?: "")
+            val userId = userRepository.getCurrentUserId()
+            val user = userRepository.getUser(userId ?: "")
 
-                var imageUrl = mutableListOf<String>()
+            val imageUrls = mutableListOf<String>()
 
-                for (uri in imageUris) {
-                    val ref = storage.reference.child("posts/${UUID.randomUUID()}.jpg")
-                    ref.putFile(uri).await()
-                    val url = ref.downloadUrl.await().toString()
-                    imageUrl.add(url)
-                }
-
-                PostRepository.uploadPost(user, content, category, imageUrl)
-
-                true
-            } catch (e: Exception) {
-                e.printStackTrace()
-                false
+            for (uri in imageUris) {
+                val byteUri = compressUriToByteArray(context,uri)
+                val ref = storage.reference.child("posts/${UUID.randomUUID()}.jpg")
+                ref.putBytes(byteUri).await()
+                val url = ref.downloadUrl.await().toString()
+                imageUrls.add(url)
             }
+
+            PostRepository.uploadArticle(user, content, category, imageUrls)
         }
     }
+
+    fun uploadProduct(context : Context, name: String, description: String, type: String, price: Int, imageUris: List<Uri>) {
+        viewModelScope.launch {
+            // return try {
+            val userId = userRepository.getCurrentUserId()
+            val user = userRepository.getUser(userId ?: "")
+
+            val imageUrls = mutableListOf<String>()
+
+            for (uri in imageUris) {
+                val byteUri = compressUriToByteArray(context,uri)
+                val ref = storage.reference.child("products/${UUID.randomUUID()}.jpg")
+                ref.putBytes(byteUri).await()
+                val url = ref.downloadUrl.await().toString()
+                imageUrls.add(url)
+            }
+
+            PostRepository.uploadProduct(user, name, description, type, price, imageUrls)
+
+        }
+    }
+
 }
