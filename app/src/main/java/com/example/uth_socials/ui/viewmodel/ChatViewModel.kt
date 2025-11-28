@@ -34,17 +34,19 @@ class ChatViewModel : ViewModel() {
     private val _otherUserAvatar = MutableStateFlow("")
     val otherUserAvatar = _otherUserAvatar.asStateFlow()
 
-    // Tự động lấy danh sách chat dựa trên currentUserId
+    private val _isListLoading = MutableStateFlow(true)
+    val isListLoading = _isListLoading.asStateFlow()
+
+
     val chats: StateFlow<List<ChatSummary>> = flow {
         if (currentUserId != null) {
             // Kết nối Flow từ Repository
             emitAll(chatRepository.getChatsFlow(currentUserId))
         } else {
+            _isListLoading.value = false
             emit(emptyList())
         }
     }.map { rawChats ->
-        // Map bổ sung thông tin User (Tên, Ảnh) cho từng chat item
-        // Đây là nơi chúng ta gọi async an toàn
         rawChats.map { chat ->
             try {
                 // 1. Lấy thông tin user
@@ -66,17 +68,21 @@ class ChatViewModel : ViewModel() {
                     lastMessage = formattedMsg //
                 )
             } catch (e: Exception) {
+                Log.e("ChatViewModel", "Lỗi khi load thông tin user cho chat ${chat.id}", e)
                 chat
             }
         }.sortedByDescending { it.timestamp }
-    }.stateIn(
+    }
+        .onEach {
+            _isListLoading.value = false
+        }
+        .stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Lazily, // Giữ kết nối 5s khi xoay màn hình
+        started = SharingStarted.Lazily,
         initialValue = emptyList()
     )
 
-    val isListLoading = chats.map { it.isEmpty() }
-        .stateIn(viewModelScope, SharingStarted.Lazily, true)
+
 
 
     // --- PHẦN 2: CHI TIẾT CHAT (CHAT DETAIL) ---
@@ -117,7 +123,9 @@ class ChatViewModel : ViewModel() {
                 _otherUserName.value = user?.username ?: "Người dùng"
                 _otherUserAvatar.value = user?.avatarUrl ?: ""
             } catch (e: Exception) {
+                Log.e("ChatViewModel", "Lỗi load thông tin người chat: $chatId", e)
                 _otherUserName.value = "Người dùng"
+                _otherUserAvatar.value = ""
             }
         }
     }
@@ -158,7 +166,7 @@ class ChatViewModel : ViewModel() {
                     batch.set(messageRef, messageData)
                 }.await()
             } catch (e: Exception) {
-                Log.e("ChatViewModel", "Error sending message", e)
+                Log.e("ChatViewModel", "Lỗi guiwr tin nhắn", e)
             }
         }
     }
