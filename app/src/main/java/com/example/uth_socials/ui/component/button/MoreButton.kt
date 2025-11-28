@@ -34,8 +34,8 @@ fun MoreButton(
                 onClick()
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), // nền nhạt
-                contentColor = MaterialTheme.colorScheme.primary // màu text
+                containerColor = MaterialTheme.colorScheme.surfaceVariant, // nền nhạt
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant // màu text
             ),
             shape = RoundedCornerShape(16.dp), // bo góc
             elevation = ButtonDefaults.buttonElevation(

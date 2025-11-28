@@ -4,10 +4,14 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ServerTimestamp
 
 data class Product(
+    // Timestamp
+    @ServerTimestamp
+    val timestamp: Timestamp? = null,
+
     val id: String = "",
     val name: String = "",
-    val price: Double = 0.0,
-    val imageUrl: String? = null,
+    val price: Int = 0,
+    val imageUrls: List<String> = emptyList(),
     val description: String = "",
     val type: String = "", // "Sách", "Đồ điện tử", etc.
     val userId: String = "",
@@ -17,10 +21,6 @@ data class Product(
     val savedBy: List<String> = emptyList(),
     val saves: Long = 0,
     val shares: Long = 0,
-
-    // Timestamp
-    @ServerTimestamp
-    val timestamp: Timestamp? = null,
 
     val campus: String? = null,
     val userName: String? = null,

@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 // Chặn bỏ chặn user, làm mới khi có thay đổi
@@ -138,6 +140,24 @@ class AdminDashboardViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             loadBannedUsersBackground()
         }
+    }
+
+    /**
+     * Khởi động realtime listener cho danh sách người dùng bị cấm
+     * Tự động cập nhật UI khi có thay đổi trong Firestore
+     */
+    fun startBannedUsersRealtimeListener() {
+        adminRepository.getBannedUsersFlow()
+            .onEach { bannedUsers ->
+                _uiState.update {
+                    it.copy(
+                        bannedUsers = bannedUsers,
+                        isLoadingUsers = false
+                    )
+                }
+                Log.d("AdminDashboardViewModel", "Realtime update: ${bannedUsers.size} banned users")
+            }
+            .launchIn(viewModelScope)
     }
     //chặn user
     fun banUser(userId: String, reason: String) {

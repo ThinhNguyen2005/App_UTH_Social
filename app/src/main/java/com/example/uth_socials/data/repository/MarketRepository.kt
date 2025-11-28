@@ -139,4 +139,34 @@ class MarketRepository {
             null
         }
     }
+
+    /**
+     * Xóa product theo ID
+     */
+    suspend fun deleteProduct(productId: String): Boolean {
+        return try {
+            Log.d(TAG, "Deleting product: $productId")
+            productCollection.document(productId).delete().await()
+            Log.d(TAG, "Product deleted successfully")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting product: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Cập nhật product
+     */
+    suspend fun updateProduct(productId: String, updates: Map<String, Any>): Boolean {
+        return try {
+            Log.d(TAG, "Updating product: $productId")
+            productCollection.document(productId).update(updates).await()
+            Log.d(TAG, "Product updated successfully")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating product: ${e.message}", e)
+            false
+        }
+    }
 }
