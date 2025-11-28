@@ -46,7 +46,6 @@ import com.example.uth_socials.ui.screen.post.PostScreen
 //import com.example.uth_socials.ui.screen.search.SearchScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 import com.example.uth_socials.ui.viewmodel.PostViewModel
-import com.example.uth_socials.ui.viewmodel.ProductViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModelFactory
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
@@ -435,7 +434,6 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                 }
             ) {
                 val postViewModel: PostViewModel = viewModel()
-                val productViewModel: ProductViewModel = viewModel()
                 PostScreen(postViewModel, navController = navController)
             }
             composable(Screen.Notifications.route) {

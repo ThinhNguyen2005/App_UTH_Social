@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.collections.filter
 
 /**
  * MarketViewModel:
@@ -68,12 +69,14 @@ class MarketViewModel: ViewModel() {
                 val matchesName = product.name.contains(query, ignoreCase = true)
 
                 // Tìm kiếm theo giá (nếu query là số)
-                val matchesPrice = try {
-                    val searchPrice = query.toDoubleOrNull()
+                val matchesPriceRange = try {
+                    val searchPrice = query.toIntOrNull()
                     if (searchPrice != null) {
-                        // Tìm sản phẩm có giá gần đúng (± 10%)
-                        val lowerBound = searchPrice * 0.9
-                        val upperBound = searchPrice * 1.1
+                        // Dùng 10% nhưng làm tròn về Int
+                        val tolerance = (searchPrice * 0.1).toInt()
+                        val lowerBound = searchPrice - tolerance
+                        val upperBound = searchPrice + tolerance
+
                         product.price in lowerBound..upperBound
                     } else {
                         false
@@ -82,7 +85,7 @@ class MarketViewModel: ViewModel() {
                     false
                 }
 
-                matchesName || matchesPrice
+                matchesName || matchesPriceRange
             }
         }
 
@@ -131,7 +134,6 @@ class MarketViewModel: ViewModel() {
      * Luồng hoạt động:
      * 1. Kiểm tra productId hợp lệ
      * 2. Set state loading = true
-     * 3. Load Product từ ProductRepository
      * 4. Nếu Product có userId -> Load User từ UserRepository
      * 5. Cập nhật state với Product + Seller
      *
