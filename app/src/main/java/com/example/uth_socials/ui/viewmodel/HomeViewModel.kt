@@ -733,7 +733,7 @@ class HomeViewModel(
 
     fun onShareClicked(postId: String) {
         val shareableContent =
-            "Xem bài viết này trên UTH Socials: htpps:://uthsocials://post/$postId"
+            "Xem bài viết này trên UTH Socials: https:://uthsocials://post/$postId"
         _uiState.update { it.copy(shareContent = shareableContent) }
     }
 
