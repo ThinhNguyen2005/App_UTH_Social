@@ -74,6 +74,7 @@ fun HomeTopAppBar(
     onSearchClick: (String) -> Unit,
     onMessagesClick: () -> Unit,
     onAdminClick: (() -> Unit)? = null,
+    onLogoClick: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior? = null
 ) {
     var isSearching by remember { mutableStateOf(false) }
@@ -92,28 +93,40 @@ fun HomeTopAppBar(
                     social_text = " Social"
                 }
 
-                Text(
-                    buildAnnotatedString {
-                        withStyle(
-                            style = SpanStyle(
-                                color = UthTeal,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        ) {
-                            append(uth_text)
-                        }
-                        withStyle(
-                            style = SpanStyle(
-                                color = UthRed,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        ) {
-                            append(social_text)
-                        }
-                    },
-                )
+                TextButton(
+                    onClick = onLogoClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent, // nền nhạt
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp
+                    ),
+                ){
+                    Text(
+                        buildAnnotatedString {
+                            withStyle(
+                                style = SpanStyle(
+                                    color = UthTeal,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            ) {
+                                append(uth_text)
+                            }
+                            withStyle(
+                                style = SpanStyle(
+                                    color = UthRed,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            ) {
+                                append(social_text)
+                            }
+                        },
+                    )
+                }
+
             }
         },
         actions = {
@@ -270,32 +283,47 @@ fun Logo() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogoTopAppBar(
-    scrollBehavior: TopAppBarScrollBehavior? = null
+    scrollBehavior: TopAppBarScrollBehavior? = null,
+    onLogoClick: () -> Unit
 ) {
     TopAppBar(
         title = {
-            Text(
-                buildAnnotatedString {
-                    withStyle(
-                        style = SpanStyle(
-                            color = UthTeal,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    ) {
-                        append("UTH")
-                    }
-                    withStyle(
-                        style = SpanStyle(
-                            color = UthRed,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    ) {
-                        append(" Social")
-                    }
-                }
-            )
+            var uth_text by remember { mutableStateOf("UTH") }
+            var social_text by remember { mutableStateOf(" Social") }
+
+            TextButton(
+                onClick = onLogoClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent, // nền nhạt
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp
+                ),
+            ){
+                Text(
+                    buildAnnotatedString {
+                        withStyle(
+                            style = SpanStyle(
+                                color = UthTeal,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        ) {
+                            append(uth_text)
+                        }
+                        withStyle(
+                            style = SpanStyle(
+                                color = UthRed,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        ) {
+                            append(social_text)
+                        }
+                    },
+                )
+            }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,

@@ -44,7 +44,7 @@ fun RegisterScreen(
     
     Scaffold(
         topBar = {
-            LogoTopAppBar()
+            LogoTopAppBar(onLogoClick = {})
         },
     ) { innerpadding ->
         Column(
