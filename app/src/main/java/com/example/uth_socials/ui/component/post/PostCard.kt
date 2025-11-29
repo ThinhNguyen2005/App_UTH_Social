@@ -110,7 +110,7 @@ fun PostCard(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 ExpandableText(
-                    text = post.textContent, 
+                    text = post.textContent,
                     modifier = Modifier.fillMaxWidth(),
                     isScrolling = isScrolling
                 )

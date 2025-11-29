@@ -59,11 +59,11 @@ fun FullScreenImageViewer(
 
     // Animation states with smooth transitions
     var isInitialized by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(Unit) {
         isInitialized = true
     }
-    
+
     val backgroundAlpha by animateFloatAsState(
         targetValue = if (isInitialized) 1f else 0f,
         animationSpec = tween(durationMillis = 300),
@@ -82,7 +82,7 @@ fun FullScreenImageViewer(
         animationSpec = tween(durationMillis = 250),
         label = "imageAlpha"
     )
-    
+
     // Close button animation with delay for better UX
     val closeButtonAlpha by animateFloatAsState(
         targetValue = if (isInitialized) 1f else 0f,
@@ -273,7 +273,7 @@ private fun EnhancedCloseButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    
+
     // Scale animation when pressed
     val buttonScale by animateFloatAsState(
         targetValue = if (isPressed) 0.85f else 1f,
@@ -283,14 +283,14 @@ private fun EnhancedCloseButton(
         ),
         label = "buttonScale"
     )
-    
+
     // Background alpha animation
     val backgroundAlpha by animateFloatAsState(
         targetValue = if (isPressed) 0.8f else 0.6f,
         animationSpec = tween(durationMillis = 150),
         label = "backgroundAlpha"
     )
-    
+
     // Icon scale animation for better feedback
     val iconScale by animateFloatAsState(
         targetValue = if (isPressed) 0.9f else 1f,
