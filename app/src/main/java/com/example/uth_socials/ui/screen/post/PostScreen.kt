@@ -80,7 +80,6 @@ import com.example.uth_socials.ui.component.button.PrimaryButton
 import com.example.uth_socials.ui.viewmodel.PostViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.example.uth_socials.ui.component.common.BannedUserDialog
-import com.example.uth_socials.ui.component.common.formatVND
 import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,7 +109,7 @@ fun PostScreen(
     var productName by remember { mutableStateOf("") }
     var productType by remember { mutableStateOf("") }
     var productDescription by remember { mutableStateOf("") }
-    var productPrice by remember { mutableStateOf(100000) }
+    var productPrice by remember { mutableStateOf(0) }
     //-------------------------------//
 
     var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -381,7 +380,6 @@ fun ArticlePost(
                         //modifier = Modifier.align(Alignment.TopStart)
                     )
                 }
-
                 innerTextField()
                 Box(
                     modifier = Modifier
@@ -481,8 +479,6 @@ fun ProductPost(
 
     // Dropdown menu state
     var expanded by remember { mutableStateOf(false) }
-    var priceInput by remember { mutableStateOf("") }
-
     val productTypes = listOf("Sách", "Quần áo", "Đồ điện tử", "Khác")
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -629,17 +625,9 @@ fun ProductPost(
         // --- Giá ---
         Text(text = "Giá", color = MaterialTheme.colorScheme.onSurfaceVariant)
         TextField(
-            value = formatPriceInput(priceInput),
+            value = productPrice.toString(),
             textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurfaceVariant),
-            onValueChange = { newValue ->
-
-                val numeric = newValue.filter { it.isDigit() }
-
-                priceInput = numeric
-
-                onProductPriceChanged(numeric)
-                //numericPrice = formatVND(productPrice)
-            },
+            onValueChange = { it -> onProductPriceChanged(it) },
             placeholder = {
                 Text(
                     "Nhập giá",
@@ -650,7 +638,13 @@ fun ProductPost(
                 .fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
             colors = TextFieldDefaults.colors(
+                //focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                //focusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                // unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant,
+                //cursorColor = MaterialTheme.colorScheme.surfaceVariant,
+                //focusedTextColor = MaterialTheme.colorScheme.surfaceVariant,
+                //unfocusedTextColor = MaterialTheme.colorScheme.surface,
                 focusedPlaceholderColor = Color.Transparent,
                 unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
             ),
@@ -666,10 +660,4 @@ fun ProductPost(
             )
         )
     }
-}
-
-fun formatPriceInput(input: String): String {
-    val numeric = input.filter { it.isDigit() }
-    if (numeric.isEmpty()) return ""
-    return "%,d".format(numeric.toLong())
 }
