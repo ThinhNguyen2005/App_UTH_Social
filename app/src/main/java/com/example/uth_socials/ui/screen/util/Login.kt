@@ -45,7 +45,7 @@ fun LoginScreen(
     RequestNotificationPermission()
     Scaffold(
         topBar = {
-            LogoTopAppBar()
+            LogoTopAppBar(onLogoClick = {})
         },
     ) { innerpadding ->
         Column(

@@ -276,11 +276,12 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                             launchSingleTop = true
                         }
                     },
+                    onLogoClick = { navController.navigate(Screen.Home.route) },
                     scrollBehavior = scrollBehavior
                 )
                 Screen.Market.route -> MarketTopbar()
-                Screen.Add.route -> LogoTopAppBar()
-                Screen.Notifications.route -> LogoTopAppBar()
+                Screen.Add.route -> LogoTopAppBar(onLogoClick = {navController.navigate(Screen.Home.route)})
+                Screen.Notifications.route -> LogoTopAppBar(onLogoClick = {navController.navigate(Screen.Home.route)})
                 Screen.SearchResult.route -> HomeTopAppBar(
                     onSearchClick = { query ->
                         navController.navigate("search_results/$query")
@@ -291,6 +292,7 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                             launchSingleTop = true
                         }
                     },
+                    onLogoClick = { navController.navigate(Screen.Home.route) },
                     scrollBehavior = scrollBehavior
                 )
                 else -> { /* no app bar */ }

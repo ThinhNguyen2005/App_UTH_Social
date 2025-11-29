@@ -51,7 +51,7 @@ fun ResetPasswordScreen(
 
     Scaffold(
         topBar = {
-            LogoTopAppBar()
+            LogoTopAppBar(onLogoClick = {})
         },
     ){innerpadding ->
     Column(
