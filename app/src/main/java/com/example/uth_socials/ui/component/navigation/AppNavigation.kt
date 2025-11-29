@@ -339,17 +339,17 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                 Screen.Home.route,
                 enterTransition = {
                     slideInHorizontally(
-                        initialOffsetX = { it },
+                        initialOffsetX = { -it },
                         animationSpec = tween(durationMillis = 300)
                     ) + fadeIn(animationSpec = tween(durationMillis = 300))
                 },
                 exitTransition = {
                     slideOutHorizontally(
-                        targetOffsetX = { it },
+                        targetOffsetX = { -it },
                         animationSpec = tween(durationMillis = 300)
                     ) + fadeOut(animationSpec = tween(durationMillis = 300))
                 }
-                ) {
+            ) {
                 HomeScreen(
                     onNavigateToProfile = { userId ->
                         navController.navigate(Screen.Profile.createRoute(userId)) {
@@ -548,9 +548,22 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
 
             composable(
                 route = Screen.AdminDashboard.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                },
                 arguments = listOf(navArgument("tab") {
                     type = NavType.StringType; defaultValue = "reports"
                 })
+
             ) { backStackEntry ->
                 AdminDashboardScreen(
                     onNavigateBack = { navController.popBackStack() },
@@ -562,7 +575,21 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     backStackEntry = backStackEntry
                 )
             }
-            composable(Screen.ChatList.route) {
+            composable(
+                Screen.ChatList.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }) {
+
                 ChatListScreen(
                     onChatSelected = { chatId ->
                         navController.navigate(Screen.ChatDetail.createRoute(chatId))
@@ -570,11 +597,39 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.ChatDetail.route) { backStackEntry ->
+            composable(
+                Screen.ChatDetail.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) { backStackEntry ->
                 val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
                 ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
             }
-            composable(Screen.Setting.route) {
+            composable(
+                Screen.Setting.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) {
                 val currentUserId = remember {
                     FirebaseAuth.getInstance().currentUser?.uid ?: ""
                 }
@@ -615,7 +670,21 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     onLogout = onLogout
                 )
             }
-            composable(Screen.UserInfoScreen.route) {
+            composable(
+                Screen.UserInfoScreen.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) {
                 UserInfoScreen(
 
                     onSaveSuccess = { navController.popBackStack() },
@@ -623,7 +692,21 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
 
                 )
             }
-            composable(Screen.BlockedUsers.route) {
+            composable(
+                Screen.BlockedUsers.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) {
                 val homeViewModel: HomeViewModel = viewModel()
                 BlockedUsersScreen(
                     onBackClicked = { navController.popBackStack() },
@@ -635,6 +718,18 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
             // Màn hình Followers List
             composable(
                 route = Screen.FollowersList.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                },
                 arguments = listOf(
                     navArgument("userId") { type = NavType.StringType }
                 )
@@ -660,6 +755,18 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
             // Màn hình Following List
             composable(
                 route = Screen.FollowingList.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                },
                 arguments = listOf(
                     navArgument("userId") { type = NavType.StringType }
                 )
@@ -681,7 +788,21 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     }
                 )
             }
-            composable(Screen.SavedPosts.route) {
+            composable(
+                Screen.SavedPosts.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                }
+            ) {
                 SavedPostsScreen(
                     onBackClicked = { navController.popBackStack() },
                     onPostClick = { postId ->
@@ -697,6 +818,18 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
             }
             composable(
                 route = Screen.PostDetail.route,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
+                },
                 arguments = listOf(
                     navArgument("postId") { type = NavType.StringType }
                 )
@@ -710,8 +843,7 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                             launchSingleTop = true
                         }
                     },
-
-                    )
+                )
             }
 
         }

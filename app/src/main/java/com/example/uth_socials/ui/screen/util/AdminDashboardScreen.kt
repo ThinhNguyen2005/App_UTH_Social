@@ -77,7 +77,7 @@ fun AdminDashboardScreen(
             viewModel.loadData()
         }
     }
-    // Quản lý lifecycle: Đảm bảo snackbar không bị mất khi xoay màn hình
+    //  snackbar không bị mất khi xoay màn hình
     LaunchedEffect(uiState.error) {
         uiState.error?.let { message ->
             snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Long)
@@ -88,13 +88,11 @@ fun AdminDashboardScreen(
         uiState.successMessage?.let { message ->
             snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
             viewModel.clearSuccessMessage()
-            // Sau khi hiển thị thông báo thành công, quay về tab REPORTS (mặc định)
             delay(500) // Đợi snackbar hiển thị
             selectedTab = AdminTab.REPORTS
         }
     }
     
-    // Đảm bảo selectedTab được cập nhật khi initialTab thay đổi (từ navigation)
     LaunchedEffect(initialTab) {
         if (selectedTab != initialTab) {
             selectedTab = initialTab

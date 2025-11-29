@@ -19,7 +19,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uth_socials.ui.component.navigation.FilterTabs
 import com.example.uth_socials.ui.component.post.CommentSheetContent
 import com.example.uth_socials.ui.component.post.PostCard
-import com.example.uth_socials.ui.component.post.PostCardSkeleton
 import com.example.uth_socials.ui.component.common.ReportDialog
 import com.example.uth_socials.ui.component.common.ConfirmDialog
 import com.example.uth_socials.ui.component.common.BannedUserDialog
