@@ -69,7 +69,7 @@ class UserRepository {
                 "bio" to "",
                 "userId" to userId
             )
-            docRef.set(bootstrap, SetOptions.merge()).await()
+            docRef.set(bootstrap, SetOptions.merge()).await()// chỉ thêm// cập nhật code
             Log.w("UserRepository", "Bootstrap user document for $userId")
         }
     }
