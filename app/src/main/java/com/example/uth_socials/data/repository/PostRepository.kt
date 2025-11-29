@@ -48,13 +48,10 @@ class PostRepository {
     private val reportsCollection = db.collection(FirestoreConstants.REPORTS_COLLECTION)
     private val usersCollection = db.collection(FirestoreConstants.USERS_COLLECTION)
 
-    // ✅ OPTIMIZATION: Cache enriched posts để tránh enrich lại
     private val enrichedPostsCache = ConcurrentHashMap<String, Post>()
 
     companion object {
-        // ✅ OPTIMIZATION: Pagination limit - chỉ load 20 posts đầu tiên
         private const val POSTS_LIMIT = 20
-        // ✅ OPTIMIZATION: Debounce time để gom nhiều updates (ms)
         private const val DEBOUNCE_TIME_MS = 300L
     }
 
@@ -139,17 +136,15 @@ class PostRepository {
      */
     @OptIn(FlowPreview::class)
     fun getPostsFlow(categoryId: String): Flow<List<Post>> = callbackFlow {
-        // --- Category filtering logic với PAGINATION ---
         val query = when (categoryId) {
-            // "all" - show ALL posts (with or without category)
             "all" -> postsCollection
                 .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
-                .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
+                .limit(POSTS_LIMIT.toLong())
 
             // "latest" - show latest posts (same as "all")
             "latest" -> postsCollection
                 .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
-                .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
+                .limit(POSTS_LIMIT.toLong())
 
             // Specific category - only posts with this category
             else -> {
@@ -157,12 +152,12 @@ class PostRepository {
                     Log.w("PostRepository", "Empty categoryId provided, showing all posts")
                     postsCollection
                         .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
-                        .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
+                        .limit(POSTS_LIMIT.toLong())
                 } else {
                     postsCollection
                         .whereEqualTo(FirestoreConstants.FIELD_CATEGORY, categoryId)
                         .orderBy(FirestoreConstants.FIELD_TIMESTAMP, Query.Direction.DESCENDING)
-                        .limit(POSTS_LIMIT.toLong()) // ✅ PAGINATION
+                        .limit(POSTS_LIMIT.toLong())
                 }
             }
         }
@@ -179,14 +174,13 @@ class PostRepository {
                 return@addSnapshotListener
             }
             if (snapshot != null) {
-                // Emit raw documents to be processed on background thread
                 trySend(snapshot.documents)
             }
         }
 
         awaitClose { listener.remove() }
     }
-        .debounce(DEBOUNCE_TIME_MS) // ✅ DEBOUNCE: Gom nhiều updates trong 300ms
+        .debounce(DEBOUNCE_TIME_MS)
         .map { documents ->
             val currentUserId = auth.currentUser?.uid
             documents.mapNotNull { doc ->
@@ -195,7 +189,6 @@ class PostRepository {
                     val rawPost = doc.toObject(Post::class.java)
 
                     if (rawPost != null) {
-                        // ✅ CACHE CHECK: Chỉ enrich nếu chưa có hoặc có thay đổi
                         val cachedPost = enrichedPostsCache[postId]
                         val shouldReEnrich = cachedPost == null ||
                             cachedPost.timestamp != rawPost.timestamp ||
@@ -208,7 +201,7 @@ class PostRepository {
                             enriched?.let { enrichedPostsCache[postId] = it }
                             enriched
                         } else {
-                            cachedPost // ✅ Sử dụng cache
+                            cachedPost
                         }
                     } else {
                         null
@@ -261,7 +254,6 @@ class PostRepository {
             ).await()
         }
 
-        // ✅ OPTIMIZATION: Invalidate cache cho post này
         enrichedPostsCache.remove(postId)
     }
 
@@ -301,7 +293,6 @@ class PostRepository {
             ).await()
         }
 
-        // ✅ OPTIMIZATION: Invalidate cache cho post này
         enrichedPostsCache.remove(postId)
     }
 
@@ -415,7 +406,6 @@ class PostRepository {
 
             Log.d("PostRepository", "Comment data prepared: $commentData")
 
-            // ✅ TRANSACTION: TĂNG COMMENT COUNT + TẠO COMMENT + UPDATE USER STATS
             // BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
             db.runTransaction { transaction ->
                 Log.d("PostRepository", "Starting transaction")
@@ -468,7 +458,7 @@ class PostRepository {
 
             Log.d("PostRepository", "Comment data prepared: $commentData")
 
-            // BƯỚC 7: TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
+            // 1    TRANSACTION - TĂNG COMMENT COUNT + TẠO COMMENT
             db.runTransaction { transaction ->
                 Log.d("PostRepository", "Starting transaction")
                 transaction.update(postRef, FirestoreConstants.FIELD_COMMENT_COUNT, FieldValue.increment(1))
@@ -477,7 +467,7 @@ class PostRepository {
                 Log.d("PostRepository", "Transaction operations set")
             }.await()
 
-            // BƯỚC 8: UPDATE LAST COMMENT TIME (RATE LIMITING)
+            // UPDATE LAST COMMENT TIME (RATE LIMITING)
             usersCollection.document(currentUserId)
                 .update("lastCommentAt", FieldValue.serverTimestamp())
                 .await()

@@ -258,7 +258,7 @@ class AdminRepository(
         var isActuallyBanned = false
         
         while (retryCount < maxRetries && !isActuallyBanned) {
-            kotlinx.coroutines.delay(100L * (retryCount + 1)) // Tăng delay mỗi lần retry
+            kotlinx.coroutines.delay(100L * (retryCount + 1)) // Đợi trước mỗi lần thử lại
             
             val updatedDoc = userRef.get(com.google.firebase.firestore.Source.SERVER).await()
             isActuallyBanned = updatedDoc.getBoolean(FirestoreConstants.FIELD_IS_BANNED) == true
@@ -272,7 +272,7 @@ class AdminRepository(
         if (!isActuallyBanned) {
             throw Exception("Ban verification failed - user state not updated correctly after $maxRetries retries")
         }
-        Log.d("AdminRepository", "🎉 User $userId banned successfully by admin $adminId for: $reason")
+        Log.d("AdminRepository", " User $userId banned successfully by admin $adminId for: $reason")
     }
     suspend fun unbanUser(userId: String): Result<Unit> = runCatching {
         val userRef = db.collection(FirestoreConstants.USERS_COLLECTION).document(userId)

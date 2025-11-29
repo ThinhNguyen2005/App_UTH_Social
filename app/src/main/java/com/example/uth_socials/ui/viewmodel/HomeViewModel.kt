@@ -24,7 +24,6 @@ import com.example.uth_socials.data.util.SecurityValidator.clearCache
 //Enum để quản lý trạng thái gửi bình luận
 enum class CommentPostState { IDLE, POSTING, SUCCESS, ERROR }
 
-// Cập nhật State để làm việc với object Category
 data class HomeUiState(
     val posts: List<Post> = emptyList(),
     val isLoading: Boolean = true,
