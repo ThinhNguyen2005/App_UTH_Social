@@ -18,7 +18,7 @@ import androidx.compose.material3.BottomAppBarDefaults.windowInsets
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,14 +53,14 @@ fun UserSettingScreen(
 ) {
 
 
-    val username by viewModel.username.collectAsState()
-    val avatarUrl by viewModel.avatarUrl.collectAsState()
+    val username by viewModel.username.collectAsStateWithLifecycle()
+    val avatarUrl by viewModel.avatarUrl.collectAsStateWithLifecycle()
 
     val isEmailPasswordUser = remember { authViewModel.isEmailPasswordUser() }
     val context = LocalContext.current
 
     var showChangePasswordDialog by remember { mutableStateOf(false) }
-    val authState by authViewModel.state.collectAsState()
+    val authState by authViewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.loadInitialData()

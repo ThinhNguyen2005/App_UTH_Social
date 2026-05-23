@@ -33,6 +33,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.vector.ImageVector
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
@@ -41,7 +42,7 @@ fun AdminDashboardScreen(
     backStackEntry: NavBackStackEntry? = null
 ) {
     val viewModel: AdminDashboardViewModel = viewModel()
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     val initialTab = remember(backStackEntry) {
@@ -414,7 +415,7 @@ private fun ReportsTab(
         EmptyState("Không có báo cáo nào", Icons.Default.Report)
     } else {
         LazyColumn(modifier = modifier) {
-            items(reports) { report ->
+            items(reports, key = { it.report.id }) { report ->
                 ReportCard(
                     report,
                     onClick = { onReportClick(report) },
@@ -444,7 +445,7 @@ private fun UsersTab(
             EmptyState("Danh sách trống", Icons.Default.Person)
         } else {
             LazyColumn(modifier = modifier) {
-                items(bannedUsers) { user ->
+                items(bannedUsers, key = { it.id }) { user ->
                     BannedUserCard(
                         user,
                         onBan = { onBanUser(user) },
@@ -593,7 +594,7 @@ private fun AdminsTab(
         }
     } else {
         LazyColumn(modifier = modifier) {
-            items(admins) { admin ->
+            items(admins, key = { it.userId }) { admin ->
                 AdminCard(admin, onRevoke = { onRevokeAdmin(admin) })
             }
 
@@ -630,7 +631,7 @@ private fun CategoriesTab(
 //                )
 //            }
 
-            items(categories) { category ->
+            items(categories, key = { it.id }) { category ->
                 CategoryCard(category, onEdit = { onEditCategory(category) }, onDelete = { onDeleteCategory(category) })
             }
 
@@ -1127,7 +1128,7 @@ private fun PostDetailModal(
                                     if (post.imageUrls.isNotEmpty()) {
                                         Spacer(modifier = Modifier.height(8.dp))
                                         LazyColumn {
-                                            items(post.imageUrls.take(3)) { imageUrl ->
+                                            items(post.imageUrls.take(3), key = { it }) { imageUrl ->
                                                 AsyncImage(
                                                     model = imageUrl,
                                                     contentDescription = "Đăng hình ảnh",

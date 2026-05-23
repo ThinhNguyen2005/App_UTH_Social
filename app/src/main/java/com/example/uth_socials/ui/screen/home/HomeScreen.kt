@@ -4,9 +4,9 @@ import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Article
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.automirrored.outlined.Article
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.runtime.*
@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.snapshotFlow
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun HomeScreen(
@@ -40,8 +41,8 @@ fun HomeScreen(
 ) {
     val homeViewModel: HomeViewModel = viewModel()
     val banStatusViewModel: BanStatusViewModel = viewModel()
-    val uiState by homeViewModel.uiState.collectAsState()
-    val banStatus by banStatusViewModel.banStatus.collectAsState()
+    val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+    val banStatus by banStatusViewModel.banStatus.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -107,12 +108,14 @@ fun HomeScreen(
         ) {
             when {
                 uiState.isLoading -> {
-                    LazyColumn(
+                    Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp)
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(6) {
-                        }
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 3.dp
+                        )
                     }
                 }
 
@@ -128,7 +131,7 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ErrorOutline,
+                                imageVector = Icons.Outlined.ErrorOutline,
                                 contentDescription = "Error",
                                 tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(64.dp)
@@ -220,7 +223,7 @@ fun HomeScreen(
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Article,
+                                    imageVector = Icons.AutoMirrored.Outlined.Article,
                                     contentDescription = "No posts",
                                     modifier = Modifier.size(64.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -323,7 +326,7 @@ fun HomeScreen(
                                 text = { Text("Bài viết mới") },
                                 icon = {
                                     Icon(
-                                        Icons.Default.ArrowUpward,
+                                        Icons.Outlined.ArrowUpward,
                                         contentDescription = "Có bài viết mới"
                                     )
                                 },
@@ -349,7 +352,7 @@ fun HomeScreen(
                                 contentColor = MaterialTheme.colorScheme.onSurface
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ArrowUpward,
+                                    imageVector = Icons.Outlined.ArrowUpward,
                                     contentDescription = "Lên đầu trang"
                                 )
                             }

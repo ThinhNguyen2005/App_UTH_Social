@@ -92,7 +92,7 @@ class HomeViewModel(
     private val authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
         val user = firebaseAuth.currentUser
         if (user != null) {
-            Log.d("HomeViewModel", "Auth state changed: User IN (${user.uid}). Loading data.")
+            Log.d("HomeViewModel", "Auth state changed: User IN. Loading data.")
             loadDataForUser(user.uid)
         } else {
             Log.d("HomeViewModel", "Auth state changed: User OUT. Clearing data.")

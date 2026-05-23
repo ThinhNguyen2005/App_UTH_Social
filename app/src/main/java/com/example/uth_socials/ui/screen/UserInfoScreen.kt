@@ -25,6 +25,7 @@ import coil.compose.AsyncImage
 import com.example.uth_socials.ui.component.button.ComfirmAuthButton
 import com.example.uth_socials.ui.viewmodel.UserInfoViewModel
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserInfoScreen(
@@ -33,14 +34,14 @@ fun UserInfoScreen(
     onBackClicked: () -> Unit
 ) {
     val context = LocalContext.current
-    val username by viewModel.username.collectAsState()
-    val campus by viewModel.campus.collectAsState()
-    val phoneNumber by viewModel.phone.collectAsState()
-    val major by viewModel.major.collectAsState()
-    val bio by viewModel.bio.collectAsState()
-    val avatarUrl by viewModel.avatarUrl.collectAsState()
-    val isSaving by viewModel.isSaving.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val username by viewModel.username.collectAsStateWithLifecycle()
+    val campus by viewModel.campus.collectAsStateWithLifecycle()
+    val phoneNumber by viewModel.phone.collectAsStateWithLifecycle()
+    val major by viewModel.major.collectAsStateWithLifecycle()
+    val bio by viewModel.bio.collectAsStateWithLifecycle()
+    val avatarUrl by viewModel.avatarUrl.collectAsStateWithLifecycle()
+    val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
 
     var expanded by remember { mutableStateOf(false) }

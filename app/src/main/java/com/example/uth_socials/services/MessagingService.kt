@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.example.uth_socials.BuildConfig
 import com.example.uth_socials.R
 import com.example.uth_socials.data.notification.Notification
 import com.example.uth_socials.ui.component.navigation.Screen
@@ -27,18 +28,21 @@ class MessagingService : FirebaseMessagingService() {
             .document(userId)
             .update("token", token)
             .addOnSuccessListener {
-                Log.d("FCM", "✅ Token đã được lưu vào Firestore: $token")
+                if (BuildConfig.DEBUG) {
+                    Log.d("FCM", "Token đã được lưu cho user (uid=***)")
+                }
             }
             .addOnFailureListener { e ->
-                Log.e("FCM", "❌ Lỗi khi lưu token", e)
+                Log.e("FCM", "Lỗi khi lưu token", e)
             }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        // Ghi log để debug
-        Log.d("FCM", "Thông báo nhận được: ${remoteMessage.data}")
+        if (BuildConfig.DEBUG) {
+            Log.d("FCM", "Thông báo nhận được: ${remoteMessage.data}")
+        }
 
 
         remoteMessage.notification?.let {
@@ -52,16 +56,17 @@ class MessagingService : FirebaseMessagingService() {
                 .setContentText(body)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
 
-            // 🔹 Hiển thị thông báo
+            // 🔹 Hiển thị thông báo (mỗi notification có id riêng để không đè lên nhau)
             val manager = NotificationManagerCompat.from(this)
             if (ContextCompat.checkSelfPermission(
                     this,
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
-                manager.notify(0, builder.build())
+                val notificationId = (System.currentTimeMillis() and 0x7FFFFFFF).toInt()
+                manager.notify(notificationId, builder.build())
             } else {
-                Log.w("FCM", "❌ Chưa có quyền POST_NOTIFICATIONS – không thể hiển thị thông báo.")
+                Log.w("FCM", "Chưa có quyền POST_NOTIFICATIONS – không thể hiển thị thông báo.")
             }
         }
 

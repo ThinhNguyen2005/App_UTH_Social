@@ -41,10 +41,10 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.HideSource
 import androidx.compose.material.icons.filled.Report
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.ModeComment
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -341,41 +341,87 @@ fun PostMedia(
     var showFullScreen by remember { mutableStateOf(false) }
     var initialImageIndex by remember { mutableIntStateOf(0) }
 
+    // IG-style: container aspect ratio is derived from the first image, clamped to
+    // [0.8 (4:5 portrait), 1.91 (≈16:9 landscape)]. Other carousel pages crop to fit.
+    val minAspect = 0.8f
+    val maxAspect = 1.91f
+    var containerAspect by remember(imageUrls) { mutableStateOf<Float?>(null) }
+    var firstImageClamped by remember(imageUrls) { mutableStateOf(false) }
+    val singleImage = imageUrls.size == 1
+
     Box(
         modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(containerAspect ?: 1f)
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         HorizontalPager(
             state = pagerState,
-            pageSpacing = 12.dp,
+            pageSpacing = 0.dp,
             flingBehavior = PagerDefaults.flingBehavior(
                 state = pagerState,
                 snapAnimationSpec = spring(stiffness = Spring.StiffnessMediumLow)
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxSize()
         ) { page ->
+            val isFirstPage = page == 0
+            val useFit = singleImage && isFirstPage && containerAspect != null && !firstImageClamped
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(imageUrls[page])
                     .crossfade(!isScrolling)
-                    .size(800, 800)
+                    .size(1080, 1920)
                     .dispatcher(Dispatchers.IO)
                     .build(),
                 contentDescription = "Post image ${page + 1}",
-                contentScale = ContentScale.Crop,
+                contentScale = if (useFit) ContentScale.Fit else ContentScale.Crop,
+                onSuccess = { state ->
+                    if (isFirstPage && containerAspect == null) {
+                        val drawable = state.result.drawable
+                        val w = drawable.intrinsicWidth.toFloat()
+                        val h = drawable.intrinsicHeight.toFloat()
+                        if (w > 0f && h > 0f) {
+                            val natural = w / h
+                            val clamped = natural.coerceIn(minAspect, maxAspect)
+                            firstImageClamped = clamped != natural
+                            containerAspect = clamped
+                        }
+                    }
+                },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(16.dp))
+                    .fillMaxSize()
                     .combinedClickable(
                         onClick = {
                             initialImageIndex = page
                             showFullScreen = true
                         },
-                        onLongClick = { /* TODO: Xử lý giữ lâu để lưu/chia sẻ */ }
+                        onLongClick = { /* TODO: lưu/chia sẻ */ }
                     )
             )
+        }
+
+        AnimatedVisibility(
+            visible = imageUrls.size > 1,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 12.dp, end = 12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "${pagerState.currentPage + 1}/${imageUrls.size}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         AnimatedVisibility(
@@ -458,7 +504,7 @@ private fun PostActions(
             Spacer(modifier = Modifier.width(16.dp))
             PostActionItem(
                 onClick = { if (isEnabled) onCommentClicked(post.id) },
-                icon = Icons.Outlined.ModeComment,
+                icon = Icons.Outlined.ChatBubbleOutline,
                 count = post.commentCount,
                 tint = defaultColor,
                 contentDescription = "Comment",
@@ -479,7 +525,7 @@ private fun PostActions(
             Spacer(modifier = Modifier.width(16.dp))
             PostActionItem(
                 onClick = { onShareClicked(post.id) },
-                icon = Icons.Outlined.Share,
+                icon = Icons.AutoMirrored.Outlined.Send,
                 count = post.shareCount,
                 tint = defaultColor,
                 contentDescription = "Share",

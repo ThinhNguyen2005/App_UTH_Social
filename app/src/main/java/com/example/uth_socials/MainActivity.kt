@@ -43,9 +43,7 @@ class MainActivity : ComponentActivity() {
         banStatusViewModel = ViewModelProvider(this)[BanStatusViewModel::class.java]
 
         val launcher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                viewModel.handleGoogleResult(result.data)
-            }
+            viewModel.handleGoogleResult(result.resultCode, result.data)
         }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -62,9 +60,9 @@ class MainActivity : ComponentActivity() {
         FirebaseMessaging.getInstance().subscribeToTopic("allUsers")
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    println("Subscribed to all_users topic")
+                    android.util.Log.d("FCM", "Subscribed to allUsers topic")
                 } else {
-                    println("Failed to subscribe")
+                    android.util.Log.w("FCM", "Failed to subscribe", task.exception)
                 }
             }
 

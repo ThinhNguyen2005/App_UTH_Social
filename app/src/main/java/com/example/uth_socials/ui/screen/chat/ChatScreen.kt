@@ -13,15 +13,16 @@ import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.example.uth_socials.ui.viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
     val viewModel: ChatViewModel = viewModel()
-    val messages by viewModel.messages.collectAsState()
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
     val currentUserId = viewModel.currentUserId
 
-    val otherUserName by viewModel.otherUserName.collectAsState()
-    val otherUserAvatar by viewModel.otherUserAvatar.collectAsState()
+    val otherUserName by viewModel.otherUserName.collectAsStateWithLifecycle()
+    val otherUserAvatar by viewModel.otherUserAvatar.collectAsStateWithLifecycle()
     val reversedMessages = remember(messages) { messages.reversed() }
     var text by remember { mutableStateOf("") }
 
@@ -79,7 +80,7 @@ fun ChatScreen(chatId: String, onBack: () -> Unit = {}) {
         }
         
         // Ban dialog
-        val showBanDialog by viewModel.showBanDialog.collectAsState()
+        val showBanDialog by viewModel.showBanDialog.collectAsStateWithLifecycle()
         BannedUserDialog(
             isVisible = showBanDialog,
             banReason = null,

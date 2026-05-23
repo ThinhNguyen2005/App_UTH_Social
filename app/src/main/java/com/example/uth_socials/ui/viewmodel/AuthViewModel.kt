@@ -76,7 +76,7 @@ class AuthViewModel(
                     _state.value = AuthState.Error("Không thể xác thực người dùng.")
                 }
             } catch (e: Exception) {
-                // ✅ Xử lý lỗi tập trung tại một nơi
+                Log.e("AuthViewModel", "Đăng nhập thất bại", e)
                 _state.value = AuthState.Error("Sai tài khoản hoặc mật khẩu.")
             }
         }
@@ -97,45 +97,71 @@ class AuthViewModel(
                     _state.value = AuthState.Error("Không thể tạo người dùng.")
                 }
             } catch (e: Exception) {
+                Log.e("AuthViewModel", "Đăng ký thất bại", e)
                 _state.value = AuthState.Error(e.message ?: "Lỗi đăng ký không xác định")
             }
         }
     }
 
     fun loginWithGoogle(@Suppress("UNUSED_PARAMETER") activity: Activity, launcher: (Intent) -> Unit) {
+        _state.value = AuthState.Loading
         googleClient.signOut().addOnCompleteListener {
             launcher(googleClient.signInIntent)
         }
     }
 
-    fun handleGoogleResult(data: Intent?) {
-        viewModelScope.launch (Dispatchers.IO){
+    fun handleGoogleResult(resultCode: Int, data: Intent?) {
+        // RESULT_CANCELED = 0
+        if (resultCode != android.app.Activity.RESULT_OK) {
+            Log.w("AuthViewModel", "Google sign-in cancelled or failed, resultCode=$resultCode")
+            _state.value = AuthState.Error("Bạn đã huỷ đăng nhập Google.")
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
             _state.value = AuthState.Loading
             try {
-                // Lấy thông tin tài khoản Google
-                val account = GoogleSignIn.getSignedInAccountFromIntent(data).result
-                val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-
-                // Đăng nhập vào Firebase
+                val account = GoogleSignIn.getSignedInAccountFromIntent(data)
+                    .getResult(com.google.android.gms.common.api.ApiException::class.java)
+                val idToken = account?.idToken
+                if (idToken.isNullOrBlank()) {
+                    _state.value = AuthState.Error("Không lấy được thông tin từ Google. Vui lòng thử lại.")
+                    return@launch
+                }
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
                 val result = auth.signInWithCredential(credential).await()
                 val firebaseUser = result.user
 
                 if (firebaseUser != null) {
-                    // ✅ GỌI HÀM TẠO PROFILE NGAY SAU KHI ĐĂNG NHẬP GOOGLE THÀNH CÔNG
                     userRepository.createUserProfileIfNotExists(firebaseUser)
-                    
-                    // ✅ THAY ĐỔI: Cho phép đăng nhập ngay cả khi bị ban
-                    // BanStatusViewModel sẽ quản lý trạng thái ban và UI sẽ hiển thị dialog
                     _state.value = AuthState.Success("Đăng nhập Google thành công")
                     updateUserToken()
                 } else {
                     _state.value = AuthState.Error("Không lấy được thông tin người dùng.")
                 }
+            } catch (e: com.google.android.gms.common.api.ApiException) {
+                Log.e("AuthViewModel", "Google Sign-In ApiException status=${e.statusCode}", e)
+                _state.value = AuthState.Error(mapGoogleApiError(e.statusCode))
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "Google Sign-In failed", e)
-                _state.value = AuthState.Error("Đăng nhập Google thất bại: ${e.message}")
+                _state.value = AuthState.Error("Đăng nhập Google thất bại: ${e.message ?: "Lỗi không xác định"}")
             }
         }
+    }
+
+    private fun mapGoogleApiError(statusCode: Int): String = when (statusCode) {
+        com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CANCELLED ->
+            "Bạn đã huỷ đăng nhập Google."
+        com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_FAILED ->
+            "Đăng nhập Google thất bại. Hãy thử lại."
+        com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CURRENTLY_IN_PROGRESS ->
+            "Đang xử lý phiên đăng nhập trước, vui lòng đợi."
+        com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.NETWORK_ERROR ->
+            "Mất kết nối mạng khi đăng nhập Google."
+        com.google.android.gms.common.api.CommonStatusCodes.DEVELOPER_ERROR ->
+            "Cấu hình Google Sign-In sai (sai SHA-1 / webClientId). Báo cho quản trị viên."
+        com.google.android.gms.common.api.CommonStatusCodes.INTERNAL_ERROR ->
+            "Lỗi nội bộ Google Play Services. Hãy thử lại."
+        else -> "Đăng nhập Google thất bại (mã $statusCode)."
     }
 
     private fun updateUserToken() {
@@ -143,7 +169,7 @@ class AuthViewModel(
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
-                println("Lấy token thất bại: ${task.exception}")
+                Log.w("AuthViewModel", "Lấy FCM token thất bại", task.exception)
                 return@addOnCompleteListener
             }
 
@@ -154,10 +180,10 @@ class AuthViewModel(
                 .document(user.uid)
                 .update("token", token)
                 .addOnSuccessListener {
-                    println("Token người dùng đã được cập nhật: $token")
+                    Log.d("AuthViewModel", "Token người dùng đã được cập nhật.")
                 }
                 .addOnFailureListener { e ->
-                    println("Lỗi khi lưu token: $e")
+                    Log.e("AuthViewModel", "Lỗi khi lưu token", e)
                 }
         }
     }

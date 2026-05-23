@@ -1,406 +1,181 @@
 package com.example.uth_socials.ui.screen.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-
 import androidx.compose.material.DismissDirection
 import androidx.compose.material.DismissValue
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.FractionalThreshold
 import androidx.compose.material.SwipeToDismiss
-import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.rememberDismissState
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-
-
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButtonDefaults.Icon
-import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
-
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-
 import coil.compose.AsyncImage
-
 import com.example.uth_socials.data.notification.Notification
-import com.example.uth_socials.ui.component.button.MoreButton
-import com.example.uth_socials.ui.component.common.SectionTitle
+import com.example.uth_socials.ui.component.common.formatTimeAgo
 import com.example.uth_socials.ui.component.navigation.Screen
 import com.example.uth_socials.ui.viewmodel.NotificationViewModel
-
-import kotlinx.coroutines.delay
-import androidx.compose.ui.layout.onGloballyPositioned
-import com.example.uth_socials.ui.component.common.formatTimeAgo
+import kotlinx.coroutines.launch
 
 @Composable
 fun NotificationsScreen(
     notificationViewModel: NotificationViewModel,
     navController: NavController
 ) {
-    val notifications by notificationViewModel.notifications.collectAsState()
+    val notifications by notificationViewModel.notifications.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
-    var visibleNotifications by remember { mutableStateOf<List<Notification>>(emptyList()) }
-    var isCollapsed by remember { mutableStateOf(false) }
-    val collapseRotate by animateFloatAsState(
-        targetValue = if (isCollapsed) {
-            -180f
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (notifications.isEmpty()) {
+            NotificationsEmpty()
         } else {
-            0f
-        },
-        animationSpec = tween(800)
-    )
-
-    val originItemValue = 5
-    val moreItemValue = notifications.size
-
-    LaunchedEffect(notifications) {
-        visibleNotifications = notifications.take(originItemValue)
-    }
-
-    Column(
-        modifier = Modifier
-            .padding(horizontal = 16.dp)
-    ) {
-        if (notifications.isNotEmpty()) {
-            SectionTitle("Thông báo")
-
-            Column {
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 0.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
-                ) {
-                    itemsIndexed(
-                        items = visibleNotifications,
-                        key = { _, item -> item.id }) { index, notification ->
-
-                        if(!notification.isRead) notificationViewModel.markAsRead(notification)
-
-                        val visibleState = remember { MutableTransitionState(false) }
-
-                        LaunchedEffect(visibleNotifications.size) {
-                            delay(index * 230L)
-                            visibleState.targetState = true
-                        }
-//
-                        AnimatedVisibility(
-                            visibleState = visibleState,
-                            enter = slideInHorizontally(
-                                initialOffsetX = { fullWidth -> fullWidth }, // trượt từ trên xuống
-                                animationSpec = tween(durationMillis = 300)
-                            ) + fadeIn(animationSpec = tween(300)),
-                            exit = slideOutHorizontally(
-                                targetOffsetX = { fullWidth -> fullWidth },
-                                animationSpec = tween(300)
-                            ) + fadeOut(animationSpec = tween(300)),
-                            modifier = Modifier
-                        ) {
-                            SwipeToDeleteNotification(
-                                notification = notification,
-                                onDelete = {
-                                    notificationViewModel.deleteNotification(notification.id)
-                                },
-                                onUserClick = {
-                                    navController.navigate(
-                                        Screen.Profile.createRoute(
-                                            notification.userId
-                                        )
-                                    ) {
-                                        launchSingleTop = true
-                                    }
-                                },
-                            )
-                        }
-                    }
-                }
-                // 🔹 Nút "Hiển thị thêm"
-                if (notifications.size > visibleNotifications.size) {
-                    MoreButton(
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 4.dp, horizontal = 0.dp)
+            ) {
+                items(
+                    items = notifications,
+                    key = { it.id }
+                ) { notification ->
+                    NotificationRow(
+                        notification = notification,
                         onClick = {
-                            visibleNotifications = notifications.take(
-                                (visibleNotifications.size + moreItemValue).coerceAtMost(
-                                    notifications.size
-                                )
-                            )
-//                                    if (visibleNotifications.size < notifications.size) {
-//                                        // Hiển thị thêm
-//                                        notifications.take(
-//                                            (visibleNotifications.size + moreItemValue).coerceAtMost(
-//                                                notifications.size
-//                                            )
-//                                        )
-//                                    } else {
-//                                        // Thu gọn lại
-//                                        notifications.take(originItemValue)
-//                                    }
+                            if (!notification.isRead) notificationViewModel.markAsRead(notification)
+                            navController.navigate(Screen.Profile.createRoute(notification.userId)) {
+                                launchSingleTop = true
+                            }
                         },
-                        text = "Hiển thị thêm",//if (visibleNotifications.size < notifications.size)
-//                                "Hiển thị thêm"
-//                            else
-//                                "Thu gọn",
-                        rotateIconDegress = collapseRotate
+                        onSwipeDelete = {
+                            notificationViewModel.removeLocal(notification.id)
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "Đã xoá thông báo",
+                                    actionLabel = "Hoàn tác",
+                                    withDismissAction = false
+                                )
+                                when (result) {
+                                    SnackbarResult.ActionPerformed ->
+                                        notificationViewModel.restoreNotification(notification)
+                                    SnackbarResult.Dismissed ->
+                                        notificationViewModel.deleteNotification(notification.id)
+                                }
+                            }
+                        }
                     )
-
-                    if (visibleNotifications.size < notifications.size) {
-                        isCollapsed = false
-                    } else {
-                        isCollapsed = true
-                    }
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        thickness = 0.6.dp
+                    )
                 }
             }
-        } else {
-            SectionTitle("Bạn chưa có thông báo nào")
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp)
+        ) { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                actionColor = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(12.dp)
+            )
         }
     }
 }
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun SwipeToDeleteNotification(
+private fun NotificationRow(
     notification: Notification,
-    onDelete: () -> Unit,
-    onUserClick: () -> Unit,
-) {
-    var isLocalDeleted by remember { mutableStateOf(false) }
-    var pendingDelete by remember { mutableStateOf(false) }
-
-    val dismissState = rememberDismissState(
-        confirmStateChange = {
-            if (it == DismissValue.DismissedToStart) {
-                isLocalDeleted = true
-                pendingDelete = true
-            }
-            true
-        }
-    )
-
-    // 🔹 Chạy delay chỉ khi pendingDelete = true
-    if (pendingDelete) {
-        LaunchedEffect(notification.id) {
-            dismissState.reset()
-            delay(5_000)
-            if (isLocalDeleted) {
-                //isLocalDeleted = false
-                //delay(5000)
-                onDelete()
-            }
-            pendingDelete = false
-        }
-    }
-
-    var cardHeightPx by remember { mutableStateOf(0) }
-    val cardHeightDp = with(LocalDensity.current) { cardHeightPx.toDp() }
-
-    val widthAnimDeleteText by animateFloatAsState(
-        targetValue = if(isLocalDeleted) 1f else -dismissState.offset.value / 900f,
-        animationSpec = tween(190)
-    )
-    val widthDeleteText by remember {
-        derivedStateOf {
-            when {
-                isLocalDeleted -> widthAnimDeleteText
-                else -> (-dismissState.offset.value / 900f)
-            }
-        }
-    }
-
-    val visbleDeleteText by animateFloatAsState(
-        targetValue = if (!isLocalDeleted) 1f else 0f,
-        animationSpec = tween(1000)
-    )
-
-    val visbleUndoButton by animateFloatAsState(
-        targetValue = if (!isLocalDeleted) 0f else 1f,
-        animationSpec = tween(500)
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .animateContentSize()
-    ) {
-        //if (!isLocalDeleted) {
-        AnimatedVisibility(
-            visible = !isLocalDeleted,
-            enter = expandHorizontally(),
-            exit = shrinkHorizontally(),
-        ) {
-            SwipeToDismiss(
-                state = dismissState,
-                background = {},
-                dismissContent = {
-                    NotificationCard(
-                        notification = notification,
-                        onUserClick = onUserClick,
-                        modifier = Modifier
-                            .onGloballyPositioned {
-                                cardHeightPx = it.size.height
-                            }
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(0.dp))
-                            .clickable { onUserClick() }
-                            .padding(vertical = 0.dp)
-                            .zIndex(2f)
-                    )
-                },
-                directions = setOf(DismissDirection.EndToStart)
-            )
-        }
-
-        AnimatedVisibility(
-            visible = isLocalDeleted,
-            enter = fadeIn(animationSpec = tween(durationMillis = 2000)) + slideInVertically { it / 4 }, //+ expandHorizontally(),
-            exit = fadeOut(animationSpec = tween(durationMillis = 0)) + slideOutVertically { it / 4 } //+ shrinkHorizontally()
-        ) {
-            UndoButton(
-                onClick = {
-                    isLocalDeleted = false
-                    pendingDelete = false
-                },
-            )
-
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(cardHeightDp),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(widthDeleteText)
-                    .fillMaxHeight()
-                    .alpha(visbleDeleteText)
-                    //.height(cardHeightDp)
-                    // .align(Alignment.CenterEnd)
-                    .background(MaterialTheme.colorScheme.errorContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Xóa",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    maxLines = 1
-                )
-            }
-        }
-    }
-}
-
-
-@Composable
-private fun UndoButton(
     onClick: () -> Unit,
+    onSwipeDelete: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        Button(
-            onClick = {
-                onClick()
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant, // nền nhạt
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant // màu text
-            ),
-            shape = RoundedCornerShape(16.dp), // bo góc
-            elevation = ButtonDefaults.buttonElevation(
-                defaultElevation = 4.dp,
-                pressedElevation = 2.dp
-            ),
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(vertical = 8.dp)
-        ) {
-            Text(
-                text = "Hoàn tác",
-                fontWeight = FontWeight.Medium
+    val dismissState = rememberDismissState(
+        confirmStateChange = { value ->
+            if (value == DismissValue.DismissedToStart) {
+                onSwipeDelete()
+                true
+            } else false
+        }
+    )
+
+    SwipeToDismiss(
+        state = dismissState,
+        directions = setOf(DismissDirection.EndToStart),
+        dismissThresholds = { FractionalThreshold(0.35f) },
+        background = {
+            // Chỉ hiện khi đang swipe — alpha theo progress
+            val progress = (-dismissState.offset.value / 300f).coerceIn(0f, 1f)
+            if (progress > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = progress))
+                        .padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Xoá",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.alpha(progress)
+                    )
+                }
+            }
+        },
+        dismissContent = {
+            NotificationItem(
+                notification = notification,
+                onClick = onClick
             )
         }
-    }
+    )
 }
 
 @Composable
-private fun NotificationCard(
+private fun NotificationItem(
     notification: Notification,
-    onUserClick: () -> Unit,
-    modifier: Modifier,
+    onClick: () -> Unit
 ) {
-    val notificationContent = when (notification.category) {
+    val unreadTint = if (!notification.isRead)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+    else MaterialTheme.colorScheme.surface
+
+    val verb = when (notification.category) {
         "post" -> "đã đăng một bài viết"
         "product" -> "đã thêm một sản phẩm mới"
         "like" -> "đã thích bài viết của bạn"
@@ -409,60 +184,93 @@ private fun NotificationCard(
         else -> ""
     }
 
-    val timeAgo = formatTimeAgo(notification.timestamp)
-
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent//MaterialTheme.colorScheme.surfaceVariant
-        ),
-        //elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(unreadTint)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(12.dp)
-        ) {
-            AsyncImage(
-                model = notification.avatarUrl,
-                contentDescription = "User Avatar",
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
+        AsyncImage(
+            model = notification.avatarUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(
+                        SpanStyle(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    ) { append(notification.username) }
+                    append(" ")
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                        append(verb)
+                    }
+                },
+                style = MaterialTheme.typography.bodyMedium
             )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    buildAnnotatedString {
-                        withStyle(
-                            SpanStyle(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.Bold
-                            )
-                        ) {
-                            append(notification.username)
-                        }
-                        append(" \n")
-                        withStyle(
-                            SpanStyle(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) {
-                            append(notificationContent)
-                        }
-                    },
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                Text(
-                    text = timeAgo.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = formatTimeAgo(notification.timestamp).toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
+            )
         }
+        if (!notification.isRead) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        }
+    }
+}
+
+@Composable
+private fun NotificationsEmpty() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(36.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.NotificationsNone,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Chưa có thông báo",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Hoạt động liên quan đến bạn sẽ xuất hiện ở đây",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

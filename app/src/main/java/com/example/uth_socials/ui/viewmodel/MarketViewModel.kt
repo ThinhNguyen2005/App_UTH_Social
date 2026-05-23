@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -34,6 +35,8 @@ data class ListUiState(
     val products: List<Product> = emptyList(),
     val filteredProducts: List<Product> = emptyList(), // Danh sách sau khi search
     val searchQuery: String = "",
+    val selectedType: String = "", // "" = tất cả
+    val availableTypes: List<String> = emptyList(),
     val error: String? = null
 )
 
@@ -42,6 +45,7 @@ data class DetailUiState(
     val isLoading: Boolean = false,
     val product: Product? = null,
     val seller: User? = null,
+    val relatedProducts: List<Product> = emptyList(),
     val error: String? = null
 )
 
@@ -56,35 +60,33 @@ class MarketViewModel: ViewModel() {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
+    private val _selectedType = MutableStateFlow("")
+    val selectedType = _selectedType.asStateFlow()
+
     //STATE CHO DANH SÁCH REALTIME với SEARCH ---
     val listUiState: StateFlow<ListUiState> = combine(
         repository.getProductsStream(),
-        _searchQuery
-    ) { productList, query ->
+        _searchQuery,
+        _selectedType
+    ) { productList, query, type ->
+        val availableTypes = productList
+            .mapNotNull { it.type.takeIf { t -> t.isNotBlank() } }
+            .distinct()
+            .sorted()
+
+        val byType = if (type.isBlank()) productList
+        else productList.filter { it.type.equals(type, ignoreCase = true) }
+
         val filtered = if (query.isBlank()) {
-            productList
+            byType
         } else {
-            productList.filter { product ->
-                // Tìm kiếm theo tên
+            byType.filter { product ->
                 val matchesName = product.name.contains(query, ignoreCase = true)
-
-                // Tìm kiếm theo giá (nếu query là số)
-                val matchesPriceRange = try {
-                    val searchPrice = query.toIntOrNull()
-                    if (searchPrice != null) {
-                        // Dùng 10% nhưng làm tròn về Int
-                        val tolerance = (searchPrice * 0.1).toInt()
-                        val lowerBound = searchPrice - tolerance
-                        val upperBound = searchPrice + tolerance
-
-                        product.price in lowerBound..upperBound
-                    } else {
-                        false
-                    }
-                } catch (e: Exception) {
-                    false
+                val matchesPriceRange = run {
+                    val searchPrice = query.toIntOrNull() ?: return@run false
+                    val tolerance = (searchPrice * 0.1).toInt()
+                    product.price in (searchPrice - tolerance)..(searchPrice + tolerance)
                 }
-
                 matchesName || matchesPriceRange
             }
         }
@@ -93,6 +95,8 @@ class MarketViewModel: ViewModel() {
             products = productList,
             filteredProducts = filtered,
             searchQuery = query,
+            selectedType = type,
+            availableTypes = availableTypes,
             isLoading = false
         )
     }
@@ -125,6 +129,11 @@ class MarketViewModel: ViewModel() {
      */
     fun clearSearch() {
         _searchQuery.value = ""
+    }
+
+    /** Chọn loại sản phẩm để filter, "" để bỏ filter. */
+    fun selectType(type: String) {
+        _selectedType.value = if (_selectedType.value == type) "" else type
     }
 
     // === CÁC HÀM TÁC VỤ (gọi từ UI) ===
@@ -222,9 +231,27 @@ class MarketViewModel: ViewModel() {
                         isLoading = false,
                         product = product,
                         seller = seller,
+                        relatedProducts = emptyList(),
                         error = null
                     )
                 }
+
+                // Load related products (cùng type, khác id, cùng người bán ưu tiên)
+                try {
+                    val allProducts = repository.getProductsStream().firstOrNull().orEmpty()
+                    val related = allProducts
+                        .filter { it.id != product.id }
+                        .filter {
+                            (product.type.isNotBlank() && it.type.equals(product.type, ignoreCase = true)) ||
+                                    it.userId == product.userId
+                        }
+                        .distinctBy { it.id }
+                        .take(6)
+
+                    withContext(Dispatchers.Main) {
+                        _detailState.value = _detailState.value.copy(relatedProducts = related)
+                    }
+                } catch (_: Exception) { /* bỏ qua, related products là phụ */ }
 
                 Log.d(TAG, "DetailState updated successfully")
 

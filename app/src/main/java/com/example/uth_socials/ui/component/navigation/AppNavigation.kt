@@ -5,6 +5,10 @@ import android.app.Activity
 import android.content.Intent
 import android.util.Log
 import androidx.activity.result.ActivityResultLauncher
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -38,12 +43,9 @@ import com.example.uth_socials.ui.screen.util.AdminDashboardScreen
 import com.example.uth_socials.ui.screen.chat.ChatListScreen
 import com.example.uth_socials.ui.screen.chat.ChatScreen
 import com.example.uth_socials.ui.screen.home.HomeScreen
-//import com.example.uth_socials.ui.screen.home.MarketScreen
 import com.example.uth_socials.ui.screen.home.NotificationsScreen
 import com.example.uth_socials.ui.screen.profile.ProfileScreen
-//import com.example.uth_socials.ui.screen.market.ProductDetailScreen
 import com.example.uth_socials.ui.screen.post.PostScreen
-//import com.example.uth_socials.ui.screen.search.SearchScreen
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 import com.example.uth_socials.ui.viewmodel.PostViewModel
 import com.example.uth_socials.ui.viewmodel.ProfileViewModel
@@ -52,7 +54,7 @@ import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import com.example.uth_socials.ui.component.common.BannedUserDialog
 import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.runtime.*
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.uth_socials.ui.component.logo.MarketTopbar
 import com.example.uth_socials.ui.screen.UserInfoScreen
 import com.example.uth_socials.ui.screen.home.MarketScreen
@@ -72,7 +74,73 @@ import com.example.uth_socials.ui.screen.util.HelloUserScreen
 import com.example.uth_socials.ui.screen.util.WelcomeScreen
 import com.example.uth_socials.ui.viewmodel.MarketViewModel
 
-//import com.example.uth_socials.ui.viewmodel.MarketViewModel
+private const val DETAIL_DURATION = 260
+private const val TAB_DURATION = 180
+private val detailEasing = FastOutSlowInEasing
+
+private val topLevelRoutes = setOf(
+    Screen.Home.route,
+    Screen.Market.route,
+    Screen.Add.route,
+    Screen.Notifications.route
+)
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.isTopLevelSwitch(): Boolean {
+    val from = initialState.destination.route
+    val to = targetState.destination.route
+    return from in topLevelRoutes && to in topLevelRoutes
+}
+
+private val tabEnter: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+    fadeIn(animationSpec = tween(TAB_DURATION))
+}
+private val tabExit: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+    fadeOut(animationSpec = tween(TAB_DURATION))
+}
+
+private val detailEnter: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+    if (isTopLevelSwitch()) {
+        fadeIn(animationSpec = tween(TAB_DURATION))
+    } else {
+        slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = tween(DETAIL_DURATION, easing = detailEasing)
+        ) + fadeIn(animationSpec = tween(DETAIL_DURATION))
+    }
+}
+
+private val detailExit: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+    if (isTopLevelSwitch()) {
+        fadeOut(animationSpec = tween(TAB_DURATION))
+    } else {
+        slideOutHorizontally(
+            targetOffsetX = { -it / 4 },
+            animationSpec = tween(DETAIL_DURATION, easing = detailEasing)
+        ) + fadeOut(animationSpec = tween(DETAIL_DURATION))
+    }
+}
+
+private val detailPopEnter: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition = {
+    if (isTopLevelSwitch()) {
+        fadeIn(animationSpec = tween(TAB_DURATION))
+    } else {
+        slideInHorizontally(
+            initialOffsetX = { -it / 4 },
+            animationSpec = tween(DETAIL_DURATION, easing = detailEasing)
+        ) + fadeIn(animationSpec = tween(DETAIL_DURATION))
+    }
+}
+
+private val detailPopExit: AnimatedContentTransitionScope<NavBackStackEntry>.() -> ExitTransition = {
+    if (isTopLevelSwitch()) {
+        fadeOut(animationSpec = tween(TAB_DURATION))
+    } else {
+        slideOutHorizontally(
+            targetOffsetX = { it },
+            animationSpec = tween(DETAIL_DURATION, easing = detailEasing)
+        ) + fadeOut(animationSpec = tween(DETAIL_DURATION))
+    }
+}
 
 @Composable
 fun AppNavGraph(
@@ -81,21 +149,18 @@ fun AppNavGraph(
 ) {
     val navController = rememberNavController()
 
-    // Dựa vào trạng thái đăng nhập để chọn đồ thị bắt đầu
     val startDestination = if (viewModel.isUserLoggedIn()) Graph.MAIN else Graph.AUTH
 
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        // Đồ thị cho luồng xác thực (Login, Register, ...)
         authNavGraph(
             navController = navController,
             viewModel = viewModel,
             launcher = launcher
         )
 
-        // Đồ thị cho luồng chính của ứng dụng (Home, Profile, ...)
         mainNavGraph(navController = navController, authViewModel = viewModel)
     }
 }
@@ -137,7 +202,6 @@ fun NavGraphBuilder.authNavGraph(
                 },
                 onRegisterClick = { navController.navigate(Screen.AuthScreen.Register.route) },
                 onLoginSuccess = {
-                    // Chuyển sang đồ thị chính và xóa đồ thị auth khỏi back stack
                     navController.navigate(Graph.MAIN) {
                         popUpTo(Graph.AUTH) { inclusive = true }
                     }
@@ -175,7 +239,6 @@ fun NavGraphBuilder.authNavGraph(
     }
 }
 
-// Điều hướng chính, tất cả đều hướng chỉ nên thay đổi và cập nhật trong MainScreen
 fun NavGraphBuilder.mainNavGraph(navController: NavHostController, authViewModel: AuthViewModel) {
     navigation(
         startDestination = Screen.Home.route,
@@ -186,7 +249,7 @@ fun NavGraphBuilder.mainNavGraph(navController: NavHostController, authViewModel
             MainScreen(
                 rootNavController = navController,
                 authViewModel = authViewModel
-            ) // <-- THAY ĐỔI Ở ĐÂY
+            )
 
         }
     }
@@ -214,7 +277,6 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
         Screen.Market.route,
         Screen.Add.route,
         Screen.Notifications.route -> true
-        // Profile: chỉ hiện bottom bar khi xem profile của chính mình
         else -> {
             if (currentRoute?.startsWith("profile/") == true) {
                 val profileUserId = navBackStackEntry?.arguments?.getString("userId")
@@ -229,41 +291,6 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
     val shouldShowBottomBar = showBottomBar
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-//        topBar = {
-//            // Nếu đang ở Market -> không vẽ topBar
-//            if (currentRoute != Screen.Market.route) {
-//                when (currentRoute) {
-//                    Screen.Home.route -> HomeTopAppBar(
-//                        onSearchClick = { query ->
-//                            navController.navigate("search_results/$query")
-//                        },
-//                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-//                        onAdminClick = {
-//                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-//                                launchSingleTop = true
-//                            }
-//                        },
-//                        scrollBehavior = scrollBehavior
-//                    )
-//                    Screen.Add.route -> LogoTopAppBar()
-//                    Screen.Notifications.route -> LogoTopAppBar()
-//                    Screen.SearchResult.route -> HomeTopAppBar(
-//                        onSearchClick = { query ->
-//                            navController.navigate("search_results/$query")
-//                        },
-//                        onMessagesClick = { navController.navigate(Screen.ChatList.route) },
-//                        onAdminClick = {
-//                            navController.navigate(Screen.AdminDashboard.createRoute("reports")) {
-//                                launchSingleTop = true
-//                            }
-//                        },
-//                        scrollBehavior = scrollBehavior
-//                    )
-//                    else -> { /* no app bar */ } // mấy trang không được định nghĩa thì không có logo UTH
-//                }
-//                // else: nothing -> Market không có topBar
-//            }
-//        },
         topBar = {
             when (currentRoute) {
                 Screen.Home.route -> HomeTopAppBar(
@@ -279,8 +306,7 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     onLogoClick = { navController.navigate(Screen.Home.route) },
                     scrollBehavior = scrollBehavior
                 )
-                Screen.Market.route -> MarketTopbar()
-                Screen.Add.route -> LogoTopAppBar(onLogoClick = {navController.navigate(Screen.Home.route)})
+                Screen.Market.route -> { }
                 Screen.Notifications.route -> LogoTopAppBar(onLogoClick = {navController.navigate(Screen.Home.route)})
                 Screen.SearchResult.route -> HomeTopAppBar(
                     onSearchClick = { query ->
@@ -295,7 +321,7 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     onLogoClick = { navController.navigate(Screen.Home.route) },
                     scrollBehavior = scrollBehavior
                 )
-                else -> { /* no app bar */ }
+                else -> { }
             }
         },
         bottomBar = {
@@ -303,7 +329,7 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
 
                 var showBanDialog by remember { mutableStateOf(false) }
                 val banStatusViewModel: BanStatusViewModel = viewModel()
-                val banStatus by banStatusViewModel.banStatus.collectAsState()
+                val banStatus by banStatusViewModel.banStatus.collectAsStateWithLifecycle()
 
                 LaunchedEffect(banStatus.isBanned) {
                     if (banStatus.isBanned && currentRoute != Screen.Home.route) {
@@ -332,25 +358,19 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = detailEnter,
+            exitTransition = detailExit,
+            popEnterTransition = detailPopEnter,
+            popExitTransition = detailPopExit
         ) {
 
-            //Hướng dẫn sử dụng nha tạo route, rồi
-            //Home nav này chuyển đến trang profile của người dùng khi nhấn vào tên
             composable(
                 Screen.Home.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { -it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { -it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
+                enterTransition = tabEnter,
+                exitTransition = tabExit,
+                popEnterTransition = tabEnter,
+                popExitTransition = tabExit
             ) {
                 HomeScreen(
                     onNavigateToProfile = { userId ->
@@ -365,18 +385,10 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
             }
             composable(
                 Screen.Market.route,
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { -it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                },
-                popEnterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { -it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                }
+                enterTransition = tabEnter,
+                exitTransition = tabExit,
+                popEnterTransition = tabEnter,
+                popExitTransition = tabExit
             ) {
                 MarketScreen(
                     navController = navController,
@@ -386,62 +398,52 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                 )
             }
 
-            // ===== THÊM ProductDetailScreen =====
+            composable(
+                Screen.Add.route,
+                enterTransition = tabEnter,
+                exitTransition = tabExit,
+                popEnterTransition = tabEnter,
+                popExitTransition = tabExit
+            ) {
+                val postViewModel: PostViewModel = viewModel()
+                PostScreen(postViewModel, navController = navController)
+            }
+
+            composable(
+                Screen.Notifications.route,
+                enterTransition = tabEnter,
+                exitTransition = tabExit,
+                popEnterTransition = tabEnter,
+                popExitTransition = tabExit
+            ) {
+                val notificationViewModel: NotificationViewModel = viewModel()
+                NotificationsScreen(notificationViewModel, navController)
+            }
+
             composable(
                 route = Screen.ProductDetail.route,
                 arguments = listOf(
                     navArgument("productId") { type = NavType.StringType }
-                ),
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
+                )
             ) { backStackEntry ->
                 val productId = backStackEntry.arguments?.getString("productId")
                 val marketViewModel: MarketViewModel = viewModel()
                 ProductDetailScreen(
                     productId = productId,
                     onBack = { navController.popBackStack() },
-                    onShare = { /* TODO: Implement share functionality */ },
+                    onShare = { },
                     onCall = { },
                     onMessage = { sellerId ->
                         marketViewModel.openChatWithSeller(sellerId) { chatId ->
                             navController.navigate(Screen.ChatDetail.createRoute(chatId))
                         }
+                    },
+                    onProductClick = { pid ->
+                        navController.navigate(Screen.ProductDetail.createRoute(pid))
                     }
                 )
             }
 
-            composable(
-                Screen.Add.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
-            ) {
-                val postViewModel: PostViewModel = viewModel()
-                PostScreen(postViewModel, navController = navController)
-            }
-            composable(Screen.Notifications.route) {
-                val notificationViewModel: NotificationViewModel = viewModel()
-                NotificationsScreen(notificationViewModel, navController)
-            }
             composable(
                 route = Screen.AdminDashboard.route,
                 arguments = listOf(navArgument("tab") {
@@ -459,42 +461,9 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                 )
             }
 
-            //Notifications                 - Trang test
-            composable(
-                Screen.Notifications.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
-            ) {
-                val notificationViewModel: NotificationViewModel = viewModel()
-                NotificationsScreen(notificationViewModel, navController)
-            }
-
-            //Profile
             composable(
                 route = Screen.Profile.route,
-                arguments = listOf(navArgument("userId") { type = NavType.StringType }),
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId")
                 if (userId != null) {
@@ -526,21 +495,7 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                 }
             }
 
-            composable(
-                Screen.SearchResult.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
-            ) { backStackEntry ->
+            composable(Screen.SearchResult.route) { backStackEntry ->
                 val query = backStackEntry.arguments?.getString("query") ?: ""
                 val searchViewModel: SearchViewModel = viewModel()
                 searchViewModel.searchPosts(query)
@@ -548,50 +503,7 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                 SearchResultScreen(searchViewModel, navController)
             }
 
-            composable(
-                route = Screen.AdminDashboard.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                },
-                arguments = listOf(navArgument("tab") {
-                    type = NavType.StringType; defaultValue = "reports"
-                })
-
-            ) { backStackEntry ->
-                AdminDashboardScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToUser = { userId ->
-                        navController.navigate(Screen.Profile.createRoute(userId)) {
-                            launchSingleTop = true
-                        }
-                    },
-                    backStackEntry = backStackEntry
-                )
-            }
-            composable(
-                Screen.ChatList.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }) {
-
+            composable(Screen.ChatList.route) {
                 ChatListScreen(
                     onChatSelected = { chatId ->
                         navController.navigate(Screen.ChatDetail.createRoute(chatId))
@@ -599,39 +511,11 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(
-                Screen.ChatDetail.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
-            ) { backStackEntry ->
+            composable(Screen.ChatDetail.route) { backStackEntry ->
                 val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
                 ChatScreen(chatId = chatId, onBack = { navController.popBackStack() })
             }
-            composable(
-                Screen.Setting.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
-            ) {
+            composable(Screen.Setting.route) {
                 val currentUserId = remember {
                     FirebaseAuth.getInstance().currentUser?.uid ?: ""
                 }
@@ -657,13 +541,11 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     onNavigateToSavedPosts = {
                         navController.navigate(Screen.SavedPosts.route)
                     },
-                    //Navigation đến Followers
                     onNavigateToFollowers = {
                         navController.navigate(Screen.FollowersList.createRoute(currentUserId)) {
                             launchSingleTop = true
                         }
                     },
-                    //Navigation đến Following
                     onNavigateToFollowing = {
                         navController.navigate(Screen.FollowingList.createRoute(currentUserId)) {
                             launchSingleTop = true
@@ -672,43 +554,13 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     onLogout = onLogout
                 )
             }
-            composable(
-                Screen.UserInfoScreen.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
-            ) {
+            composable(Screen.UserInfoScreen.route) {
                 UserInfoScreen(
-
                     onSaveSuccess = { navController.popBackStack() },
                     onBackClicked = { navController.popBackStack() }
-
                 )
             }
-            composable(
-                Screen.BlockedUsers.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
-            ) {
+            composable(Screen.BlockedUsers.route) {
                 val homeViewModel: HomeViewModel = viewModel()
                 BlockedUsersScreen(
                     onBackClicked = { navController.popBackStack() },
@@ -717,21 +569,8 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     }
                 )
             }
-            // Màn hình Followers List
             composable(
                 route = Screen.FollowersList.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                },
                 arguments = listOf(
                     navArgument("userId") { type = NavType.StringType }
                 )
@@ -754,21 +593,8 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                 )
             }
 
-            // Màn hình Following List
             composable(
                 route = Screen.FollowingList.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                },
                 arguments = listOf(
                     navArgument("userId") { type = NavType.StringType }
                 )
@@ -790,25 +616,10 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
                     }
                 )
             }
-            composable(
-                Screen.SavedPosts.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                }
-            ) {
+            composable(Screen.SavedPosts.route) {
                 SavedPostsScreen(
                     onBackClicked = { navController.popBackStack() },
                     onPostClick = { postId ->
-                        //Navigate to post detail
                         navController.navigate(Screen.PostDetail.createRoute(postId))
                     },
                     onUserClick = { userId ->
@@ -820,18 +631,6 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
             }
             composable(
                 route = Screen.PostDetail.route,
-                enterTransition = {
-                    slideInHorizontally(
-                        initialOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
-                },
-                exitTransition = {
-                    slideOutHorizontally(
-                        targetOffsetX = { it },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 300))
-                },
                 arguments = listOf(
                     navArgument("postId") { type = NavType.StringType }
                 )
@@ -851,4 +650,3 @@ fun MainScreen(rootNavController: NavHostController, authViewModel: AuthViewMode
         }
     }
 }
-

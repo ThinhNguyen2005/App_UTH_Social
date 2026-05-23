@@ -1,18 +1,18 @@
 package com.example.uth_socials.ui.component.navigation
 
-import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material.icons.rounded.AccountCircle
-import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -30,7 +30,7 @@ import com.example.uth_socials.ui.viewmodel.NotificationViewModel
 import com.example.uth_socials.ui.theme.UthTeal
 import com.example.uth_socials.ui.viewmodel.BanStatusViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.shadow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,36 +49,36 @@ fun HomeBottomNavigation(
         val badgeCount: Int
     )
 
-    val isNotReadNotifications by notificationViewModel.isNotReadNotifications.collectAsState()
+    val isNotReadNotifications by notificationViewModel.isNotReadNotifications.collectAsStateWithLifecycle()
 
     val items = listOf(
-        NavItem(Screen.Home.route, "Home", Icons.Rounded.Home, Icons.Outlined.Home, 0),
+        NavItem(Screen.Home.route, "Trang chủ", Icons.Filled.Home, Icons.Outlined.Home, 0),
         NavItem(
             Screen.Market.route,
-            "Market",
-            Icons.Filled.ShoppingCart,
-            Icons.Outlined.ShoppingCart,
+            "Chợ UTH",
+            Icons.Filled.Storefront,
+            Icons.Outlined.Storefront,
             0
         ),
-        NavItem(Screen.Add.route, "Add", Icons.Filled.AddCircle, Icons.Outlined.AddCircle, 0),
+        NavItem(Screen.Add.route, "Đăng bài", Icons.Filled.AddCircle, Icons.Outlined.AddCircle, 0),
         NavItem(
             Screen.Notifications.route,
-            "Alerts",
+            "Thông báo",
             Icons.Filled.Notifications,
-            Icons.Outlined.Notifications,
+            Icons.Outlined.NotificationsNone,
             isNotReadNotifications.size
         ),
         NavItem(
             Screen.Profile.route,
-            "Profile",
-            Icons.Rounded.AccountCircle,
-            Icons.Outlined.AccountCircle,
+            "Cá nhân",
+            Icons.Filled.Person,
+            Icons.Outlined.Person,
             0
         )
     )
     val currentUserIdState = remember { mutableStateOf<String?>(null) }
     val banStatusViewModel: BanStatusViewModel = viewModel()
-    val banStatus by banStatusViewModel.banStatus.collectAsState()
+    val banStatus by banStatusViewModel.banStatus.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         val userRepo = UserRepository()

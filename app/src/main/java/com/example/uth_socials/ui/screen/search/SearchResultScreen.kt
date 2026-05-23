@@ -49,7 +49,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -94,15 +94,15 @@ fun SearchResultScreen(
 //    blockedUsersViewModel: BlockedUsersViewModel,
     navController: NavController
 ) {
-    val resultsPost by searchViewModel.searchPostResults.collectAsState()
-    val resultsUser by searchViewModel.searchUserResults.collectAsState()
+    val resultsPost by searchViewModel.searchPostResults.collectAsStateWithLifecycle()
+    val resultsUser by searchViewModel.searchUserResults.collectAsStateWithLifecycle()
     var visibleUsers by remember { mutableStateOf<List<User>>(emptyList()) }
 
-    val isLoading by searchViewModel.isLoading.collectAsState()
+    val isLoading by searchViewModel.isLoading.collectAsStateWithLifecycle()
 
     val homeViewModel: HomeViewModel = viewModel()
 
-    val uiState by searchViewModel.uiState.collectAsState()
+    val uiState by searchViewModel.uiState.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
 
@@ -253,7 +253,7 @@ fun SearchResultScreen(
                         .heightIn(max = 800.dp), // Giới hạn chiều cao để scroll
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    items(resultsPost) { post ->
+                    items(resultsPost, key = { it.id }) { post ->
                         val isPostOwnerAdmin by remember(post.userId) {
                             mutableStateOf(adminStatusCache[post.userId] ?: false)
                         }

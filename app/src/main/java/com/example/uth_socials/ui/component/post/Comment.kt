@@ -56,7 +56,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.room.util.TableInfo
 import coil.compose.AsyncImage
 import com.example.uth_socials.data.post.Comment
 import com.example.uth_socials.ui.component.common.SectionTitleButton

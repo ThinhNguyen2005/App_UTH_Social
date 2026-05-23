@@ -1,310 +1,300 @@
 package com.example.uth_socials.ui.screen.home
 
-import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.uth_socials.R
+import com.example.uth_socials.ui.screen.market.CategoryChips
 import com.example.uth_socials.ui.screen.market.ProductItem
 import com.example.uth_socials.ui.screen.market.SearchBar
 import com.example.uth_socials.ui.viewmodel.MarketViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun MarketScreen(
     navController: NavHostController,
     viewModel: MarketViewModel = viewModel(),
-    onProductClick: (String) -> Unit, //Điều hướng đến trang chi tiết.
+    onProductClick: (String) -> Unit,
 ) {
-    // 1. Lấy state từ ViewModel - BAO GỒM cả danh sách đã filter
-    val listUiState by viewModel.listUiState.collectAsState()
+    val listUiState by viewModel.listUiState.collectAsStateWithLifecycle()
+    val gridState = rememberLazyGridState()
+    val showTitle by rememberCollapsingHeader(gridState)
 
-    Column(
-        Modifier
-            .fillMaxSize()
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        //Header with gradient background
-//        Box(
-//            Modifier
-//                .height(239.dp)
-//                .fillMaxWidth()
-//                .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-//                .background(
-//                    brush = Brush.verticalGradient(
-//                        colors = listOf(
-//                            Color(0xFFB6FDFF),
-//                            Color(0xFF00F8FF)
-//                        )
-//                    )
-//                )
-//        ) {
-//            //Logo
-//            Image(
-//                painter = painterResource(R.drawable.lg_uth),
-//                contentDescription = null,
-//                modifier = Modifier
-//                    .size(width = 160.dp, height = 38.dp)
-//                    .offset(x = 17.dp, y = 40.dp)
-//            )
-//
-//            // Title + Subtitle
-//            Column(
-//                horizontalAlignment = Alignment.CenterHorizontally,
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(top = 106.dp)
-//            ) {
-//                Text(
-//                    text = "Trang bán hàng",
-//                    fontSize = 24.sp,
-//                    fontWeight = FontWeight.Bold,
-//                    color = Color.Black
-//                )
-//                Text(
-//                    text = "Mua thì hời, bán thì lời",
-//                    fontSize = 20.sp,
-//                    fontWeight = FontWeight.W400,
-//                    color = Color.DarkGray.copy(alpha = 0.6f)
-//                )
-//            }
-//        }
+        Column(modifier = Modifier.fillMaxSize()) {
+            AnimatedVisibility(
+                visible = showTitle,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                MarketTitleHeader()
+            }
 
-        // 2. Search Bar - KẾT NỐI VỚI VIEWMODEL
-//        Box(
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .offset(y = (-24).dp)
-//        ) {
-//            SearchBar(
-//                modifier = Modifier.align(Alignment.TopCenter),
-//                query = listUiState.searchQuery, // Lấy query từ state
-//                hint = "Tìm sản phẩm...",
-//                onQueryChange = { query ->
-//                    // Cập nhật query trong ViewModel (real-time search)
-//                    viewModel.updateSearchQuery(query)
-//                },
-//                onSearch = { query ->
-//                    // Optional: có thể thêm analytics hoặc log
-//                    // Search đã được thực hiện real-time ở onQueryChange
-//                },
-//                onClear = {
-//                    // Xóa search query
-//                    viewModel.clearSearch()
-//                }
-//            )
-//        }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                SearchBar(
+                    query = listUiState.searchQuery,
+                    hint = "Tìm sách, đồ điện tử…",
+                    onQueryChange = viewModel::updateSearchQuery,
+                    onClear = viewModel::clearSearch
+                )
+            }
 
-        // Search Bar
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            SearchBar(
-                modifier = Modifier.align(Alignment.Center),
+            CategoryChips(
+                types = listUiState.availableTypes,
+                selected = listUiState.selectedType,
+                onSelect = viewModel::selectType,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+
+            ResultInfoRow(
+                totalCount = listUiState.products.size,
+                showFilter = listUiState.searchQuery.isNotEmpty() || listUiState.selectedType.isNotEmpty(),
+                resultCount = listUiState.filteredProducts.size,
                 query = listUiState.searchQuery,
-                hint = "Tìm sản phẩm...",
-                onQueryChange = { query ->
-                    viewModel.updateSearchQuery(query)
-                },
-                onSearch = { query ->
-                },
-                onClear = {
-                    viewModel.clearSearch()
+                type = listUiState.selectedType
+            )
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                when {
+                    listUiState.isLoading -> LoadingState()
+                    listUiState.error != null -> ErrorState(message = listUiState.error!!)
+                    listUiState.filteredProducts.isEmpty() -> EmptyState(
+                        hasQuery = listUiState.searchQuery.isNotEmpty() ||
+                                listUiState.selectedType.isNotEmpty()
+                    )
+                    else -> ProductGrid(
+                        state = gridState,
+                        products = listUiState.filteredProducts,
+                        onProductClick = onProductClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MarketTitleHeader() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 10.dp)
+    ) {
+        Text(
+            text = "Chợ UTH",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = "Mua thì hời, bán thì lời",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun rememberCollapsingHeader(gridState: LazyGridState) = produceState(
+    initialValue = true,
+    key1 = gridState
+) {
+    var prevIndex = 0
+    var prevOffset = 0
+    kotlinx.coroutines.flow.combine(
+        kotlinx.coroutines.flow.flowOf(Unit),
+        androidx.compose.runtime.snapshotFlow {
+            gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset
+        }.distinctUntilChanged()
+    ) { _, pair -> pair }
+        .collect { (idx, off) ->
+            value = when {
+                idx == 0 && off < 80 -> true
+                idx < prevIndex -> true
+                idx == prevIndex && off < prevOffset - 8 -> true
+                idx > prevIndex -> false
+                idx == prevIndex && off > prevOffset + 8 -> false
+                else -> value
+            }
+            prevIndex = idx
+            prevOffset = off
+        }
+}
+
+@Composable
+private fun ResultInfoRow(
+    totalCount: Int,
+    showFilter: Boolean,
+    resultCount: Int,
+    query: String,
+    type: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = if (showFilter) "Tìm thấy $resultCount sản phẩm"
+            else "$totalCount sản phẩm",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (showFilter) {
+            val tag = when {
+                type.isNotBlank() && query.isNotBlank() -> "$type · \"$query\""
+                type.isNotBlank() -> type
+                query.toDoubleOrNull() != null -> "Theo giá"
+                else -> "Theo tên"
+            }
+            Text(
+                text = tag,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProductGrid(
+    state: LazyGridState,
+    products: List<com.example.uth_socials.data.market.Product>,
+    onProductClick: (String) -> Unit
+) {
+    LazyVerticalGrid(
+        state = state,
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(
+            items = products,
+            key = { it.id.ifBlank { it.hashCode().toString() } }
+        ) { product ->
+            ProductItem(
+                product = product,
+                onClick = {
+                    val id = product.id
+                    if (id.isNotBlank()) onProductClick(id)
                 }
             )
         }
-        // 3. Hiển thị thông tin search
-        if (listUiState.searchQuery.isNotEmpty()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-//                    .offset(y = (-25).dp)
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Tìm thấy ${listUiState.filteredProducts.size} sản phẩm",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.DarkGray
-                )
+        item { Spacer(modifier = Modifier.height(80.dp)) }
+        item { Spacer(modifier = Modifier.height(80.dp)) }
+    }
+}
 
-                // Hiển thị loại search
-                Text(
-                    text = if (listUiState.searchQuery.toDoubleOrNull() != null) {
-                        "📊 Tìm theo giá"
-                    } else {
-                        "🔤 Tìm theo tên"
-                    },
-                    fontSize = 12.sp,
-                    color = Color(0xFF00A8B0),
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+@Composable
+private fun LoadingState() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.primary,
+            strokeWidth = 3.dp
+        )
+    }
+}
 
-        // 4. Products Grid - SỬ DỤNG filteredProducts thay vì products
+@Composable
+private fun ErrorState(message: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Không tải được dữ liệu",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun EmptyState(hasQuery: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .size(80.dp)
+                .clip(RoundedCornerShape(40.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
         ) {
-            // Loading state
-            if (listUiState.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFFE5FEFF),
-                                    Color(0xFF2CC3C9)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Color.White)
-                }
-            }
-            // Error state
-            else if (listUiState.error != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFFE5FEFF),
-                                    Color(0xFF2CC3C9)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Lỗi: ${listUiState.error}",
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-            // Empty state
-            else if (listUiState.filteredProducts.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xFFE5FEFF),
-                                    Color(0xFF2CC3C9)
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = if (listUiState.searchQuery.isEmpty()) {
-                                "Chưa có sản phẩm nào"
-                            } else {
-                                "Không tìm thấy sản phẩm"
-                            },
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        if (listUiState.searchQuery.isNotEmpty()) {
-                            Text(
-                                text = "Không tìm thấy \"${listUiState.searchQuery}\"",
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "Thử tìm kiếm khác hoặc xóa bộ lọc",
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-            }
-            // Product list
-            else {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0xFFE5FEFF),
-                                        Color(0xFF2CC3C9)
-                                    )
-                                )
-                            )
-                            .padding(horizontal = 16.dp)
-                            .padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
-                        items(listUiState.filteredProducts.size) { index ->
-                            val product = listUiState.filteredProducts[index]
-                            val id = product.id
-                            if (id != null) {
-                                ProductItem(
-                                    product = product,
-                                    onClick = { onProductClick(id) }
-                                )
-                            } else {
-                                ProductItem(product = product, onClick = { /* disabled */ })
-                            }
-                        }
-                    }
-                }
-            }
+            Icon(
+                imageVector = if (hasQuery) Icons.Outlined.SearchOff else Icons.Outlined.Storefront,
+                contentDescription = null,
+                modifier = Modifier.size(36.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = if (hasQuery) "Không tìm thấy sản phẩm" else "Chưa có sản phẩm nào",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = if (hasQuery) "Thử từ khoá khác hoặc bỏ bộ lọc"
+            else "Hãy là người đầu tiên đăng bán nhé!",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

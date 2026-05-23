@@ -26,6 +26,7 @@ import com.example.uth_socials.ui.component.navigation.Screen
 import com.example.uth_socials.ui.viewmodel.AuthState
 import com.example.uth_socials.ui.viewmodel.AuthViewModel
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
@@ -35,7 +36,7 @@ fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
 ) {
     val context = LocalContext.current
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }

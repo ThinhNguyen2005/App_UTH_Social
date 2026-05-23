@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* Theme variables for Admin & Client modes */
+.admin-theme {
+  --bg-page: #070b13;
+  --bg-card: #0d1321;
+  --bg-inset: #090d16;
+  --border-primary: #0f172a;
+  --border-secondary: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
+}
+
+.client-theme {
+  --bg-page: #fafafa;
+  --bg-card: #ffffff;
+  --bg-inset: #f8fafc;
+  --border-primary: #e2e8f0;
+  --border-secondary: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+}
+
+@theme {
+  --font-display: "Calistoga", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-accent: #0052FF;
+  --color-accent-secondary: #4D7CFF;
+  --color-canvas: #FAFAFA;
+  --color-slate-850: #101726;
+  
+  --animate-spin-slow: spin 60s linear infinite;
+  --animate-float: float 4s ease-in-out infinite;
+  --animate-float-delayed: float 5s ease-in-out infinite 1s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+/* Custom scrollbars and styling for premium look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Utilities for modern design aesthetics */
+.gradient-text {
+  background: linear-gradient(to right, #0052FF, #4D7CFF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.dot-pattern {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}

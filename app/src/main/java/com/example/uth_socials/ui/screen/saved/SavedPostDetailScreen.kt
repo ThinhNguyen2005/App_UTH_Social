@@ -19,6 +19,7 @@ import com.example.uth_socials.ui.viewmodel.PostDetailViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 /**
  * Màn hình chi tiết bài viết
  *
@@ -53,9 +54,9 @@ fun SavedPostDetail(
         factory = PostDetailViewModelFactory(postId)
     )
 ) {
-    val post by viewModel.post.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
+    val post by viewModel.post.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     // Get current user
     val currentUser = FirebaseAuth.getInstance().currentUser

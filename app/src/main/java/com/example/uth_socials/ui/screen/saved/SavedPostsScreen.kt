@@ -9,7 +9,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +30,7 @@ import com.example.uth_socials.data.post.Post
 import com.example.uth_socials.ui.component.common.formatTimeAgo
 import com.example.uth_socials.ui.viewmodel.SavedPostsViewModel
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 /**
  * Màn hình hiển thị danh sách bài viết đã lưu
  *
@@ -44,9 +50,9 @@ fun SavedPostsScreen(
     onCommentClicked: (String) -> Unit = {},
     viewModel: SavedPostsViewModel = viewModel()
 ) {
-    val savedPosts by viewModel.savedPosts.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
+    val savedPosts by viewModel.savedPosts.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     // Show error snackbar
     val snackbarHostState = remember { SnackbarHostState() }
@@ -125,7 +131,7 @@ fun SavedPostsScreen(
                             modifier = Modifier.padding(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.BookmarkBorder,
+                                imageVector = Icons.Outlined.BookmarkBorder,
                                 contentDescription = null,
                                 modifier = Modifier.size(80.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
@@ -280,7 +286,7 @@ private fun SavedPostItem(
             ) {
                 IconButton(onClick = onLikeClick) {
                     Icon(
-                        imageVector = if (post.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        imageVector = if (post.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = if (post.isLiked) "Unlike" else "Like",
                         tint = if (post.isLiked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -297,7 +303,7 @@ private fun SavedPostItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.ChatBubbleOutline,
+                    imageVector = Icons.Outlined.ChatBubbleOutline,
                     contentDescription = "Comments",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
@@ -313,7 +319,7 @@ private fun SavedPostItem(
             //Save button (always filled since these are saved posts)
             IconButton(onClick = onSaveClick) {
                 Icon(
-                    imageVector = Icons.Default.Bookmark,
+                    imageVector = Icons.Filled.Bookmark,
                     contentDescription = "Unsave",
                     tint = MaterialTheme.colorScheme.primary
                 )
@@ -354,7 +360,7 @@ private fun SavedPostGridItem(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Article,
+                        imageVector = Icons.Outlined.Article,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(32.dp)

@@ -3,6 +3,7 @@ package com.example.uth_socials.ui.screen.util
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -17,9 +18,9 @@ fun RequestNotificationPermission() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            println("Quyền thông báo được cấp")
+            Log.d("Notif", "Quyền thông báo được cấp")
         } else {
-            println("Người dùng từ chối quyền thông báo")
+            Log.w("Notif", "Người dùng từ chối quyền thông báo")
         }
     }
 

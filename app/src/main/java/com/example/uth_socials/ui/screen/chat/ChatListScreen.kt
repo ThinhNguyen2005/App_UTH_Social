@@ -8,8 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +26,7 @@ import com.example.uth_socials.ui.viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 data class ChatSummary(
     val id: String = "",
     val userId: String = "",
@@ -44,8 +44,8 @@ fun ChatListScreen(
     onBack: () -> Unit
 ) {
     val viewModel: ChatViewModel = viewModel()
-    val chats by viewModel.chats.collectAsState()
-    val isLoading by viewModel.isListLoading.collectAsState()
+    val chats by viewModel.chats.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isListLoading.collectAsStateWithLifecycle()
 
 
 
@@ -80,7 +80,7 @@ fun ChatListScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
                         Icon(
-                            imageVector = Icons.Default.ChatBubbleOutline,
+                            imageVector = Icons.Outlined.ChatBubbleOutline,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(70.dp)
@@ -99,7 +99,7 @@ fun ChatListScreen(
 
             else -> {
                 LazyColumn(contentPadding = padding) {
-                    items(chats) { chat ->
+                    items(chats, key = { it.id }) { chat ->
                         ListItem(
                             leadingContent = {
                                 AsyncImage(
